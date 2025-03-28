@@ -288,14 +288,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 Security measures should be implemented for sensitive data from input sources.`;
               }
             } else if (type === 'video') {
-              // Enhanced fallback for video files with more specific requirements
-              content = `Analysis of video file: ${req.file!.originalname}.
-              The system must support video content analysis with frame-by-frame processing capabilities.
-              The system should automatically extract and tag objects and people in video content with high accuracy.
-              The application shall provide an interactive timeline interface for navigating through video content.
-              Implementation of video compression and format conversion is required to optimize storage.
-              Security measures must be implemented for access control and content protection of sensitive videos.
-              The system should support metadata extraction including resolution, codec, and duration information.`;
+              // Enhanced fallback for video files with workflow-focused requirements
+              content = `Analysis of workflow video: ${req.file!.originalname}.
+              The system must implement the complete user authentication workflow from the source system, including multi-factor authentication, password reset, and account recovery options.
+              The system should replicate the order processing workflow with all approval steps, exception handling, and integration with inventory management systems.
+              The application shall migrate the customer onboarding workflow, preserving all validation rules, KYC processes, and automated document verification processes.
+              Implementation of the financial transaction workflow is required with all security controls, audit logging, and reconciliation processes maintained.
+              The data migration workflow must include comprehensive mapping between source and target systems, data transformation rules, and validation checkpoints.
+              The system should support notification workflows including email, SMS, and in-app alerts based on specific triggers and user preferences.`;
             } else if (type === 'audio') {
               // Placeholder for audio
               content = `Transcription from audio file: ${req.file!.originalname}.
@@ -336,15 +336,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               priority: 'medium'
             }));
             
-            // If no requirements found, create some general ones based on file type
+            // If no requirements found, create fallback requirements based on file type
             if (requirements.length === 0) {
-              requirements = [
-                { text: `The system must properly process ${type} files like ${req.file!.originalname}`, category: 'functional', priority: 'high' },
-                { text: `Users should be able to view detailed information about requirements extracted from ${type} files`, category: 'functional', priority: 'medium' },
-                { text: `The application shall provide filtering and sorting options for requirements`, category: 'functional', priority: 'medium' },
-                { text: `Implementation of version control is required for tracking requirement changes`, category: 'non-functional', priority: 'low' },
-                { text: `Security measures must be in place to protect sensitive data in uploaded files`, category: 'security', priority: 'high' }
-              ];
+              if (type === 'video') {
+                // Create workflow-specific fallback requirements for video files
+                requirements = [
+                  { text: `The system must migrate the user management workflow from the source system, including all roles, permissions, and authentication processes shown in ${req.file!.originalname}`, category: 'functional', priority: 'high' },
+                  { text: `The system shall replicate the data processing workflow with all validation rules, transformation logic, and error handling as demonstrated in the source system`, category: 'functional', priority: 'high' },
+                  { text: `The notification workflow must be implemented with identical triggers, delivery channels, and personalization options as the source system`, category: 'functional', priority: 'medium' },
+                  { text: `The reporting workflow shall be migrated with all existing templates, scheduling capabilities, and export formats maintained from the source system`, category: 'functional', priority: 'medium' },
+                  { text: `The system must implement the complete security and audit workflow to maintain compliance with all regulatory requirements shown in the video`, category: 'security', priority: 'high' }
+                ];
+              } else {
+                // Default fallback requirements for other file types
+                requirements = [
+                  { text: `The system must properly process ${type} files like ${req.file!.originalname}`, category: 'functional', priority: 'high' },
+                  { text: `Users should be able to view detailed information about requirements extracted from ${type} files`, category: 'functional', priority: 'medium' },
+                  { text: `The application shall provide filtering and sorting options for requirements`, category: 'functional', priority: 'medium' },
+                  { text: `Implementation of version control is required for tracking requirement changes`, category: 'non-functional', priority: 'low' },
+                  { text: `Security measures must be in place to protect sensitive data in uploaded files`, category: 'security', priority: 'high' }
+                ];
+              }
             }
           }
           

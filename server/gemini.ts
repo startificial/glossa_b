@@ -126,9 +126,9 @@ export async function processVideoFile(filePath: string, fileName: string, proje
       safetySettings,
     });
 
-    // Create a specialized prompt for video content
+    // Create a specialized prompt for video content focused on workflow identification
     const prompt = `
-      You are a video content analysis expert and requirements engineer. Your task is to generate software requirements for processing and analyzing a video file.
+      You are a business process analysis expert specializing in workflow extraction from videos. Your task is to analyze a video file that potentially contains business workflows and generate requirements for migrating these workflows to a target system.
       
       Project context: ${projectName}
       Video file details:
@@ -137,22 +137,25 @@ export async function processVideoFile(filePath: string, fileName: string, proje
       - Created: ${new Date(fileInfo.created).toLocaleString()}
       - Modified: ${new Date(fileInfo.modified).toLocaleString()}
       
-      First, analyze what this video file might contain based on its name and characteristics.
-      Then, generate 5 detailed, realistic software requirements for:
-      1. Video content processing and analysis
-      2. Feature extraction and metadata generation
-      3. User interaction with the video content
-      4. Data storage and retrieval of video content
-      5. Performance and security considerations
+      Assume the video shows one or more workflows or business processes being performed in a source system that need to be recreated in a target system. 
+      
+      Analyze the video file name and other metadata to infer what workflows might be captured, and then generate 5 requirements for implementing these workflows in the target system.
+      
+      Your requirements should:
+      1. Identify specific business workflows that would likely be shown in this type of video
+      2. Specify how these workflows should be implemented in the target system
+      3. Include details about user interactions, data flow, validation rules, and business logic
+      4. Consider integration points with other systems
+      5. Address migration-specific concerns (data mapping, transformation rules, etc.)
 
       For each requirement:
-      1. Provide a detailed requirement text (clear, specific, actionable)
+      1. Provide a detailed requirement text that describes a workflow that needs to be recreated (be specific and detailed)
       2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
       3. Assign a priority level: 'high', 'medium', or 'low'
-      4. Include a brief 1-2 sentence rationale for this requirement
+      4. Include a brief 1-2 sentence rationale explaining why this workflow is important to migrate
       
       Format your response as a JSON array with exactly 5 requirements, each with the properties 'text', 'category', 'priority', and 'rationale'.
-      Example: [{"text": "The system must analyze video frames to detect and tag objects and people with at least 90% accuracy", "category": "functional", "priority": "high", "rationale": "Object recognition enables advanced search and filtering capabilities that are essential for video content management."}, ...]
+      Example: [{"text": "The system must replicate the order fulfillment workflow from the source system, including the 5-step approval process, conditional routing based on order value, and integration with the inventory management system", "category": "functional", "priority": "high", "rationale": "The order fulfillment process is a core business function that must be maintained with identical business rules to ensure operational continuity."}, ...]
       
       Only output valid JSON with no additional text or explanations.
     `;
