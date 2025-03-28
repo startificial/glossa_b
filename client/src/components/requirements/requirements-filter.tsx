@@ -34,7 +34,10 @@ export function RequirementsFilter({ onFilterChange }: RequirementsFilterProps) 
   const handleFilterChange = (key: keyof FilterType, value: string | undefined) => {
     const newFilter = { ...filter };
     
-    if (value === '' || value === undefined) {
+    if (value === undefined || 
+        value === 'all_categories' || 
+        value === 'all_priorities' || 
+        value === 'all_sources') {
       delete newFilter[key];
     } else {
       newFilter[key] = value;
@@ -71,14 +74,14 @@ export function RequirementsFilter({ onFilterChange }: RequirementsFilterProps) 
             <div>
               <Label htmlFor="category" className="sr-only">Filter by Category</Label>
               <Select
-                value={filter.category || ""}
-                onValueChange={(value) => handleFilterChange('category', value === "" ? undefined : value)}
+                value={filter.category || "all_categories"}
+                onValueChange={(value) => handleFilterChange('category', value)}
               >
                 <SelectTrigger id="category" className="w-[150px]">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Categories</SelectItem>
+                  <SelectItem value="all_categories">All Categories</SelectItem>
                   <SelectItem value="functional">Functional</SelectItem>
                   <SelectItem value="non-functional">Non-Functional</SelectItem>
                   <SelectItem value="security">Security</SelectItem>
@@ -89,14 +92,14 @@ export function RequirementsFilter({ onFilterChange }: RequirementsFilterProps) 
             <div>
               <Label htmlFor="priority" className="sr-only">Filter by Priority</Label>
               <Select
-                value={filter.priority || ""}
-                onValueChange={(value) => handleFilterChange('priority', value === "" ? undefined : value)}
+                value={filter.priority || "all_priorities"}
+                onValueChange={(value) => handleFilterChange('priority', value)}
               >
                 <SelectTrigger id="priority" className="w-[150px]">
                   <SelectValue placeholder="All Priorities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Priorities</SelectItem>
+                  <SelectItem value="all_priorities">All Priorities</SelectItem>
                   <SelectItem value="high">High</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="low">Low</SelectItem>
@@ -106,14 +109,14 @@ export function RequirementsFilter({ onFilterChange }: RequirementsFilterProps) 
             <div>
               <Label htmlFor="source" className="sr-only">Filter by Source</Label>
               <Select
-                value={filter.source || ""}
-                onValueChange={(value) => handleFilterChange('source', value === "" ? undefined : value)}
+                value={filter.source || "all_sources"}
+                onValueChange={(value) => handleFilterChange('source', value)}
               >
                 <SelectTrigger id="source" className="w-[150px]">
                   <SelectValue placeholder="All Sources" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Sources</SelectItem>
+                  <SelectItem value="all_sources">All Sources</SelectItem>
                   <SelectItem value="Client Interview">Client Interview</SelectItem>
                   <SelectItem value="User Feedback">User Feedback</SelectItem>
                   <SelectItem value="Stakeholder Meeting">Stakeholder Meeting</SelectItem>
