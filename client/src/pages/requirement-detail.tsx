@@ -358,10 +358,10 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
         <Button 
           variant="ghost" 
           onClick={() => setLocation(`/projects/${projectId}`)}
-          className="mr-2"
+          className="mr-2 flex items-center"
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Project
+          <ArrowLeft className="h-4 w-4 mr-2 flex-shrink-0" />
+          <span>Back to Project</span>
         </Button>
         
         <h1 className="text-2xl font-bold ml-2">{requirement.codeId}</h1>
@@ -388,11 +388,10 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
               </div>
               
               {!isEditing ? (
-                <div className="flex">
+                <div className="flex items-center gap-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="mr-2"
                     onClick={() => setIsEditing(true)}
                   >
                     <Edit2 className="h-4 w-4 mr-2" />
@@ -413,7 +412,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                           Are you sure you want to delete this requirement? This action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
-                      <AlertDialogFooter>
+                      <AlertDialogFooter className="flex gap-2 justify-end">
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
                       </AlertDialogFooter>
@@ -421,11 +420,10 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   </AlertDialog>
                 </div>
               ) : (
-                <div className="flex">
+                <div className="flex items-center gap-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="mr-2"
                     onClick={() => setIsEditing(false)}
                   >
                     <X className="h-4 w-4 mr-2" />
@@ -550,11 +548,11 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                 
                 <TabsContent value="acceptance">
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-4 sticky top-0 bg-background pt-2 pb-2 z-10">
                       <h3 className="text-lg font-medium">Acceptance Criteria</h3>
                       <Dialog open={isAddingCriterion} onOpenChange={setIsAddingCriterion}>
                         <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="whitespace-nowrap">
                             <Plus className="h-4 w-4 mr-2" />
                             Add Criterion
                           </Button>
@@ -594,7 +592,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                               </Select>
                             </div>
                           </div>
-                          <DialogFooter>
+                          <DialogFooter className="flex gap-2 justify-end mt-4">
                             <Button
                               variant="outline"
                               onClick={() => setIsAddingCriterion(false)}
@@ -620,62 +618,64 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                       </Dialog>
                     </div>
                     
-                    {requirement.acceptanceCriteria && requirement.acceptanceCriteria.length > 0 ? (
-                      <Table>
-                        <TableCaption>List of criteria that must be met for this requirement to be considered complete.</TableCaption>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[50px]">#</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead className="w-[150px]">Status</TableHead>
-                            <TableHead className="w-[100px]">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {requirement.acceptanceCriteria.map((criterion: AcceptanceCriterion, index: number) => (
-                            <TableRow key={criterion.id}>
-                              <TableCell className="font-medium">{index + 1}</TableCell>
-                              <TableCell>{criterion.description}</TableCell>
-                              <TableCell>
-                                <Badge 
-                                  variant={criterion.status === 'approved' ? 'default' : 
-                                          criterion.status === 'rejected' ? 'destructive' : 'outline'}
-                                >
-                                  {criterion.status.charAt(0).toUpperCase() + criterion.status.slice(1)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Button variant="ghost" size="icon">
-                                  <Edit2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
+                    <div className="max-h-[400px] overflow-y-auto rounded-md border">
+                      {requirement.acceptanceCriteria && requirement.acceptanceCriteria.length > 0 ? (
+                        <Table>
+                          <TableCaption>List of criteria that must be met for this requirement to be considered complete.</TableCaption>
+                          <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur-sm">
+                            <TableRow>
+                              <TableHead className="w-[50px]">#</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead className="w-[150px]">Status</TableHead>
+                              <TableHead className="w-[100px] text-right">Actions</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-8 border rounded-md bg-muted/10">
-                        <p className="text-muted-foreground mb-4">No acceptance criteria defined yet</p>
-                        <Button 
-                          variant="outline" 
-                          className="gap-2"
-                          onClick={handleGenerateCriteria}
-                          disabled={isGeneratingCriteria}
-                        >
-                          {isGeneratingCriteria ? (
-                            <>
-                              <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent"></div>
-                              Generating...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="h-4 w-4" />
-                              Generate Criteria Automatically
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    )}
+                          </TableHeader>
+                          <TableBody>
+                            {requirement.acceptanceCriteria.map((criterion: AcceptanceCriterion, index: number) => (
+                              <TableRow key={criterion.id}>
+                                <TableCell className="font-medium">{index + 1}</TableCell>
+                                <TableCell>{criterion.description}</TableCell>
+                                <TableCell>
+                                  <Badge 
+                                    variant={criterion.status === 'approved' ? 'default' : 
+                                            criterion.status === 'rejected' ? 'destructive' : 'outline'}
+                                  >
+                                    {criterion.status.charAt(0).toUpperCase() + criterion.status.slice(1)}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="icon">
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-8 bg-muted/10">
+                          <p className="text-muted-foreground mb-4">No acceptance criteria defined yet</p>
+                          <Button 
+                            variant="outline" 
+                            className="gap-2"
+                            onClick={handleGenerateCriteria}
+                            disabled={isGeneratingCriteria}
+                          >
+                            {isGeneratingCriteria ? (
+                              <>
+                                <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent"></div>
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="h-4 w-4" />
+                                Generate Criteria Automatically
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </TabsContent>
                 
@@ -740,11 +740,11 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   <div className="space-y-2">
                     <Button 
                       variant="outline" 
-                      className="w-full justify-start"
+                      className="w-full justify-start items-center"
                       onClick={() => setLocation(`/projects/${projectId}`)}
                     >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back to Project
+                      <ArrowLeft className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <span>Back to Project</span>
                     </Button>
                   </div>
                 </div>
