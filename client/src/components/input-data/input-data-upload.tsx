@@ -171,7 +171,7 @@ export function InputDataUpload({ projectId, onUploaded }: InputDataUploadProps)
         </div>
       
         <div
-          className={`max-w-lg mx-auto flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md ${
+          className={`max-w-lg mx-auto flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md cursor-pointer ${
             dragActive
               ? "border-primary bg-primary/5"
               : "border-gray-300 dark:border-gray-600"
@@ -180,31 +180,29 @@ export function InputDataUpload({ projectId, onUploaded }: InputDataUploadProps)
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
+          onClick={() => {
+            if (!uploading) {
+              triggerFileInput();
+            }
+          }}
         >
           <div className="space-y-3 text-center">
             <Upload className="mx-auto h-12 w-12 text-gray-400" />
-            <div className="flex text-sm text-gray-600 dark:text-gray-400">
-              <label
-                htmlFor="file-upload"
-                className="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-primary hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary"
-                onClick={(e) => {
-                  if (uploading) {
-                    e.preventDefault();
-                  }
-                }}
-              >
-                <span>Upload a file</span>
-                <input
-                  id="file-upload"
-                  name="file-upload"
-                  type="file"
-                  className="sr-only"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  disabled={uploading}
-                />
-              </label>
+            <div className="flex justify-center text-sm text-gray-600 dark:text-gray-400">
+              <span className="font-medium text-primary hover:text-blue-500">
+                Upload a file
+              </span>
               <p className="pl-1">or drag and drop</p>
+              <input
+                id="file-upload"
+                name="file-upload"
+                type="file"
+                className="sr-only"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                disabled={uploading}
+                onClick={(e) => e.stopPropagation()} 
+              />
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Audio, video, PDF, TXT up to 50MB
