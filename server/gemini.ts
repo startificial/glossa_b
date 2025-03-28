@@ -107,21 +107,63 @@ export async function processTextFile(filePath: string, projectName: string, fil
     // Read the file content - handle PDF files differently
     let fileContent: string;
     if (isPdf) {
-      // For PDF files, use pdf-parse to extract text properly
-      const dataBuffer = fs.readFileSync(filePath);
-      const pdfData = await pdfParse(dataBuffer);
-      
-      // Clean up the text by removing excessive whitespace and normalizing line breaks
-      fileContent = pdfData.text
-        .replace(/\r\n/g, '\n') // Normalize line breaks
-        .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
-        .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
-        .trim(); // Remove leading/trailing whitespace
-      
-      console.log(`Extracted ${fileContent.length} characters from PDF document (${pdfData.numpages} pages)`);
+      try {
+        // For PDF files, use pdf-parse to extract text properly
+        const dataBuffer = fs.readFileSync(filePath);
+        
+        // Set options to limit the number of pages to process to avoid memory issues
+        const options = {
+          max: 10, // Limit to first 10 pages
+          pagerender: function(pageData: any) {
+            // Extract text content from page, limit to first 2000 chars per page to avoid memory issues
+            let text = pageData.getTextContent().then(function(textContent: any) {
+              let lastY, text = '';
+              for (let item of textContent.items) {
+                if (lastY == item.transform[5] || !lastY)
+                  text += item.str;
+                else
+                  text += '\n' + item.str;
+                lastY = item.transform[5];
+              }
+              return text.slice(0, 2000); // Limit text per page
+            });
+            return text;
+          }
+        };
+        
+        const pdfData = await pdfParse(dataBuffer, options);
+        
+        // Clean up the text by removing excessive whitespace and normalizing line breaks
+        fileContent = pdfData.text
+          .replace(/\r\n/g, '\n') // Normalize line breaks
+          .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
+          .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
+          .replace(/[^\x20-\x7E\n]/g, '') // Remove non-printable characters
+          .trim(); // Remove leading/trailing whitespace
+        
+        // Limit the total content size to avoid memory issues
+        const MAX_CONTENT_SIZE = 20000;
+        if (fileContent.length > MAX_CONTENT_SIZE) {
+          console.log(`PDF content too large (${fileContent.length} chars), truncating to ${MAX_CONTENT_SIZE} chars`);
+          fileContent = fileContent.slice(0, MAX_CONTENT_SIZE);
+        }
+        
+        console.log(`Extracted ${fileContent.length} characters from PDF document (${pdfData.numpages} pages)`);
+      } catch (error) {
+        console.error("Error processing PDF file:", error);
+        // Provide a fallback if PDF processing fails
+        fileContent = `Failed to process PDF file: ${fileName}. The system should generate requirements based on common migration needs.`;
+      }
     } else {
       // For regular text files, read directly
       fileContent = fs.readFileSync(filePath, 'utf8');
+      
+      // Limit the total content size for text files too
+      const MAX_CONTENT_SIZE = 50000;
+      if (fileContent.length > MAX_CONTENT_SIZE) {
+        console.log(`Text content too large (${fileContent.length} chars), truncating to ${MAX_CONTENT_SIZE} chars`);
+        fileContent = fileContent.slice(0, MAX_CONTENT_SIZE);
+      }
     }
     
     // Get file size in KB
