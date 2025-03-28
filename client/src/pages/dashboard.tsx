@@ -58,7 +58,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <section className="mb-10">
+        <section>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Projects</h2>
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -85,47 +85,6 @@ export default function Dashboard() {
               </Button>
             </div>
           )}
-        </section>
-
-        <section>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Features</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-primary bg-opacity-10 mb-4">
-                <svg className="h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h10M7 16h10" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Generate Requirements</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Automatically extract requirements from various input sources including audio, video, and text documents.
-              </p>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-primary bg-opacity-10 mb-4">
-                <svg className="h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Organize & Prioritize</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Easily organize requirements into categories and set priorities to focus on what matters most.
-              </p>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-primary bg-opacity-10 mb-4">
-                <svg className="h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Export & Share</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Export your project requirements in various formats to share with stakeholders and team members.
-              </p>
-            </div>
-          </div>
         </section>
       </div>
     </div>
