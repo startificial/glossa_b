@@ -454,33 +454,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let requirements = [];
           
           try {
+            // Calculate number of analysis passes based on file size
+            // Larger files get more chunks/perspectives to extract more requirements
+            const fileSize = req.file!.size;
+            const fileSizeInMB = fileSize / (1024 * 1024);
+            
+            // Scale the number of chunks and requirements based on file size
+            // Small files (< 1 MB): 2 analyses with 5 reqs each (10 total)
+            // Medium files (1-5 MB): 3 analyses with 5 reqs each (15 total)
+            // Large files (> 5 MB): 4 analyses with 5 reqs each (20 total)
+            const numAnalyses = fileSizeInMB < 1 ? 2 : (fileSizeInMB < 5 ? 3 : 4);
+            const reqPerAnalysis = 5; // Keeping this constant for now
+            
+            console.log(`File size: ${fileSizeInMB.toFixed(2)} MB - Using ${numAnalyses} analyses with ${reqPerAnalysis} requirements each`);
+            
             // Process different file types with Gemini based on both file type and content type
             if (type === 'text' || type === 'document' || type === 'pdf') {
-              // For text files, process content directly
+              // For text files, process content with chunking
               requirements = await processTextFile(
                 req.file!.path, 
                 project.name, 
                 req.file!.originalname,
-                contentType // Pass content type for specialized processing
+                contentType, // Pass content type for specialized processing
+                reqPerAnalysis // Number of requirements per chunk
               );
             } else if (type === 'video') {
-              // For video files, use enhanced video processing based on content type
+              // For video files, use enhanced multi-perspective video processing
               console.log(`Processing video file: ${req.file!.originalname} with specialized ${contentType} analysis`);
               requirements = await generateRequirementsForFile(
                 type, 
                 req.file!.originalname, 
                 project.name,
                 req.file!.path, // Pass the file path for content-based analysis
-                contentType // Pass content type for tailored processing
+                contentType, // Pass content type for tailored processing
+                numAnalyses, // Number of different analysis perspectives
+                reqPerAnalysis // Number of requirements per perspective
               );
             } else {
-              // For other non-text files, generate requirements based on file type and content type
+              // For other non-text files, generate requirements with multiple perspectives
               requirements = await generateRequirementsForFile(
                 type, 
                 req.file!.originalname, 
                 project.name,
                 undefined, // No file path
-                contentType // Pass content type
+                contentType, // Pass content type
+                numAnalyses, // Number of different analysis perspectives
+                reqPerAnalysis // Number of requirements per perspective
               );
             }
           } catch (geminiError) {
@@ -578,12 +597,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          // Process and store requirements
-          for (let i = 0; i < Math.min(requirements.length, 5); i++) {
+          // Process and store all requirements
+          console.log(`Saving ${requirements.length} unique requirements to the database`);
+          
+          // Get the current count of requirements to generate sequential code IDs
+          const requirementsCount = (await storage.getRequirementsByProject(projectId)).length;
+          
+          // Process all requirements (no limit)
+          for (let i = 0; i < requirements.length; i++) {
             const requirement = requirements[i];
             
-            // Generate a code ID
-            const requirementsCount = (await storage.getRequirementsByProject(projectId)).length;
+            // Generate a sequential code ID
             const codeId = `REQ-${(requirementsCount + i + 1).toString().padStart(3, '0')}`;
             
             await storage.createRequirement({
