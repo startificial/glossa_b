@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getCategoryColor, getPriorityInfo, formatDateTime } from '@/lib/utils';
@@ -26,6 +27,11 @@ interface RequirementDetailProps {
 export default function RequirementDetail({ projectId, requirementId }: RequirementDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isGeneratingCriteria, setIsGeneratingCriteria] = useState(false);
+  const [isAddingCriterion, setIsAddingCriterion] = useState(false);
+  const [newCriterion, setNewCriterion] = useState<{description: string, status: string}>({
+    description: '',
+    status: 'pending'
+  });
   const [, setLocation] = useLocation();
   
   // Form state
@@ -239,6 +245,70 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const handleGenerateCriteria = () => {
     setIsGeneratingCriteria(true);
     generateCriteriaMutation.mutate();
+  };
+  
+  // Add criterion mutation
+  const addCriterionMutation = useMutation({
+    mutationFn: async () => {
+      // Get current criteria
+      const currentCriteria = requirement.acceptanceCriteria || [];
+      
+      // Create a new criterion
+      const newCriterionWithId = {
+        id: crypto.randomUUID(),
+        description: newCriterion.description,
+        status: newCriterion.status as 'pending' | 'approved' | 'rejected',
+        notes: ''
+      };
+      
+      // Update the requirement with the new acceptance criteria
+      const result = await apiRequest(
+        "PUT",
+        `/api/projects/${projectId}/requirements/${requirementId}`,
+        { 
+          acceptanceCriteria: [...currentCriteria, newCriterionWithId]
+        }
+      );
+      
+      return result.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/projects', projectId, 'requirements', requirementId] 
+      });
+      
+      toast({
+        title: "Criterion Added",
+        description: "A new acceptance criterion has been added to this requirement.",
+      });
+      
+      // Reset form and close dialog
+      setNewCriterion({
+        description: '',
+        status: 'pending'
+      });
+      setIsAddingCriterion(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error Adding Criterion",
+        description: "There was a problem adding the acceptance criterion.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  const handleAddCriterion = () => {
+    if (newCriterion.description.trim() === '') {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a description for the criterion.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    addCriterionMutation.mutate();
   };
   
   if (isLoading) {
@@ -482,10 +552,72 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <h3 className="text-lg font-medium">Acceptance Criteria</h3>
-                      <Button variant="outline" size="sm">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Criterion
-                      </Button>
+                      <Dialog open={isAddingCriterion} onOpenChange={setIsAddingCriterion}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Criterion
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Add Acceptance Criterion</DialogTitle>
+                            <DialogDescription>
+                              Add a new criterion that must be met for this requirement to be considered complete.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-2">
+                            <div>
+                              <Label htmlFor="description">Description</Label>
+                              <Textarea 
+                                id="description"
+                                placeholder="Enter criterion description..."
+                                value={newCriterion.description}
+                                onChange={(e) => setNewCriterion({ ...newCriterion, description: e.target.value })}
+                                className="min-h-[120px]"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="status">Status</Label>
+                              <Select 
+                                value={newCriterion.status} 
+                                onValueChange={(value) => setNewCriterion({ ...newCriterion, status: value })}
+                              >
+                                <SelectTrigger id="status">
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="approved">Approved</SelectItem>
+                                  <SelectItem value="rejected">Rejected</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button
+                              variant="outline"
+                              onClick={() => setIsAddingCriterion(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              type="submit" 
+                              onClick={handleAddCriterion}
+                              disabled={addCriterionMutation.isPending}
+                            >
+                              {addCriterionMutation.isPending ? (
+                                <>
+                                  <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent mr-2"></div>
+                                  Adding...
+                                </>
+                              ) : (
+                                'Add Criterion'
+                              )}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                     
                     {requirement.acceptanceCriteria && requirement.acceptanceCriteria.length > 0 ? (
