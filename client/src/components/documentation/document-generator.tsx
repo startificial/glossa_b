@@ -587,54 +587,248 @@ Last Updated: ${formatDateTime(new Date())}
     } else {
       // Download as PDF
       try {
-        const doc = new jsPDF();
+        const doc = new jsPDF({ 
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'portrait'
+        });
         
-        // Convert markdown to HTML
-        const html = marked.parse(generatedContent) as string;
+        // Set initial position and margins
+        const margin = 20; // mm
+        let currentY = margin;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const maxWidth = pageWidth - (margin * 2);
+        const lineHeight = {
+          h1: 10,
+          h2: 8,
+          h3: 7,
+          normal: 6,
+          table: 5
+        };
         
-        // Strip HTML tags for simple text-based PDF
-        const plainText = html.replace(/<[^>]*>?/gm, '');
+        // Initialize current style
+        let isInTable = false;
+        let tableRows: string[] = [];
+        let tableColumns = 0;
+        let isInList = false;
+        let listIndent = 0;
+        let listType = '';
+        let codeBlock = false;
         
-        // Split the text into lines
-        const lines = plainText.split('\n');
+        // Handle page breaks and maintain continuity
+        const addNewPageIfNeeded = (requiredSpace: number) => {
+          if (currentY + requiredSpace > doc.internal.pageSize.getHeight() - margin) {
+            doc.addPage();
+            currentY = margin;
+            return true;
+          }
+          return false;
+        };
         
-        // Add lines to PDF
-        let y = 10;
-        doc.setFontSize(12);
+        // Process each line of markdown
+        const lines = generatedContent.split('\n');
         
-        lines.forEach((line: string) => {
-          // Check if line is a heading
-          if (line.startsWith('# ')) {
-            doc.setFontSize(18);
-            doc.setFont("helvetica", 'bold');
-            y += 10;
-          } else if (line.startsWith('## ')) {
-            doc.setFontSize(16);
-            doc.setFont("helvetica", 'bold');
-            y += 8;
-          } else if (line.startsWith('### ')) {
-            doc.setFontSize(14);
-            doc.setFont("helvetica", 'bold');
-            y += 6;
-          } else {
-            doc.setFontSize(12);
-            doc.setFont("helvetica", 'normal');
+        lines.forEach((line, index) => {
+          // Process code blocks
+          if (line.startsWith('```')) {
+            codeBlock = !codeBlock;
+            currentY += lineHeight.normal;
+            return;
           }
           
-          // Add the line to the PDF, but skip empty lines
-          if (line.trim()) {
-            // Remove heading markers
-            const textLine = line.replace(/^#+\s/, '');
+          if (codeBlock) {
+            doc.setFont("courier", 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(70, 70, 70);
             
-            doc.text(textLine, 10, y);
-            y += 7;
+            // Draw code block background
+            doc.setFillColor(245, 245, 245);
+            doc.rect(margin - 2, currentY - 3, maxWidth + 4, lineHeight.normal + 4, 'F');
             
-            // Add a new page if we're near the bottom
-            if (y > 280) {
-              doc.addPage();
-              y = 10;
-            }
+            // Add text with monospace font
+            doc.text(line, margin, currentY);
+            currentY += lineHeight.normal;
+            return;
           }
+          
+          // Process tables
+          if (line.startsWith('|') && line.endsWith('|')) {
+            if (!isInTable) {
+              isInTable = true;
+              tableRows = [];
+              // Count the number of columns by counting pipe symbols and subtracting 1
+              tableColumns = (line.match(/\|/g) || []).length - 1;
+            }
+            
+            // Store the row data, we'll render the table after collecting all rows
+            tableRows.push(line);
+            
+            if (index < lines.length - 1 && (!lines[index + 1].startsWith('|') || !lines[index + 1].endsWith('|'))) {
+              // This is the last row of the table, render it
+              addNewPageIfNeeded(tableRows.length * lineHeight.table + 5);
+              
+              // Draw table header
+              doc.setFillColor(240, 240, 240);
+              doc.setDrawColor(180, 180, 180);
+              doc.setFont("helvetica", 'bold');
+              doc.setFontSize(10);
+              
+              const columnWidth = maxWidth / tableColumns;
+              
+              // Process each row
+              tableRows.forEach((row, rowIndex) => {
+                if (rowIndex === 1) return; // Skip the separator row (e.g., |---|---|)
+                
+                const cells = row.split('|').slice(1, -1); // Remove empty first/last after split
+                
+                cells.forEach((cell, cellIndex) => {
+                  const cellX = margin + (cellIndex * columnWidth);
+                  const cellText = cell.trim();
+                  
+                  // Header row gets filled background
+                  if (rowIndex === 0) {
+                    doc.setFillColor(240, 240, 240);
+                    doc.rect(cellX, currentY - 4, columnWidth, lineHeight.table + 4, 'F');
+                  }
+                  
+                  // Draw cell border
+                  doc.rect(cellX, currentY - 4, columnWidth, lineHeight.table + 4, 'S');
+                  
+                  // Add cell text
+                  doc.text(cellText, cellX + 2, currentY);
+                });
+                
+                if (rowIndex !== 1) { // Skip updating Y for separator row
+                  currentY += lineHeight.table + 4;
+                }
+              });
+              
+              isInTable = false;
+              currentY += 5; // Add space after table
+            }
+            return;
+          }
+          
+          // Process bullet points and numbered lists
+          if (line.match(/^\s*[\-\*]\s+/) || line.match(/^\s*\d+\.\s+/)) {
+            const isNumbered = line.match(/^\s*\d+\.\s+/);
+            const match = line.match(/^(\s*)[\-\*\d+\.]\s+(.*)/);
+            
+            if (match) {
+              const [, indent, content] = match;
+              const indentLevel = indent.length / 2;
+              
+              if (!isInList || listIndent !== indentLevel || (isNumbered && listType !== 'ordered') || (!isNumbered && listType !== 'bullet')) {
+                isInList = true;
+                listIndent = indentLevel;
+                listType = isNumbered ? 'ordered' : 'bullet';
+              }
+              
+              addNewPageIfNeeded(lineHeight.normal);
+              
+              doc.setFont("helvetica", 'normal');
+              doc.setFontSize(12);
+              doc.setTextColor(0, 0, 0);
+              
+              // Draw bullet or number
+              const bulletX = margin + (indentLevel * 5);
+              const bulletText = isNumbered ? line.match(/^\s*(\d+)\./)![1] + '.' : '•';
+              doc.text(bulletText, bulletX, currentY);
+              
+              // Draw list item text
+              const contentX = bulletX + 5;
+              doc.text(content, contentX, currentY);
+              currentY += lineHeight.normal;
+            }
+            return;
+          } else {
+            isInList = false;
+          }
+          
+          // Process headings
+          if (line.startsWith('# ')) {
+            addNewPageIfNeeded(lineHeight.h1 + 5);
+            doc.setFont("helvetica", 'bold');
+            doc.setFontSize(20);
+            doc.setTextColor(50, 50, 50);
+            
+            // Add a nice underline for main headings
+            const headingText = line.replace(/^# /, '');
+            doc.text(headingText, margin, currentY);
+            
+            // Underline
+            const textWidth = doc.getTextWidth(headingText);
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, currentY + 1, margin + textWidth, currentY + 1);
+            
+            currentY += lineHeight.h1 + 5;
+            return;
+          } else if (line.startsWith('## ')) {
+            addNewPageIfNeeded(lineHeight.h2 + 3);
+            doc.setFont("helvetica", 'bold');
+            doc.setFontSize(16);
+            doc.setTextColor(70, 70, 70);
+            doc.text(line.replace(/^## /, ''), margin, currentY);
+            currentY += lineHeight.h2 + 3;
+            return;
+          } else if (line.startsWith('### ')) {
+            addNewPageIfNeeded(lineHeight.h3 + 2);
+            doc.setFont("helvetica", 'bold');
+            doc.setFontSize(14);
+            doc.setTextColor(90, 90, 90);
+            doc.text(line.replace(/^### /, ''), margin, currentY);
+            currentY += lineHeight.h3 + 2;
+            return;
+          }
+          
+          // Process regular text
+          if (line.trim() !== '') {
+            addNewPageIfNeeded(lineHeight.normal);
+            doc.setFont("helvetica", 'normal');
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            
+            // Handle bold and italic text
+            let formattedLine = line;
+            
+            // Check for bold/italic but don't replace in URLs
+            if (formattedLine.includes('**') || formattedLine.includes('*')) {
+              const splitByLinks = formattedLine.split(/(https?:\/\/[^\s]+)/);
+              
+              formattedLine = splitByLinks.map(part => {
+                // Skip URL parts
+                if (part.startsWith('http')) return part;
+                
+                // Process bold and italic in non-URL parts
+                return part
+                  .replace(/\*\*([^*]+)\*\*/g, (_, p1) => {
+                    doc.setFont("helvetica", 'bold');
+                    doc.text(p1, margin, currentY);
+                    doc.setFont("helvetica", 'normal');
+                    return '';
+                  })
+                  .replace(/\*([^*]+)\*/g, (_, p1) => {
+                    doc.setFont("helvetica", 'italic');
+                    doc.text(p1, margin, currentY);
+                    doc.setFont("helvetica", 'normal');
+                    return '';
+                  });
+              }).join('');
+            }
+            
+            doc.text(formattedLine, margin, currentY);
+            currentY += lineHeight.normal;
+          } else {
+            // Empty line - add some space
+            currentY += lineHeight.normal / 2;
+          }
+        });
+        
+        // Add document metadata
+        doc.setProperties({
+          title: `${selectedDocType} - ${project.name}`,
+          subject: `Generated ${selectedDocType} document for ${project.name}`,
+          creator: 'Glossa Requirements Manager'
         });
         
         doc.save(`${selectedDocType}-${project.name.toLowerCase().replace(/\s+/g, "-")}.pdf`);
