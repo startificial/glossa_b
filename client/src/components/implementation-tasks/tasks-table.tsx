@@ -425,82 +425,84 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
               </div>
             ) : (
               <div className="border rounded-md">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[30%]">Task</TableHead>
-                      <TableHead>System</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>
-                        <div className="flex items-center">
-                          <BrainCircuitIcon className="w-4 h-4 mr-1" />
-                          Complexity
-                        </div>
-                      </TableHead>
-                      <TableHead>
-                        <div className="flex items-center">
-                          <ClockIcon className="w-4 h-4 mr-1" />
-                          Est. Hours
-                        </div>
-                      </TableHead>
-                      <TableHead>
-                        <div className="flex items-center">
-                          <UserIcon className="w-4 h-4 mr-1" />
-                          Assignee
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredTasks.map((task: ImplementationTask) => (
-                      <TableRow 
-                        key={task.id} 
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => window.location.href = `/tasks/${task.id}`}
-                      >
-                        <TableCell className="font-medium">
-                          <div className="font-medium">{task.title}</div>
-                          <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {task.description}
+                <div className="max-h-[500px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead className="w-[30%]">Task</TableHead>
+                        <TableHead>System</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Priority</TableHead>
+                        <TableHead>
+                          <div className="flex items-center">
+                            <BrainCircuitIcon className="w-4 h-4 mr-1" />
+                            Complexity
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={task.system === "source" ? "outline" : "default"}>
-                            {task.system.charAt(0).toUpperCase() + task.system.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(task.status)}</TableCell>
-                        <TableCell>{getPriorityBadge(task.priority)}</TableCell>
-                        <TableCell>{getComplexityBadge(task.complexity)}</TableCell>
-                        <TableCell>{task.estimatedHours} hrs</TableCell>
-                        <TableCell>
-                          {task.assignee ? (
-                            task.assignee
-                          ) : (
-                            <span className="text-muted-foreground">Unassigned</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Select
-                            value={task.status}
-                            onValueChange={(value) => handleStatusChange(task.id, value)}
-                          >
-                            <SelectTrigger className="h-8 w-[120px]">
-                              <SelectValue placeholder="Change status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="in-progress">In Progress</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
+                        </TableHead>
+                        <TableHead>
+                          <div className="flex items-center">
+                            <ClockIcon className="w-4 h-4 mr-1" />
+                            Est. Hours
+                          </div>
+                        </TableHead>
+                        <TableHead>
+                          <div className="flex items-center">
+                            <UserIcon className="w-4 h-4 mr-1" />
+                            Assignee
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTasks.map((task: ImplementationTask) => (
+                        <TableRow 
+                          key={task.id} 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => window.location.href = `/tasks/${task.id}`}
+                        >
+                          <TableCell className="font-medium">
+                            <div className="font-medium">{task.title}</div>
+                            <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                              {task.description}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={task.system === "source" ? "outline" : "default"}>
+                              {task.system.charAt(0).toUpperCase() + task.system.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(task.status)}</TableCell>
+                          <TableCell>{getPriorityBadge(task.priority)}</TableCell>
+                          <TableCell>{getComplexityBadge(task.complexity)}</TableCell>
+                          <TableCell>{task.estimatedHours} hrs</TableCell>
+                          <TableCell>
+                            {task.assignee ? (
+                              task.assignee
+                            ) : (
+                              <span className="text-muted-foreground">Unassigned</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Select
+                              value={task.status}
+                              onValueChange={(value) => handleStatusChange(task.id, value)}
+                            >
+                              <SelectTrigger className="h-8 w-[120px]">
+                                <SelectValue placeholder="Change status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="in-progress">In Progress</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             )}
           </TabsContent>
