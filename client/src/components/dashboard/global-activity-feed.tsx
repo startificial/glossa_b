@@ -11,12 +11,22 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-type ActivityWithProject = Activity & {
+interface ActivityWithProjectAndUser extends Activity {
   projectName: string;
+  user?: {
+    id: number;
+    username: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    company: string | null;
+    avatarUrl: string | null;
+    createdAt: string;
+  };
 };
 
 export function GlobalActivityFeed() {
-  const { data: activities, isLoading } = useQuery<ActivityWithProject[]>({
+  const { data: activities, isLoading } = useQuery<ActivityWithProjectAndUser[]>({
     queryKey: ['/api/activities'],
   });
 
@@ -53,9 +63,18 @@ export function GlobalActivityFeed() {
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback>
-                        {activity.description.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
+                      {activity.user?.avatarUrl ? (
+                        <AvatarImage 
+                          src={activity.user.avatarUrl} 
+                          alt={`${activity.user.firstName} ${activity.user.lastName}`} 
+                        />
+                      ) : (
+                        <AvatarFallback>
+                          {activity.user ? 
+                            `${activity.user.firstName.charAt(0)}${activity.user.lastName.charAt(0)}` : 
+                            activity.description.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      )}
                     </Avatar>
                   </div>
                   <div className="min-w-0 flex-1">

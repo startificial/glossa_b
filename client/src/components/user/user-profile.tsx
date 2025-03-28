@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -11,6 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { User } from "@/lib/types";
+import { Camera, Upload } from "lucide-react";
 
 // Create a schema for user profile updates
 const userProfileSchema = z.object({
@@ -26,6 +27,8 @@ type UserProfileFormValues = z.infer<typeof userProfileSchema>;
 export function UserProfile() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch user data
   const { data: user, isLoading, error } = useQuery<User>({
@@ -54,8 +57,38 @@ export function UserProfile() {
         company: user.company || "",
         avatarUrl: user.avatarUrl || null,
       });
+      setPreviewAvatar(user.avatarUrl);
     }
   }, [user, form]);
+  
+  // Handle avatar file selection
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Basic validation
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setPreviewAvatar(dataUrl);
+      form.setValue('avatarUrl', dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  // Trigger file input click
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
 
   // Mutation for updating user profile
   const mutation = useMutation({
@@ -116,15 +149,38 @@ export function UserProfile() {
           <CardTitle>User Profile</CardTitle>
           <CardDescription>Manage your personal information</CardDescription>
         </div>
-        <Avatar className="h-16 w-16">
-          {user?.avatarUrl ? (
-            <AvatarImage src={user.avatarUrl} alt={`${user.firstName} ${user.lastName}`} />
-          ) : (
-            <AvatarFallback className="text-xl">
-              {user?.firstName?.charAt(0) || ""}{user?.lastName?.charAt(0) || ""}
-            </AvatarFallback>
+        <div className="relative">
+          <Avatar className="h-16 w-16">
+            {isEditing && previewAvatar ? (
+              <AvatarImage src={previewAvatar} alt={`${user?.firstName} ${user?.lastName}`} />
+            ) : user?.avatarUrl ? (
+              <AvatarImage src={user.avatarUrl} alt={`${user?.firstName} ${user?.lastName}`} />
+            ) : (
+              <AvatarFallback className="text-xl">
+                {user?.firstName?.charAt(0) || ""}{user?.lastName?.charAt(0) || ""}
+              </AvatarFallback>
+            )}
+          </Avatar>
+          {isEditing && (
+            <>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleAvatarChange}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={triggerFileInput}
+                className="absolute -bottom-1 -right-1 p-1 bg-primary rounded-full text-white hover:bg-primary/80 transition-colors"
+                title="Change avatar"
+              >
+                <Camera className="h-4 w-4" />
+              </button>
+            </>
           )}
-        </Avatar>
+        </div>
       </CardHeader>
       <CardContent>
         {isEditing ? (

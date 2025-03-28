@@ -915,7 +915,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const activities = await storage.getActivitiesByProject(projectId, limit);
       
-      res.json(activities);
+      // Collect unique user IDs from activities
+      const userIds: number[] = [];
+      activities.forEach(activity => {
+        if (!userIds.includes(activity.userId)) {
+          userIds.push(activity.userId);
+        }
+      });
+      
+      // Get user data for all users involved in activities
+      const usersMap = new Map();
+      for (let i = 0; i < userIds.length; i++) {
+        const userId = userIds[i];
+        const user = await storage.getUser(userId);
+        if (user) {
+          // Exclude sensitive data
+          const { password, ...userData } = user;
+          usersMap.set(userId, userData);
+        }
+      }
+      
+      // Add user data to each activity
+      const activitiesWithUsers = activities.map(activity => {
+        const user = usersMap.get(activity.userId);
+        return {
+          ...activity,
+          user: user || null
+        };
+      });
+      
+      res.json(activitiesWithUsers);
     } catch (error) {
       console.error("Error fetching activities:", error);
       res.status(400).json({ message: "Error fetching activities", error });
@@ -935,16 +964,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projectsMap.set(project.id, project);
       });
       
-      // Add project name to each activity
-      const activitiesWithProject = activities.map(activity => {
+      // Collect unique user IDs from activities
+      const userIds: number[] = [];
+      activities.forEach(activity => {
+        if (!userIds.includes(activity.userId)) {
+          userIds.push(activity.userId);
+        }
+      });
+      
+      // Get user data for all users involved in activities
+      const usersMap = new Map();
+      for (let i = 0; i < userIds.length; i++) {
+        const userId = userIds[i];
+        const user = await storage.getUser(userId);
+        if (user) {
+          // Exclude sensitive data
+          const { password, ...userData } = user;
+          usersMap.set(userId, userData);
+        }
+      }
+      
+      // Add project name and user data to each activity
+      const activitiesWithData = activities.map(activity => {
         const project = projectsMap.get(activity.projectId);
+        const user = usersMap.get(activity.userId);
         return {
           ...activity,
-          projectName: project ? project.name : 'Unknown Project'
+          projectName: project ? project.name : 'Unknown Project',
+          user: user || null
         };
       });
       
-      res.json(activitiesWithProject);
+      res.json(activitiesWithData);
     } catch (error) {
       console.error("Error fetching all activities:", error);
       res.status(400).json({ message: "Error fetching all activities", error });
