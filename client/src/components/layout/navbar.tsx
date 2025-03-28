@@ -1,11 +1,21 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { PlusIcon, Menu, Search } from "lucide-react";
+import { PlusIcon, Menu, Search, Settings, LogOut, User as UserIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ProjectForm } from "@/components/projects/project-form";
 import glossaLogo from "../../assets/glossa-logo.png";
+import { useQuery } from "@tanstack/react-query";
+import { User } from "@/lib/types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface NavbarProps {
   toggleSidebar: () => void;
@@ -13,6 +23,12 @@ interface NavbarProps {
 
 export function Navbar({ toggleSidebar }: NavbarProps) {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [_, navigate] = useLocation();
+  
+  // Fetch user data
+  const { data: user } = useQuery<User>({
+    queryKey: ["/api/me"],
+  });
 
   return (
     <>
@@ -60,18 +76,47 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
               </Button>
 
               {/* User dropdown */}
-              <div className="relative inline-block text-left">
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center w-full rounded-full border border-gray-300 dark:border-gray-700 shadow-sm px-2 py-2 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                >
-                  <span className="sr-only">Open user menu</span>
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="User avatar" />
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
-                </button>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center w-full rounded-full border border-gray-300 dark:border-gray-700 shadow-sm px-2 py-2 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  >
+                    <span className="sr-only">Open user menu</span>
+                    <Avatar className="h-8 w-8">
+                      {user?.avatarUrl ? (
+                        <AvatarImage src={user.avatarUrl} alt={`${user.firstName || ''} ${user.lastName || ''}`} />
+                      ) : (
+                        <AvatarFallback>
+                          {user?.firstName?.charAt(0) || ''}{user?.lastName?.charAt(0) || user?.username?.charAt(0) || 'U'}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    {user ? (
+                      <div className="flex flex-col">
+                        <span>{user.firstName || user.username} {user.lastName || ''}</span>
+                        <span className="text-xs text-muted-foreground">{user.email || ''}</span>
+                      </div>
+                    ) : (
+                      "My Account"
+                    )}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/settings')}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Profile Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
