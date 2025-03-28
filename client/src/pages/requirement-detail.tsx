@@ -62,6 +62,14 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
     }
   });
   
+  // Get implementation tasks for this requirement
+  const { data: implementationTasks, isLoading: isTasksLoading } = useQuery({
+    queryKey: ['/api/requirements', requirementId, 'tasks'],
+    queryFn: async () => {
+      return apiRequest("GET", `/api/requirements/${requirementId}/tasks`);
+    }
+  });
+  
   // Filter activities related to this requirement
   const relatedActivities = activities?.filter(
     (activity: Activity) => activity.relatedEntityId === requirementId
@@ -240,6 +248,38 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const handleGenerateCriteria = () => {
     setIsGeneratingCriteria(true);
     generateCriteriaMutation.mutate();
+  };
+  
+  // Generate implementation tasks mutation
+  const generateTasksMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(
+        "POST",
+        `/api/requirements/${requirementId}/generate-tasks`,
+        {}
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/requirements', requirementId, 'tasks'] 
+      });
+      
+      toast({
+        title: "Tasks Generated",
+        description: "Implementation tasks have been generated for this requirement."
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error Generating Tasks",
+        description: "There was a problem generating implementation tasks.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  const handleGenerateTasks = () => {
+    generateTasksMutation.mutate();
   };
   
   // Add criterion mutation
@@ -512,6 +552,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                 <TabsList className="mb-4">
                   <TabsTrigger value="metadata">Metadata</TabsTrigger>
                   <TabsTrigger value="acceptance">Acceptance Criteria</TabsTrigger>
+                  <TabsTrigger value="tasks">Implementation Tasks</TabsTrigger>
                   <TabsTrigger value="history">History</TabsTrigger>
                 </TabsList>
                 
@@ -669,6 +710,42 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                         </div>
                       )}
                     </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="tasks">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-medium">Implementation Tasks</h3>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleGenerateTasks}
+                        disabled={generateTasksMutation.isPending}
+                        className="flex gap-2 items-center"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        <span>Generate Tasks</span>
+                      </Button>
+                    </div>
+                    {isTasksLoading ? (
+                      <div className="py-8 flex justify-center">
+                        <div className="animate-spin w-8 h-8 border-2 border-primary rounded-full border-t-transparent"></div>
+                      </div>
+                    ) : implementationTasks && implementationTasks.length > 0 ? (
+                      <TasksTable 
+                        projectId={projectId}
+                        requirementId={requirementId}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 bg-muted/10 rounded-md border">
+                        <Wrench className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+                        <p className="text-muted-foreground mb-2">No implementation tasks defined yet</p>
+                        <p className="text-sm text-muted-foreground mb-4 max-w-md text-center">
+                          Define tasks that need to be completed in both source and target systems to implement this requirement.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
                 
