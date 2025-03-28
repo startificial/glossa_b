@@ -364,11 +364,15 @@ export default function AuthPage() {
       {/* Hero section */}
       <div className="hidden md:flex md:w-1/2 bg-black flex-col justify-center items-center p-10 text-white">
         <div className="flex items-center">
-          <img 
-            src="/glossa-logo.png" 
-            alt="Glossa Logo" 
-            className="h-20 w-auto mr-6" 
-          />
+          <svg 
+            viewBox="0 0 100 100"
+            width="80" 
+            height="80" 
+            className="mr-6 text-white" 
+            fill="currentColor"
+          >
+            <path d="M76.2,30c-7.3-11.6-20.2-19.3-34.9-19.3c-22.7,0-41.1,18.4-41.1,41.1c0,9.8,3.4,18.8,9.2,25.9c0.3-1.3,0.8-2.5,1.4-3.7c-5-6.5-8-14.7-8-23.6c0-21.3,17.2-38.5,38.5-38.5c13.6,0,25.6,7.1,32.4,17.7c-2.1,4.6-3.2,9.7-3.2,15c0,20.4,16.5,37,36.9,37c-10.3-11.2-16.7-26.2-16.7-42.8C90.7,30,76.2,30,76.2,30z"/>
+          </svg>
           <h1 className="text-6xl font-bold">Glossa</h1>
         </div>
       </div>
