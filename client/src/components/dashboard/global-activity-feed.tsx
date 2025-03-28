@@ -20,14 +20,6 @@ export function GlobalActivityFeed() {
     queryKey: ['/api/activities'],
   });
 
-  // Mock avatar URLs for demo purposes - in a real app, these would come from the user data
-  const avatarUrls = [
-    "https://images.unsplash.com/photo-1550525811-e5869dd03032?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-    "https://images.unsplash.com/photo-1491528323818-fdd1faba62cc?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-  ];
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -48,14 +40,19 @@ export function GlobalActivityFeed() {
               </li>
             ))}
           </ul>
+        ) : !activities || activities.length === 0 ? (
+          <div className="py-8 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              No activities yet. Create a project or upload data to get started.
+            </p>
+          </div>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {activities?.map((activity, index) => (
+            {activities.map((activity, index) => (
               <li key={activity.id} className="px-0 py-4">
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={avatarUrls[index % avatarUrls.length]} alt="User avatar" />
                       <AvatarFallback>
                         {activity.description.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
