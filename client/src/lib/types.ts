@@ -85,10 +85,10 @@ export interface RequirementsFilter {
 
 export interface CreateProjectFormData {
   name: string;
-  description: string;
+  description: string;  // React form input needs string (we'll handle null conversion)
   type: string;
-  sourceSystem?: string;
-  targetSystem?: string;
+  sourceSystem?: string;  // React form input needs string (we'll handle null conversion)
+  targetSystem?: string;  // React form input needs string (we'll handle null conversion)
 }
 
 export interface CreateRequirementFormData {

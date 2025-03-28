@@ -105,15 +105,16 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
   });
 
   const onSubmit = (data: ProjectEditFormValues) => {
-    // Clean up empty strings to be null
-    const cleanedData = {
-      ...data,
-      description: data.description || null,
-      sourceSystem: data.sourceSystem || null,
-      targetSystem: data.targetSystem || null,
+    // Clean up empty strings to be null for API
+    const apiData = {
+      name: data.name,
+      type: data.type,
+      description: data.description?.trim() === '' ? null : data.description,
+      sourceSystem: data.sourceSystem?.trim() === '' ? null : data.sourceSystem,
+      targetSystem: data.targetSystem?.trim() === '' ? null : data.targetSystem,
     };
     
-    updateMutation.mutate(cleanedData);
+    updateMutation.mutate(apiData as any);
   };
 
   return (
@@ -176,11 +177,8 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="migration">Migration</SelectItem>
-                      <SelectItem value="integration">Integration</SelectItem>
-                      <SelectItem value="modernization">Modernization</SelectItem>
-                      <SelectItem value="new-development">New Development</SelectItem>
-                      <SelectItem value="maintenance">Maintenance</SelectItem>
+                      <SelectItem value="Software Migration">Software Migration</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

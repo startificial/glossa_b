@@ -57,7 +57,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
     defaultValues: {
       name: "",
       description: "",
-      type: "Software Development",
+      type: "Software Migration",
       sourceSystem: "",
       targetSystem: "",
     },
@@ -90,14 +90,16 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
 
   function onSubmit(data: CreateProjectFormData) {
     setIsSubmitting(true);
-    // Convert empty strings to null
-    const cleanedData = {
-      ...data,
-      description: data.description || null,
-      sourceSystem: data.sourceSystem || null,
-      targetSystem: data.targetSystem || null,
+    // Convert empty strings to null for API
+    const apiData = {
+      name: data.name,
+      type: data.type,
+      description: data.description.trim() === '' ? null : data.description,
+      sourceSystem: data.sourceSystem?.trim() === '' ? null : data.sourceSystem,
+      targetSystem: data.targetSystem?.trim() === '' ? null : data.targetSystem,
     };
-    createProject.mutate(cleanedData);
+    // Use a type assertion to handle the server-side typing correctly
+    createProject.mutate(apiData as any);
   }
 
   return (
@@ -144,6 +146,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                       placeholder="Describe your project"
                       className="resize-none"
                       {...field}
+                      value={field.value || ''}
                     />
                   </FormControl>
                   <FormMessage />
@@ -167,11 +170,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="Software Development">Software Development</SelectItem>
-                      <SelectItem value="Website Redesign">Website Redesign</SelectItem>
-                      <SelectItem value="Mobile Application">Mobile Application</SelectItem>
-                      <SelectItem value="Internal Tool">Internal Tool</SelectItem>
-                      <SelectItem value="migration">Migration</SelectItem>
+                      <SelectItem value="Software Migration">Software Migration</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
@@ -190,7 +189,8 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                     <FormControl>
                       <Input 
                         placeholder="e.g., Legacy CRM" 
-                        {...field} 
+                        {...field}
+                        value={field.value || ''} 
                       />
                     </FormControl>
                     <FormMessage />
@@ -207,7 +207,8 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                     <FormControl>
                       <Input 
                         placeholder="e.g., Cloud CRM" 
-                        {...field} 
+                        {...field}
+                        value={field.value || ''} 
                       />
                     </FormControl>
                     <FormMessage />
