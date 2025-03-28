@@ -8,6 +8,7 @@ import { RequirementsList } from "@/components/requirements/requirements-list";
 import { InputDataList } from "@/components/input-data/input-data-list";
 import { InputDataUpload } from "@/components/input-data/input-data-upload";
 import { ProjectTasks } from "@/components/projects/project-tasks";
+import { DocumentGenerator } from "@/components/documentation/document-generator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -106,6 +107,9 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
             <TabsTrigger value="tasks" className="py-2">
               Implementation Tasks
             </TabsTrigger>
+            <TabsTrigger value="documentation" className="py-2">
+              Documentation
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="py-2">
               Analytics
             </TabsTrigger>
@@ -137,6 +141,10 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
           
           <TabsContent value="tasks" className="space-y-6">
             <ProjectTasks projectId={projectId} />
+          </TabsContent>
+          
+          <TabsContent value="documentation" className="space-y-6">
+            <DocumentGenerator projectId={projectId} />
           </TabsContent>
           
           <TabsContent value="analytics" className="space-y-6">

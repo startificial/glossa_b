@@ -821,6 +821,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/projects/:projectId/tasks", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // First, get all requirements for the project
+      const requirements = await storage.getRequirementsByProject(projectId);
+      
+      if (!requirements || requirements.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get tasks for each requirement
+      const tasksPromises = requirements.map(req => 
+        storage.getImplementationTasksByRequirement(req.id)
+      );
+      
+      const allTasksNested = await Promise.all(tasksPromises);
+      const allTasks = allTasksNested.flat();
+      
+      res.json(allTasks);
+    } catch (error) {
+      console.error("Error fetching project tasks:", error);
+      res.status(500).json({ message: "Failed to fetch project tasks" });
+    }
+  });
+
   app.get("/api/tasks/:id", async (req: Request, res: Response) => {
     try {
       const taskId = parseInt(req.params.id);
