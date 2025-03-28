@@ -8,6 +8,7 @@ import { ProjectForm } from "@/components/projects/project-form";
 import glossaLogo from "../../assets/glossa-logo.png";
 import { useQuery } from "@tanstack/react-query";
 import { User } from "@/lib/types";
+import { useAuth } from "@/hooks/use-auth";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,10 +26,8 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [_, navigate] = useLocation();
   
-  // Fetch user data
-  const { data: user } = useQuery<User>({
-    queryKey: ["/api/me"],
-  });
+  // Get user data and logout functionality from auth context
+  const { user, logoutMutation } = useAuth();
 
   return (
     <>
@@ -111,9 +110,15 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
                     <span>Profile Settings</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      logoutMutation.mutate();
+                      navigate('/auth');
+                    }}
+                    disabled={logoutMutation.isPending}
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
+                    <span>{logoutMutation.isPending ? "Logging out..." : "Log out"}</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

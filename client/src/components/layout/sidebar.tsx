@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { Settings, HelpCircle, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { Settings, HelpCircle, FileText, ChevronLeft, ChevronRight, LogOut, LogIn } from "lucide-react";
 import { Project } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -14,7 +15,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
+  const { user, logoutMutation } = useAuth();
   
   const { data: projects, isLoading } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
@@ -136,6 +138,46 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
             Help & Support
           </span>
         </Link>
+        
+        {user ? (
+          <button
+            onClick={() => {
+              logoutMutation.mutate();
+              navigate('/auth');
+            }}
+            disabled={logoutMutation.isPending}
+            className={cn(
+              "flex items-center w-full px-2 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
+              isCollapsed && "justify-center"
+            )}
+            title={isCollapsed ? "Log out" : undefined}
+          >
+            <LogOut className={cn(
+              "h-5 w-5 text-gray-500 dark:text-gray-400",
+              isCollapsed ? "mr-0" : "mr-3"
+            )} />
+            <span className={cn(isCollapsed && "hidden")}>
+              {logoutMutation.isPending ? "Logging out..." : "Log out"}
+            </span>
+          </button>
+        ) : (
+          <Link
+            href="/auth"
+            className={cn(
+              "flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
+              isCollapsed && "justify-center"
+            )}
+            title={isCollapsed ? "Log in / Register" : undefined}
+          >
+            <LogIn className={cn(
+              "h-5 w-5 text-gray-500 dark:text-gray-400",
+              isCollapsed ? "mr-0" : "mr-3"
+            )} />
+            <span className={cn(isCollapsed && "hidden")}>
+              Log in / Register
+            </span>
+          </Link>
+        )}
       </div>
     </aside>
   );
