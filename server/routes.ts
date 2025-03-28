@@ -16,6 +16,7 @@ import fs from "fs";
 import os from "os";
 import nlp from "compromise";
 import { processTextFile, generateRequirementsForFile } from "./gemini";
+import { processPdfFile } from "./pdf-processor";
 import crypto from "crypto";
 import { z } from "zod";
 
@@ -469,7 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`File size: ${fileSizeInMB.toFixed(2)} MB - Using ${numAnalyses} analyses with ${reqPerAnalysis} requirements each`);
             
             // Process different file types with Gemini based on both file type and content type
-            if (type === 'text' || type === 'document' || type === 'pdf') {
+            if (type === 'text' || type === 'document') {
               // For text files, process content with chunking
               requirements = await processTextFile(
                 req.file!.path, 
@@ -477,6 +478,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 req.file!.originalname,
                 contentType, // Pass content type for specialized processing
                 reqPerAnalysis // Number of requirements per chunk
+              );
+            } else if (type === 'pdf') {
+              // For PDF files, use specialized PDF processor
+              console.log(`Processing PDF file: ${req.file!.originalname} with specialized processor`);
+              requirements = await processPdfFile(
+                req.file!.path,
+                project.name,
+                req.file!.originalname,
+                contentType,
+                reqPerAnalysis
               );
             } else if (type === 'video') {
               // For video files, use enhanced multi-perspective video processing
@@ -512,7 +523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             let content = "";
             
             // Extract content based on file type
-            if (type === 'text' || type === 'document' || type === 'pdf') {
+            if (type === 'text' || type === 'document') {
               try {
                 // For text files, read directly
                 content = fs.readFileSync(req.file!.path, 'utf8');
@@ -523,6 +534,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 Users must be able to view requirements generated from this file.
                 The application shall organize requirements by priority and category.
                 Security measures should be implemented for sensitive data from input sources.`;
+              }
+            } else if (type === 'pdf') {
+              try {
+                // For PDF files, read directly but handle with specialized cleanup
+                content = fs.readFileSync(req.file!.path, 'utf8');
+                
+                // Basic PDF cleaning for fallback
+                content = content.replace(/\f/g, '\n'); // Form feeds
+                content = content.replace(/(\r\n|\r)/g, '\n'); // Normalize line endings
+                content = content.replace(/ {2,}/g, ' '); // Remove repeated spaces
+                content = content.replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // Control chars
+                
+                // If content is too long, take a reasonable chunk
+                if (content.length > 5000) {
+                  content = content.substring(0, 5000);
+                }
+              } catch (err) {
+                console.error("Error reading PDF file:", err);
+                content = `PDF document analysis for ${req.file!.originalname}.
+                The system must properly extract structured content from PDF documents.
+                The application shall identify section headings and document structure in PDFs.
+                Implementation of clean text extraction from PDFs is required for accurate requirements gathering.
+                The system should preserve formatting and bullets from structured documents.
+                Security scanning for uploaded PDF documents is required to prevent malicious code execution.`;
               }
             } else if (type === 'video') {
               // Enhanced fallback for video files with workflow-focused requirements
