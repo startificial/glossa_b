@@ -7,19 +7,18 @@ import {
   activities, type Activity, type InsertActivity,
   implementationTasks, type ImplementationTask, type InsertImplementationTask
 } from "@shared/schema";
-import { and, desc, eq, or } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, lte, or, sql as drizzleSql } from 'drizzle-orm';
 import { db, sql } from './db';
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import createMemoryStore from "memorystore";
 
-// Create memory and Postgres session stores
 const MemoryStore = createMemoryStore(session);
 const PostgresSessionStore = connectPg(session);
 
-// Storage interface with session store
+// Update IStorage to include sessionStore
 export interface IStorage {
-  // Session store for Express
+  // Add session store
   sessionStore: session.Store;
   
   // User methods
@@ -72,9 +71,58 @@ export interface IStorage {
   deleteImplementationTask(id: number): Promise<boolean>;
 }
 
-// In-memory storage implementation
+export interface IStorage {
+  // User methods
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
+  authenticateUser(usernameOrEmail: string, password: string): Promise<User | undefined>;
+
+  // Invite methods
+  getInvite(token: string): Promise<Invite | undefined>;
+  getInvitesByCreator(userId: number): Promise<Invite[]>;
+  createInvite(invite: InsertInvite): Promise<Invite>;
+  markInviteAsUsed(token: string): Promise<Invite | undefined>;
+
+  // Project methods
+  getProject(id: number): Promise<Project | undefined>;
+  getProjects(userId: number): Promise<Project[]>;
+  createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined>;
+  deleteProject(id: number): Promise<boolean>;
+
+  // Input data methods
+  getInputData(id: number): Promise<InputData | undefined>;
+  getInputDataByProject(projectId: number): Promise<InputData[]>;
+  createInputData(data: InsertInputData): Promise<InputData>;
+  updateInputData(id: number, data: Partial<InsertInputData>): Promise<InputData | undefined>;
+  deleteInputData(id: number): Promise<boolean>;
+
+  // Requirement methods
+  getRequirement(id: number): Promise<Requirement | undefined>;
+  getRequirementsByProject(projectId: number): Promise<Requirement[]>;
+  getRequirementsByInputData(inputDataId: number): Promise<Requirement[]>;
+  createRequirement(requirement: InsertRequirement): Promise<Requirement>;
+  updateRequirement(id: number, requirement: Partial<InsertRequirement>): Promise<Requirement | undefined>;
+  deleteRequirement(id: number): Promise<boolean>;
+  getHighPriorityRequirements(projectId: number, limit?: number): Promise<Requirement[]>;
+
+  // Activity methods
+  getActivitiesByProject(projectId: number, limit?: number): Promise<Activity[]>;
+  getAllActivities(limit?: number): Promise<Activity[]>;
+  createActivity(activity: InsertActivity): Promise<Activity>;
+  
+  // Implementation Task methods
+  getImplementationTask(id: number): Promise<ImplementationTask | undefined>;
+  getImplementationTasksByRequirement(requirementId: number): Promise<ImplementationTask[]>;
+  createImplementationTask(task: InsertImplementationTask): Promise<ImplementationTask>;
+  updateImplementationTask(id: number, task: Partial<InsertImplementationTask>): Promise<ImplementationTask | undefined>;
+  deleteImplementationTask(id: number): Promise<boolean>;
+}
+
 export class MemStorage implements IStorage {
-  sessionStore: session.Store;
   private users: Map<number, User>;
   private invites: Map<string, Invite>;
   private projects: Map<number, Project>;
@@ -91,12 +139,6 @@ export class MemStorage implements IStorage {
   private implementationTaskIdCounter: number;
 
   constructor() {
-    // Initialize session store
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
-    });
-    
-    // Initialize storage maps
     this.users = new Map();
     this.invites = new Map();
     this.projects = new Map();
@@ -104,8 +146,6 @@ export class MemStorage implements IStorage {
     this.requirements = new Map();
     this.activities = new Map();
     this.implementationTasks = new Map();
-    
-    // Initialize ID counters
     this.userIdCounter = 1;
     this.inviteIdCounter = 1;
     this.projectIdCounter = 1;
@@ -172,19 +212,6 @@ export class MemStorage implements IStorage {
     return user;
   }
   
-  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
-    const existingUser = this.users.get(id);
-    if (!existingUser) return undefined;
-    
-    const updatedUser: User = {
-      ...existingUser,
-      ...userData,
-      updatedAt: new Date()
-    };
-    this.users.set(id, updatedUser);
-    return updatedUser;
-  }
-
   // Invite methods
   async getInvite(token: string): Promise<Invite | undefined> {
     return this.invites.get(token);
@@ -224,6 +251,19 @@ export class MemStorage implements IStorage {
     
     this.invites.set(token, updatedInvite);
     return updatedInvite;
+  }
+  
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+    const existingUser = this.users.get(id);
+    if (!existingUser) return undefined;
+    
+    const updatedUser: User = {
+      ...existingUser,
+      ...userData,
+      updatedAt: new Date()
+    };
+    this.users.set(id, updatedUser);
+    return updatedUser;
   }
 
   // Project methods
@@ -446,18 +486,32 @@ export class MemStorage implements IStorage {
   }
 }
 
-// PostgreSQL storage implementation using Drizzle ORM
+import { and, desc, eq, gt, gte, lte, or, sql as drizzleSql } from 'drizzle-orm';
+import { db } from './db';
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { pool } from './db';
+import createMemoryStore from "memorystore";
+
+const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
+
 export class DatabaseStorage implements IStorage {
-  sessionStore: session.Store;
+  sessionStore: session.SessionStore;
 
   constructor() {
-    // Initialize session store with PostgreSQL
-    this.sessionStore = new PostgresSessionStore({ 
-      conObject: { 
-        connectionString: process.env.DATABASE_URL 
-      },
-      createTableIfMissing: true 
-    });
+    if (process.env.USE_POSTGRES === 'true') {
+      this.sessionStore = new PostgresSessionStore({ 
+        conObject: { 
+          connectionString: process.env.DATABASE_URL 
+        },
+        createTableIfMissing: true 
+      });
+    } else {
+      this.sessionStore = new MemoryStore({
+        checkPeriod: 86400000,
+      });
+    }
   }
 
   // User methods
@@ -512,7 +566,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getInvitesByCreator(userId: number): Promise<Invite[]> {
-    return await db.select().from(invites).where(eq(invites.createdById, userId));
+    return await db.select().from(invites).where(eq(invites.createdBy, userId));
   }
 
   async createInvite(invite: InsertInvite): Promise<Invite> {
@@ -555,7 +609,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProject(id: number): Promise<boolean> {
     const result = await db.delete(projects).where(eq(projects.id, id));
-    return !!result;
+    return result.rowCount > 0;
   }
 
   // Input data methods
@@ -584,7 +638,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteInputData(id: number): Promise<boolean> {
     const result = await db.delete(inputData).where(eq(inputData.id, id));
-    return !!result;
+    return result.rowCount > 0;
   }
 
   // Requirement methods
@@ -617,7 +671,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRequirement(id: number): Promise<boolean> {
     const result = await db.delete(requirements).where(eq(requirements.id, id));
-    return !!result;
+    return result.rowCount > 0;
   }
 
   async getHighPriorityRequirements(projectId: number, limit: number = 10): Promise<Requirement[]> {
@@ -685,7 +739,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteImplementationTask(id: number): Promise<boolean> {
     const result = await db.delete(implementationTasks).where(eq(implementationTasks.id, id));
-    return !!result;
+    return result.rowCount > 0;
   }
 }
 
