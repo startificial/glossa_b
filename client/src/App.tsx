@@ -11,6 +11,7 @@ import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
 import RequirementDetail from "@/pages/requirement-detail";
 import TaskDetail from "@/pages/task-detail";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -66,6 +67,7 @@ function Router() {
             />
           )}
         </Route>
+        <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

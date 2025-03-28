@@ -3,6 +3,13 @@
 export interface User {
   id: number;
   username: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  company: string | null;
+  avatarUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Project {

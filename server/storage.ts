@@ -12,6 +12,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
 
   // Project methods
   getProject(id: number): Promise<Project | undefined>;
@@ -77,10 +78,15 @@ export class MemStorage implements IStorage {
     this.activityIdCounter = 1;
     this.implementationTaskIdCounter = 1;
 
-    // Add a demo user
+    // Add a demo user with profile information
     this.createUser({
       username: "demo",
-      password: "password"
+      password: "password",
+      firstName: "John",
+      lastName: "Doe",
+      email: "john.doe@example.com",
+      company: "Demo Company Inc.",
+      avatarUrl: null
     });
   }
 
@@ -97,9 +103,33 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
-    const user: User = { ...insertUser, id };
+    const now = new Date();
+    const user: User = { 
+      ...insertUser, 
+      id, 
+      firstName: insertUser.firstName || null,
+      lastName: insertUser.lastName || null,
+      email: insertUser.email || null,
+      company: insertUser.company || null,
+      avatarUrl: insertUser.avatarUrl || null,
+      createdAt: now,
+      updatedAt: now
+    };
     this.users.set(id, user);
     return user;
+  }
+  
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+    const existingUser = this.users.get(id);
+    if (!existingUser) return undefined;
+    
+    const updatedUser: User = {
+      ...existingUser,
+      ...userData,
+      updatedAt: new Date()
+    };
+    this.users.set(id, updatedUser);
+    return updatedUser;
   }
 
   // Project methods
@@ -119,6 +149,9 @@ export class MemStorage implements IStorage {
     const newProject: Project = { 
       ...project, 
       id, 
+      description: project.description || null,
+      sourceSystem: project.sourceSystem || null,
+      targetSystem: project.targetSystem || null,
       createdAt: now, 
       updatedAt: now 
     };
@@ -160,6 +193,9 @@ export class MemStorage implements IStorage {
     const newInputData: InputData = { 
       ...data, 
       id, 
+      status: data.status || "processing",
+      contentType: data.contentType || null,
+      metadata: data.metadata || null,
       processed: data.status === "completed",
       createdAt: now 
     };
@@ -207,6 +243,9 @@ export class MemStorage implements IStorage {
     const newRequirement: Requirement = { 
       ...requirement, 
       id, 
+      priority: requirement.priority || "medium",
+      inputDataId: requirement.inputDataId || null,
+      source: requirement.source || null,
       acceptanceCriteria: requirement.acceptanceCriteria || [],
       createdAt: now, 
       updatedAt: now 
@@ -259,6 +298,7 @@ export class MemStorage implements IStorage {
     const newActivity: Activity = { 
       ...activity, 
       id, 
+      relatedEntityId: activity.relatedEntityId || null,
       createdAt: now 
     };
     this.activities.set(id, newActivity);
@@ -282,6 +322,11 @@ export class MemStorage implements IStorage {
     const newTask: ImplementationTask = { 
       ...task, 
       id, 
+      status: task.status || "pending",
+      priority: task.priority || "medium",
+      estimatedHours: task.estimatedHours || null,
+      complexity: task.complexity || null,
+      assignee: task.assignee || null,
       createdAt: now, 
       updatedAt: now 
     };

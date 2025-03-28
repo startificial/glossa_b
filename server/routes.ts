@@ -6,7 +6,8 @@ import {
   insertInputDataSchema, 
   insertRequirementSchema,
   insertActivitySchema,
-  insertImplementationTaskSchema
+  insertImplementationTaskSchema,
+  insertUserSchema
 } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -52,6 +53,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Don't return the password
     const { password, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
+  });
+  
+  // Update user profile endpoint
+  app.put("/api/me", async (req: Request, res: Response) => {
+    try {
+      // For demo, always update the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Create a subset of the updateUserSchema
+      const updateProfileSchema = insertUserSchema.pick({
+        firstName: true,
+        lastName: true,
+        email: true,
+        company: true,
+        avatarUrl: true
+      });
+      
+      // Validate the incoming data
+      const validatedData = updateProfileSchema.parse(req.body);
+      
+      // Update the user
+      const updatedUser = await storage.updateUser(user.id, validatedData);
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update user" });
+      }
+      
+      // Don't return the password
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      res.status(400).json({ message: "Invalid user data", error });
+    }
   });
 
   // Project endpoints
