@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ProjectHeader } from "@/components/projects/project-header";
 import { MetricsCard } from "@/components/dashboard/metrics-card";
@@ -12,7 +12,7 @@ import { DocumentGenerator } from "@/components/documentation/document-generator
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Project } from "@/lib/types";
+import { Project, InputData } from "@/lib/types";
 
 interface ProjectDetailProps {
   projectId: number;
@@ -21,6 +21,7 @@ interface ProjectDetailProps {
 export default function ProjectDetail({ projectId }: ProjectDetailProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [previousTab, setPreviousTab] = useState("dashboard");
   const [showUploadForm, setShowUploadForm] = useState(false);
   
   const { 
@@ -31,13 +32,41 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
     queryKey: [`/api/projects/${projectId}`]
   });
   
-  if (error) {
-    toast({
-      title: "Error",
-      description: "Failed to load project details. Please try again later.",
-      variant: "destructive"
-    });
-  }
+  const { data: inputDataList } = useQuery<InputData[]>({
+    queryKey: [`/api/projects/${projectId}/input-data`],
+  });
+  
+  // Show error toast if project loading fails
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load project details. Please try again later.",
+        variant: "destructive"
+      });
+    }
+  }, [error, toast]);
+
+  // Check for processing requirements when changing tabs
+  useEffect(() => {
+    if (previousTab === "inputData" && activeTab !== "inputData" && inputDataList) {
+      const processingItems = inputDataList.filter(item => item.status === "processing");
+      
+      if (processingItems.length > 0) {
+        toast({
+          title: "Requirements being generated",
+          description: `${processingItems.length} ${processingItems.length === 1 ? 'file is' : 'files are'} still being processed. Requirements will appear in the Requirements tab when complete.`,
+          duration: 5000,
+        });
+      }
+    }
+    
+    setPreviousTab(activeTab);
+  }, [activeTab, previousTab, inputDataList, toast]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
 
   const handleAddInputData = () => {
     setActiveTab("inputData");
@@ -91,7 +120,7 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
       <div className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-gray-900">
         <Tabs 
           value={activeTab} 
-          onValueChange={setActiveTab}
+          onValueChange={handleTabChange}
           className="space-y-6"
         >
           <TabsList className="bg-white dark:bg-gray-800 p-1 rounded-md">

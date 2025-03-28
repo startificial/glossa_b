@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatBytes, formatRelativeTime, getFileIcon } from "@/lib/utils";
 import { InputData } from "@/lib/types";
-import { Eye, Download, FileText, FileAudio, FileVideo, File } from "lucide-react";
+import { Eye, Download, FileText, FileAudio, FileVideo, File, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface InputDataListProps {
   projectId: number;
@@ -120,6 +122,24 @@ export function InputDataList({ projectId }: InputDataListProps) {
                     <TableCell>{formatRelativeTime(item.createdAt)}</TableCell>
                     <TableCell>
                       {getStatusBadge(item.status, item.processed)}
+                      {item.status === 'processing' && (
+                        <div className="mt-2">
+                          <div className="flex items-center space-x-2">
+                            <Progress value={65} className="h-2" />
+                            <RefreshCw className="h-3 w-3 animate-spin text-yellow-600 dark:text-yellow-400" />
+                          </div>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="text-xs text-muted-foreground mt-1">Extracting requirements with AI...</p>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-xs">This process may take a few minutes depending on file size and complexity</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
