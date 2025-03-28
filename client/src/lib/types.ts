@@ -11,6 +11,8 @@ export interface Project {
   description: string | null;
   type: string;
   userId: number;
+  sourceSystem: string | null;
+  targetSystem: string | null;
   createdAt: string;
   updatedAt: string;
 }

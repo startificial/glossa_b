@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
 import RequirementDetail from "@/pages/requirement-detail";
+import TaskDetail from "@/pages/task-detail";
 import NotFound from "@/pages/not-found";
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -46,6 +47,13 @@ function Router() {
             <RequirementDetail 
               projectId={parseInt(params.projectId)} 
               requirementId={parseInt(params.requirementId)} 
+            />
+          )}
+        </Route>
+        <Route path="/tasks/:taskId">
+          {params => (
+            <TaskDetail 
+              taskId={parseInt(params.taskId)} 
             />
           )}
         </Route>

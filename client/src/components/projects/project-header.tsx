@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportData, Project } from "@/lib/types";
 import { Plus, Download, MoreHorizontal } from "lucide-react";
+import { ProjectEditDialog } from "./project-edit-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,7 @@ interface ProjectHeaderProps {
 export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps) {
   const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const { data: project, isLoading } = useQuery<Project>({
     queryKey: [`/api/projects/${projectId}`],
@@ -127,7 +129,7 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Project Options</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Edit Project</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>Edit Project</DropdownMenuItem>
                 <DropdownMenuItem>Duplicate Project</DropdownMenuItem>
                 <DropdownMenuItem>Archive Project</DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -139,6 +141,14 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
           </div>
         </div>
       </div>
+      
+      {project && (
+        <ProjectEditDialog
+          project={project}
+          isOpen={isEditDialogOpen}
+          onClose={() => setIsEditDialogOpen(false)}
+        />
+      )}
     </div>
   );
 }
