@@ -382,6 +382,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Requirements endpoints
+  // Define high-priority requirements route explicitly first
+  app.get("/api/projects/:projectId/requirements/high-priority", async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    const project = await storage.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 4;
+    const requirements = await storage.getHighPriorityRequirements(projectId, limit);
+    
+    res.json(requirements);
+  });
+  
+  // Get a specific requirement by ID - this needs to come BEFORE the general requirements route
+  app.get("/api/projects/:projectId/requirements/:id([0-9]+)", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const requirementId = parseInt(req.params.id);
+      
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+      
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+      
+      // Check if requirement belongs to the specified project
+      if (requirement.projectId !== projectId) {
+        return res.status(404).json({ message: "Requirement not found in this project" });
+      }
+      
+      res.json(requirement);
+    } catch (error) {
+      console.error("Error fetching requirement:", error);
+      res.status(500).json({ message: "Error fetching requirement" });
+    }
+  });
+
+  // Get all requirements with filtering
   app.get("/api/projects/:projectId/requirements", async (req: Request, res: Response) => {
     const projectId = parseInt(req.params.projectId);
     if (isNaN(projectId)) {
@@ -422,23 +477,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
     }
 
-    res.json(requirements);
-  });
-
-  app.get("/api/projects/:projectId/requirements/high-priority", async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.projectId);
-    if (isNaN(projectId)) {
-      return res.status(400).json({ message: "Invalid project ID" });
-    }
-
-    const project = await storage.getProject(projectId);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-    
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 4;
-    const requirements = await storage.getHighPriorityRequirements(projectId, limit);
-    
     res.json(requirements);
   });
 
