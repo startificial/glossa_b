@@ -387,8 +387,8 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const categoryColors = getCategoryColor(requirement.category);
   
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex items-center mb-6">
+    <div className="container mx-auto px-4 py-6 overflow-auto h-[calc(100vh-64px)]">
+      <div className="flex items-center mb-6 sticky top-0 z-10 bg-background py-2">
         <Button 
           variant="ghost" 
           onClick={() => setLocation(`/projects/${projectId}`)}
@@ -401,7 +401,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
         <h1 className="text-2xl font-bold ml-2">{requirement.codeId}</h1>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-16">
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
