@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Requirement } from "@/lib/types";
 import { formatRelativeTime, getCategoryColor, getPriorityInfo } from "@/lib/utils";
-import { MoreHorizontal, Trash2, Edit, Eye } from "lucide-react";
+import { MoreHorizontal, Trash2, Edit, Eye, ArrowRight } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,10 +32,15 @@ interface RequirementCardProps {
 export function RequirementCard({ requirement, projectId, onEdit }: RequirementCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   const categoryColor = getCategoryColor(requirement.category);
   const priorityInfo = getPriorityInfo(requirement.priority);
+  
+  const navigateToDetail = () => {
+    setLocation(`/projects/${projectId}/requirements/${requirement.id}`);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -64,7 +70,15 @@ export function RequirementCard({ requirement, projectId, onEdit }: RequirementC
 
   return (
     <>
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
+      <div 
+        className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow duration-200 cursor-pointer relative"
+        onClick={navigateToDetail}
+      >
+        {/* View details indicator in top-right */}
+        <div className="absolute top-2 right-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+          <ArrowRight className="h-4 w-4" />
+        </div>
+        
         <div className="flex justify-between items-start">
           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${categoryColor.bg} ${categoryColor.text} ${categoryColor.bgDark} ${categoryColor.textDark}`}>
             {requirement.category.charAt(0).toUpperCase() + requirement.category.slice(1)}
@@ -75,22 +89,25 @@ export function RequirementCard({ requirement, projectId, onEdit }: RequirementC
             </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="ml-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                <button 
+                  className="ml-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                  onClick={(e) => e.stopPropagation()} // Prevent card click when clicking dropdown
+                >
                   <MoreHorizontal className="h-5 w-5" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit?.(requirement)}>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit?.(requirement); }}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={navigateToDetail}>
                   <Eye className="mr-2 h-4 w-4" />
                   View Details
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   className="text-red-600 dark:text-red-400" 
-                  onClick={() => setIsDeleteDialogOpen(true)}
+                  onClick={(e) => { e.stopPropagation(); setIsDeleteDialogOpen(true); }}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete

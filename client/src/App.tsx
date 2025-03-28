@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
+import RequirementDetail from "@/pages/requirement-detail";
 import NotFound from "@/pages/not-found";
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -39,6 +40,14 @@ function Router() {
         <Route path="/projects" component={Projects} />
         <Route path="/projects/:id">
           {params => <ProjectDetail projectId={parseInt(params.id)} />}
+        </Route>
+        <Route path="/projects/:projectId/requirements/:requirementId">
+          {params => (
+            <RequirementDetail 
+              projectId={parseInt(params.projectId)} 
+              requirementId={parseInt(params.requirementId)} 
+            />
+          )}
         </Route>
         <Route component={NotFound} />
       </Switch>

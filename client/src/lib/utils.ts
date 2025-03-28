@@ -95,27 +95,37 @@ export function getCategoryColor(category: string) {
 }
 
 export function getPriorityInfo(priority: string) {
-  const priorityInfo: Record<string, { color: string, bgColor: string, bgDarkColor: string, textDarkColor: string, label: string }> = {
+  const priorityInfo: Record<string, { 
+    color: string, 
+    bgColor: string, 
+    bgDarkColor: string, 
+    textDarkColor: string, 
+    label: string, 
+    icon: any // icon component will be added in the component
+  }> = {
     'high': {
       color: 'text-red-800',
       bgColor: 'bg-red-100',
       bgDarkColor: 'dark:bg-red-800',
       textDarkColor: 'dark:text-red-200',
-      label: 'H'
+      label: 'H',
+      icon: null
     },
     'medium': {
       color: 'text-yellow-800',
       bgColor: 'bg-yellow-100',
       bgDarkColor: 'dark:bg-yellow-800',
       textDarkColor: 'dark:text-yellow-200',
-      label: 'M'
+      label: 'M',
+      icon: null
     },
     'low': {
       color: 'text-green-800',
       bgColor: 'bg-green-100',
       bgDarkColor: 'dark:bg-green-800',
       textDarkColor: 'dark:text-green-200',
-      label: 'L'
+      label: 'L',
+      icon: null
     }
   };
   
