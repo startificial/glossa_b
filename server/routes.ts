@@ -964,11 +964,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Extract key phrases from requirement text to create more specific tasks
+      const reqText = requirement.text.toLowerCase();
+      
+      // Analyze requirement category and text to determine specific tasks
+      const isUserInterface = reqText.includes('ui') || reqText.includes('interface') || 
+                             reqText.includes('screen') || reqText.includes('dashboard') || 
+                             reqText.includes('portal') || reqText.includes('console');
+      
+      const isWorkflow = reqText.includes('workflow') || reqText.includes('process') || 
+                        reqText.includes('flow') || reqText.includes('procedure');
+      
+      const isIntegration = reqText.includes('integration') || reqText.includes('connect') || 
+                           reqText.includes('api') || reqText.includes('middleware') || 
+                           reqText.includes('sync') || reqText.includes('data exchange');
+      
+      const isReporting = reqText.includes('report') || reqText.includes('dashboard') || 
+                         reqText.includes('analytics') || reqText.includes('metrics') || 
+                         reqText.includes('kpi');
+      
+      const isSecurityRelated = reqText.includes('security') || reqText.includes('authentication') || 
+                               reqText.includes('authorization') || reqText.includes('permission') || 
+                               reqText.includes('role') || reqText.includes('access control');
+      
+      const isPerformanceRelated = reqText.includes('performance') || reqText.includes('speed') || 
+                                  reqText.includes('scalability') || reqText.includes('load');
+      
+      const isCaseManagement = reqText.includes('case') || reqText.includes('ticket') || 
+                              reqText.includes('service request') || reqText.includes('incident');
+      
+      const isCustomerData = reqText.includes('customer') || reqText.includes('contact') || 
+                            reqText.includes('account') || reqText.includes('client');
+      
+      const isSLA = reqText.includes('sla') || reqText.includes('service level') || 
+                    reqText.includes('agreement') || reqText.includes('response time');
+      
       // Create detailed source system tasks
-      const sourceTasks = [
-        {
-          title: `Extract data model from ${project.sourceSystem}`,
-          description: `Document the data model, extract schema, and identify relationships from ${project.sourceSystem} needed to implement: ${requirement.text}`,
+      const sourceTasks = [];
+      
+      // Add specific source system tasks based on requirement analysis
+      if (isCustomerData) {
+        sourceTasks.push({
+          title: `Map customer data fields in ${project.sourceSystem}`,
+          description: `Identify and document customer profile attributes, history records, and relationships in ${project.sourceSystem} needed for migration of: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
@@ -976,21 +1014,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
           estimatedHours: 6,
           complexity: "high",
           assignee: null
-        },
-        {
-          title: `Analyze business logic in ${project.sourceSystem}`,
-          description: `Reverse-engineer and document existing business rules, workflows, and processes in ${project.sourceSystem} relevant to: ${requirement.text}`,
+        });
+      }
+      
+      if (isWorkflow) {
+        sourceTasks.push({
+          title: `Document ${project.sourceSystem} workflow states and transitions`,
+          description: `Create detailed flow diagrams of the existing workflows in ${project.sourceSystem}, capturing triggers, conditions, actions, and state transitions for: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
           requirementId: requirement.id,
-          estimatedHours: 8, 
+          estimatedHours: 8,
           complexity: "high",
           assignee: null
-        },
-        {
-          title: `Extract test data from ${project.sourceSystem}`,
-          description: `Create representative dataset from ${project.sourceSystem} for testing the migration of: ${requirement.text}`,
+        });
+      }
+      
+      if (isCaseManagement) {
+        sourceTasks.push({
+          title: `Document case routing and assignment rules in ${project.sourceSystem}`,
+          description: `Extract and document the rules that govern case assignment, prioritization, queueing, and routing in ${project.sourceSystem} for: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "source",
+          requirementId: requirement.id,
+          estimatedHours: 5,
+          complexity: "medium",
+          assignee: null
+        });
+      }
+      
+      if (isIntegration) {
+        sourceTasks.push({
+          title: `Map integration touchpoints in ${project.sourceSystem}`,
+          description: `Identify all external systems, API endpoints, data formats, and integration patterns currently used in ${project.sourceSystem} for: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "source",
+          requirementId: requirement.id,
+          estimatedHours: 7,
+          complexity: "high",
+          assignee: null
+        });
+      }
+      
+      if (isReporting) {
+        sourceTasks.push({
+          title: `Extract report definitions and data sources from ${project.sourceSystem}`,
+          description: `Document existing reports, dashboards, metrics calculations, and data sources in ${project.sourceSystem} to support: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "source",
+          requirementId: requirement.id,
+          estimatedHours: 5,
+          complexity: "medium",
+          assignee: null
+        });
+      }
+      
+      if (isSLA) {
+        sourceTasks.push({
+          title: `Document SLA configuration in ${project.sourceSystem}`,
+          description: `Extract SLA definitions, calculation rules, escalation paths, and notification triggers from ${project.sourceSystem} for: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
@@ -998,14 +1084,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
           estimatedHours: 4,
           complexity: "medium",
           assignee: null
-        }
-      ];
+        });
+      }
+      
+      // Always add a generic data extraction task if no specific tasks were created
+      if (sourceTasks.length === 0) {
+        sourceTasks.push({
+          title: `Extract key data structures from ${project.sourceSystem}`,
+          description: `Identify and document the primary data objects, fields, relationships, and business rules in ${project.sourceSystem} needed to implement: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "source",
+          requirementId: requirement.id,
+          estimatedHours: 6,
+          complexity: "high",
+          assignee: null
+        });
+      }
+      
+      // Always add a test data extraction task
+      sourceTasks.push({
+        title: `Create migration test dataset from ${project.sourceSystem}`,
+        description: `Extract representative data samples from ${project.sourceSystem} that cover edge cases and common scenarios for testing: ${requirement.text}`,
+        status: "pending",
+        priority: requirement.priority,
+        system: "source",
+        requirementId: requirement.id,
+        estimatedHours: 4,
+        complexity: "medium",
+        assignee: null
+      });
 
       // Create detailed target system tasks
-      const targetTasks = [
-        {
-          title: `Design ${project.targetSystem} architecture`,
-          description: `Create detailed architecture and data model for ${project.targetSystem} to implement: ${requirement.text}`,
+      const targetTasks = [];
+      
+      // Add specific target system tasks based on requirement analysis
+      if (isUserInterface) {
+        targetTasks.push({
+          title: `Design user interface components in ${project.targetSystem}`,
+          description: `Create UI mockups, screen flows, and interactive prototypes for the interface requirements specified in: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 8,
+          complexity: "medium",
+          assignee: null
+        });
+      }
+      
+      if (isWorkflow) {
+        targetTasks.push({
+          title: `Configure workflow states and transitions in ${project.targetSystem}`,
+          description: `Implement the workflow engine configuration, stages, transitions, conditions, and triggers in ${project.targetSystem} to match: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 10,
+          complexity: "high",
+          assignee: null
+        });
+      }
+      
+      if (isCaseManagement) {
+        targetTasks.push({
+          title: `Implement case routing and assignment logic in ${project.targetSystem}`,
+          description: `Develop the case management component in ${project.targetSystem} with the routing, assignment, and escalation logic required for: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 12,
+          complexity: "high",
+          assignee: null
+        });
+      }
+      
+      if (isIntegration) {
+        targetTasks.push({
+          title: `Develop integration interfaces in ${project.targetSystem}`,
+          description: `Build the API endpoints, listeners, transformers, and connectors in ${project.targetSystem} to integrate with external systems for: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 10,
+          complexity: "high",
+          assignee: null
+        });
+      }
+      
+      if (isReporting) {
+        targetTasks.push({
+          title: `Implement reporting and analytics in ${project.targetSystem}`,
+          description: `Create reports, dashboards, and analytics capabilities in ${project.targetSystem} to satisfy the reporting needs specified in: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 8,
+          complexity: "medium",
+          assignee: null
+        });
+      }
+      
+      if (isSecurityRelated) {
+        targetTasks.push({
+          title: `Implement security controls in ${project.targetSystem}`,
+          description: `Develop the authentication, authorization, and role-based access control mechanisms in ${project.targetSystem} to meet the security requirements in: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
@@ -1013,41 +1200,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
           estimatedHours: 8,
           complexity: "high",
           assignee: null
-        },
-        {
-          title: `Implement core features in ${project.targetSystem}`,
-          description: `Develop the primary implementation in ${project.targetSystem} for: ${requirement.text}`,
+        });
+      }
+      
+      if (isPerformanceRelated) {
+        targetTasks.push({
+          title: `Implement performance optimizations in ${project.targetSystem}`,
+          description: `Design and implement caching, indexing, and other performance tuning strategies in ${project.targetSystem} to meet the performance needs in: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
           requirementId: requirement.id,
-          estimatedHours: 12,
+          estimatedHours: 6,
+          complexity: "high",
+          assignee: null
+        });
+      }
+      
+      if (isSLA) {
+        targetTasks.push({
+          title: `Configure SLA tracking in ${project.targetSystem}`,
+          description: `Implement service level agreement definitions, tracking, escalation rules, and notifications in ${project.targetSystem} for: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 6,
+          complexity: "medium",
+          assignee: null
+        });
+      }
+      
+      // Always add a core implementation task if no specific tasks were created
+      if (targetTasks.length === 0) {
+        targetTasks.push({
+          title: `Implement core functionality in ${project.targetSystem}`,
+          description: `Design and develop the primary features and data structures in ${project.targetSystem} required to fulfill: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 10,
           complexity: requirement.priority === "high" ? "high" : "medium",
           assignee: null
-        },
-        {
-          title: `Develop integration components for ${project.targetSystem}`,
-          description: `Build integration components in ${project.targetSystem} to connect with external systems for: ${requirement.text}`,
-          status: "pending",
-          priority: requirement.priority,
-          system: "target",
-          requirementId: requirement.id,
-          estimatedHours: 6,
-          complexity: "medium",
-          assignee: null
-        },
-        {
-          title: `Test ${project.targetSystem} implementation`,
-          description: `Create and execute comprehensive tests for the implementation of: ${requirement.text}`,
-          status: "pending",
-          priority: requirement.priority,
-          system: "target",
-          requirementId: requirement.id,
-          estimatedHours: 6,
-          complexity: "medium",
-          assignee: null
-        }
-      ];
+        });
+      }
+      
+      // Always add data migration and testing tasks
+      targetTasks.push({
+        title: `Develop data migration scripts for ${project.targetSystem}`,
+        description: `Create data transformation and loading procedures to migrate data from ${project.sourceSystem} to ${project.targetSystem} for: ${requirement.text}`,
+        status: "pending",
+        priority: requirement.priority,
+        system: "target",
+        requirementId: requirement.id,
+        estimatedHours: 8,
+        complexity: "high",
+        assignee: null
+      });
+      
+      targetTasks.push({
+        title: `Create automated tests for ${project.targetSystem}`,
+        description: `Develop comprehensive test suite including unit, integration, and acceptance tests for the implementation of: ${requirement.text}`,
+        status: "pending",
+        priority: requirement.priority,
+        system: "target",
+        requirementId: requirement.id,
+        estimatedHours: 6,
+        complexity: "medium",
+        assignee: null
+      });
 
       // Combine all tasks
       const allTasks = [...sourceTasks, ...targetTasks];
