@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { PlusIcon, Menu, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -50,9 +49,6 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
 
             {/* Right navigation */}
             <div className="flex items-center space-x-4">
-              {/* Dark mode toggle */}
-              <ThemeToggle />
-
               {/* New project button */}
               <Button
                 onClick={() => setIsProjectModalOpen(true)}

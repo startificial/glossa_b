@@ -110,9 +110,6 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
             <TabsTrigger value="documentation" className="py-2">
               Documentation
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="py-2">
-              Analytics
-            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="dashboard" className="space-y-6">
@@ -145,13 +142,6 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
           
           <TabsContent value="documentation" className="space-y-6">
             <DocumentGenerator projectId={projectId} />
-          </TabsContent>
-          
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Requirement Analytics</h3>
-              <p className="text-gray-500 dark:text-gray-400">This section will display analytics and insights about your requirements.</p>
-            </div>
           </TabsContent>
         </Tabs>
       </div>
