@@ -38,6 +38,8 @@ const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().optional(),
   type: z.string().min(1, "Project type is required"),
+  sourceSystem: z.string().optional(),
+  targetSystem: z.string().optional(),
 });
 
 interface ProjectFormProps {
@@ -56,6 +58,8 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       name: "",
       description: "",
       type: "Software Development",
+      sourceSystem: "",
+      targetSystem: "",
     },
   });
 
@@ -86,7 +90,14 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
 
   function onSubmit(data: CreateProjectFormData) {
     setIsSubmitting(true);
-    createProject.mutate(data);
+    // Convert empty strings to null
+    const cleanedData = {
+      ...data,
+      description: data.description || null,
+      sourceSystem: data.sourceSystem || null,
+      targetSystem: data.targetSystem || null,
+    };
+    createProject.mutate(cleanedData);
   }
 
   return (
@@ -160,6 +171,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                       <SelectItem value="Website Redesign">Website Redesign</SelectItem>
                       <SelectItem value="Mobile Application">Mobile Application</SelectItem>
                       <SelectItem value="Internal Tool">Internal Tool</SelectItem>
+                      <SelectItem value="migration">Migration</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
@@ -167,6 +179,42 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                 </FormItem>
               )}
             />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="sourceSystem"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source System</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., Legacy CRM" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="targetSystem"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Target System</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., Cloud CRM" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <DialogFooter>
               <Button

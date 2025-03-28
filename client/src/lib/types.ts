@@ -78,6 +78,8 @@ export interface CreateProjectFormData {
   name: string;
   description: string;
   type: string;
+  sourceSystem?: string;
+  targetSystem?: string;
 }
 
 export interface CreateRequirementFormData {
