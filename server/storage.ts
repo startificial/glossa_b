@@ -38,6 +38,7 @@ export interface IStorage {
 
   // Activity methods
   getActivitiesByProject(projectId: number, limit?: number): Promise<Activity[]>;
+  getAllActivities(limit?: number): Promise<Activity[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
   
   // Implementation Task methods
@@ -403,6 +404,12 @@ export class MemStorage implements IStorage {
   async getActivitiesByProject(projectId: number, limit: number = 10): Promise<Activity[]> {
     return Array.from(this.activities.values())
       .filter(activity => activity.projectId === projectId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
+  }
+  
+  async getAllActivities(limit: number = 10): Promise<Activity[]> {
+    return Array.from(this.activities.values())
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit);
   }

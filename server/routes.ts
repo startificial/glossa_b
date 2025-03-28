@@ -692,7 +692,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Activities endpoint
+  // Activities endpoint for a specific project
   app.get("/api/projects/:projectId/activities", async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
@@ -712,6 +712,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching activities:", error);
       res.status(400).json({ message: "Error fetching activities", error });
+    }
+  });
+  
+  // Activities endpoint for all projects
+  app.get("/api/activities", async (req: Request, res: Response) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const activities = await storage.getAllActivities(limit);
+      
+      // Fetch project names to include with activities
+      const projectsMap = new Map();
+      const projects = Array.from((await storage.getProjects(1)));
+      projects.forEach(project => {
+        projectsMap.set(project.id, project);
+      });
+      
+      // Add project name to each activity
+      const activitiesWithProject = activities.map(activity => {
+        const project = projectsMap.get(activity.projectId);
+        return {
+          ...activity,
+          projectName: project ? project.name : 'Unknown Project'
+        };
+      });
+      
+      res.json(activitiesWithProject);
+    } catch (error) {
+      console.error("Error fetching all activities:", error);
+      res.status(400).json({ message: "Error fetching all activities", error });
     }
   });
 

@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { PlusIcon } from "lucide-react";
 import { useLocation } from "wouter";
+import { GlobalActivityFeed } from "@/components/dashboard/global-activity-feed";
 import glossaLogo from "../assets/glossa-logo.png";
 
 export default function Dashboard() {
@@ -58,7 +59,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <section>
+        <section className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Projects</h2>
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -85,6 +86,10 @@ export default function Dashboard() {
               </Button>
             </div>
           )}
+        </section>
+        
+        <section>
+          <GlobalActivityFeed />
         </section>
       </div>
     </div>
