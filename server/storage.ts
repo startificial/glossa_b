@@ -1,5 +1,6 @@
 import { 
   users, type User, type InsertUser,
+  invites, type Invite, type InsertInvite,
   projects, type Project, type InsertProject,
   inputData, type InputData, type InsertInputData,
   requirements, type Requirement, type InsertRequirement,
@@ -11,8 +12,16 @@ export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
+  authenticateUser(usernameOrEmail: string, password: string): Promise<User | undefined>;
+
+  // Invite methods
+  getInvite(token: string): Promise<Invite | undefined>;
+  getInvitesByCreator(userId: number): Promise<Invite[]>;
+  createInvite(invite: InsertInvite): Promise<Invite>;
+  markInviteAsUsed(token: string): Promise<Invite | undefined>;
 
   // Project methods
   getProject(id: number): Promise<Project | undefined>;
@@ -52,12 +61,14 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
+  private invites: Map<string, Invite>;
   private projects: Map<number, Project>;
   private inputDataItems: Map<number, InputData>;
   private requirements: Map<number, Requirement>;
   private activities: Map<number, Activity>;
   private implementationTasks: Map<number, ImplementationTask>;
   private userIdCounter: number;
+  private inviteIdCounter: number;
   private projectIdCounter: number;
   private inputDataIdCounter: number;
   private requirementIdCounter: number;
@@ -66,12 +77,14 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.users = new Map();
+    this.invites = new Map();
     this.projects = new Map();
     this.inputDataItems = new Map();
     this.requirements = new Map();
     this.activities = new Map();
     this.implementationTasks = new Map();
     this.userIdCounter = 1;
+    this.inviteIdCounter = 1;
     this.projectIdCounter = 1;
     this.inputDataIdCounter = 1;
     this.requirementIdCounter = 1;
@@ -86,7 +99,8 @@ export class MemStorage implements IStorage {
       lastName: "Doe",
       email: "john.doe@example.com",
       company: "Demo Company Inc.",
-      avatarUrl: null
+      avatarUrl: null,
+      role: "admin"
     });
   }
 
@@ -100,6 +114,20 @@ export class MemStorage implements IStorage {
       (user) => user.username === username,
     );
   }
+  
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.email === email,
+    );
+  }
+  
+  async authenticateUser(usernameOrEmail: string, password: string): Promise<User | undefined> {
+    const user = Array.from(this.users.values()).find(
+      (user) => (user.username === usernameOrEmail || user.email === usernameOrEmail) && user.password === password
+    );
+    
+    return user;
+  }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
@@ -112,11 +140,54 @@ export class MemStorage implements IStorage {
       email: insertUser.email || null,
       company: insertUser.company || null,
       avatarUrl: insertUser.avatarUrl || null,
+      role: insertUser.role || "user",
+      invitedBy: insertUser.invitedBy || null,
       createdAt: now,
       updatedAt: now
     };
     this.users.set(id, user);
     return user;
+  }
+  
+  // Invite methods
+  async getInvite(token: string): Promise<Invite | undefined> {
+    return this.invites.get(token);
+  }
+  
+  async getInvitesByCreator(userId: number): Promise<Invite[]> {
+    return Array.from(this.invites.values()).filter(
+      invite => invite.createdById === userId
+    );
+  }
+  
+  async createInvite(invite: InsertInvite): Promise<Invite> {
+    const id = this.inviteIdCounter++;
+    const now = new Date();
+    
+    const newInvite: Invite = {
+      ...invite,
+      id,
+      email: invite.email || null,
+      createdById: invite.createdById || null,
+      used: false,
+      createdAt: now
+    };
+    
+    this.invites.set(invite.token, newInvite);
+    return newInvite;
+  }
+  
+  async markInviteAsUsed(token: string): Promise<Invite | undefined> {
+    const invite = this.invites.get(token);
+    if (!invite) return undefined;
+    
+    const updatedInvite: Invite = {
+      ...invite,
+      used: true
+    };
+    
+    this.invites.set(token, updatedInvite);
+    return updatedInvite;
   }
   
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {

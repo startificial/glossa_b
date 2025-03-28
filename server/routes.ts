@@ -7,7 +7,8 @@ import {
   insertRequirementSchema,
   insertActivitySchema,
   insertImplementationTaskSchema,
-  insertUserSchema
+  insertUserSchema,
+  insertInviteSchema
 } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -15,6 +16,21 @@ import fs from "fs";
 import os from "os";
 import nlp from "compromise";
 import { processTextFile, generateRequirementsForFile } from "./gemini";
+import crypto from "crypto";
+import { z } from "zod";
+
+// Authentication middleware
+function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if (req.session && req.session.userId) {
+    return next();
+  }
+  return res.status(401).json({ message: "Unauthorized" });
+}
+
+// Helper function to generate a secure token
+function generateToken(length: number = 32): string {
+  return crypto.randomBytes(length).toString('hex');
+}
 
 // Configure multer for file uploads
 const upload = multer({
@@ -42,9 +58,158 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  // Current user endpoint (in a real app, this would use authentication)
+  // Authentication routes
+  app.post("/api/register", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      // Check if username or email already exists
+      const existingUser = await storage.getUserByUsername(validatedData.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      if (validatedData.email) {
+        const existingEmail = await storage.getUserByEmail(validatedData.email);
+        if (existingEmail) {
+          return res.status(400).json({ message: "Email already exists" });
+        }
+      }
+      
+      // Check if invite is valid if token is provided
+      if (req.body.inviteToken) {
+        const invite = await storage.getInvite(req.body.inviteToken);
+        if (!invite) {
+          return res.status(400).json({ message: "Invalid invite token" });
+        }
+        
+        if (invite.used) {
+          return res.status(400).json({ message: "Invite token has already been used" });
+        }
+        
+        if (invite.expiresAt < new Date()) {
+          return res.status(400).json({ message: "Invite token has expired" });
+        }
+        
+        // Update invite as used
+        await storage.markInviteAsUsed(req.body.inviteToken);
+        
+        // Set invitedBy if the invite has a creator
+        if (invite.createdById) {
+          validatedData.invitedBy = invite.createdById;
+        }
+      }
+      
+      // Create the user
+      const user = await storage.createUser(validatedData);
+      
+      // Set user in session
+      req.session.userId = user.id;
+      
+      // Don't return the password
+      const { password, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error registering user:", error);
+      res.status(400).json({ message: "Invalid user data", error });
+    }
+  });
+  
+  app.post("/api/login", async (req: Request, res: Response) => {
+    try {
+      const loginSchema = z.object({
+        username: z.string(),
+        password: z.string()
+      });
+      
+      const { username, password } = loginSchema.parse(req.body);
+      
+      // Authenticate user
+      const user = await storage.authenticateUser(username, password);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      
+      // Set user in session
+      req.session.userId = user.id;
+      
+      // Don't return the password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error logging in:", error);
+      res.status(400).json({ message: "Invalid login data", error });
+    }
+  });
+  
+  app.post("/api/logout", (req: Request, res: Response) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Failed to logout" });
+      }
+      res.status(200).json({ message: "Logged out successfully" });
+    });
+  });
+  
+  app.post("/api/invites", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(req.session.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Generate invite token
+      const token = generateToken();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+      
+      const invite = await storage.createInvite({
+        token,
+        email: req.body.email || null,
+        createdById: user.id,
+        expiresAt
+      });
+      
+      res.status(201).json(invite);
+    } catch (error) {
+      console.error("Error creating invite:", error);
+      res.status(400).json({ message: "Invalid invite data", error });
+    }
+  });
+  
+  app.get("/api/invites", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const invites = await storage.getInvitesByCreator(req.session.userId);
+      res.json(invites);
+    } catch (error) {
+      console.error("Error fetching invites:", error);
+      res.status(500).json({ message: "Failed to fetch invites", error });
+    }
+  });
+
+  // Current user endpoint
   app.get("/api/me", async (req: Request, res: Response) => {
-    // For demo, always return the demo user
+    // Check if user is authenticated
+    if (req.session && req.session.userId) {
+      const user = await storage.getUser(req.session.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't return the password
+      const { password, ...userWithoutPassword } = user;
+      return res.json(userWithoutPassword);
+    }
+    
+    // For demo, return the demo user if not authenticated
     const user = await storage.getUserByUsername("demo");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -56,10 +221,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update user profile endpoint
-  app.put("/api/me", async (req: Request, res: Response) => {
+  app.put("/api/me", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      // For demo, always update the demo user
-      const user = await storage.getUserByUsername("demo");
+      // Get user from session
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }

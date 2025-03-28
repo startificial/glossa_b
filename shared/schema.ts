@@ -9,9 +9,11 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   firstName: text("first_name"),
   lastName: text("last_name"),
-  email: text("email"),
+  email: text("email").unique(),
   company: text("company"),
   avatarUrl: text("avatar_url"),
+  role: text("role").default("user").notNull(), // user, admin
+  invitedBy: integer("invited_by"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -24,6 +26,26 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   company: true,
   avatarUrl: true,
+  role: true,
+  invitedBy: true,
+});
+
+// Invites schema
+export const invites = pgTable("invites", {
+  id: serial("id").primaryKey(),
+  token: text("token").notNull().unique(),
+  email: text("email"),
+  createdById: integer("created_by_id").references(() => users.id),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertInviteSchema = createInsertSchema(invites).pick({
+  token: true,
+  email: true,
+  createdById: true,
+  expiresAt: true,
 });
 
 // Project schema
@@ -148,6 +170,9 @@ export const insertImplementationTaskSchema = createInsertSchema(implementationT
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type Invite = typeof invites.$inferSelect;
+export type InsertInvite = z.infer<typeof insertInviteSchema>;
 
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;

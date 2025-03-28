@@ -5,6 +5,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Navbar } from "@/components/layout/navbar";
 import { Sidebar } from "@/components/layout/sidebar";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ProtectedRoute } from "@/components/auth/protected-route";
 
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
@@ -12,6 +14,7 @@ import ProjectDetail from "@/pages/project-detail";
 import RequirementDetail from "@/pages/requirement-detail";
 import TaskDetail from "@/pages/task-detail";
 import Settings from "@/pages/settings";
+import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -43,42 +46,111 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Router() {
+// AuthLayout for pages without sidebar/navbar
+function AuthLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen">
+      {children}
+    </div>
+  );
+}
+
+function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
     <Layout>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/projects" component={Projects} />
-        <Route path="/projects/:id">
-          {params => <ProjectDetail projectId={parseInt(params.id)} />}
-        </Route>
-        <Route path="/projects/:projectId/requirements/:requirementId">
-          {params => (
-            <RequirementDetail 
-              projectId={parseInt(params.projectId)} 
-              requirementId={parseInt(params.requirementId)} 
-            />
-          )}
-        </Route>
-        <Route path="/tasks/:taskId">
-          {params => (
-            <TaskDetail 
-              taskId={parseInt(params.taskId)} 
-            />
-          )}
-        </Route>
-        <Route path="/settings" component={Settings} />
-        <Route component={NotFound} />
-      </Switch>
+      {children}
     </Layout>
+  );
+}
+
+function Router() {
+  return (
+    <Switch>
+      {/* Auth route - public */}
+      <Route path="/auth">
+        <AuthLayout>
+          <AuthPage />
+        </AuthLayout>
+      </Route>
+      
+      {/* Protected routes */}
+      <ProtectedRoute path="/" component={() => (
+        <ProtectedLayout>
+          <Dashboard />
+        </ProtectedLayout>
+      )} />
+      
+      <ProtectedRoute path="/projects" component={() => (
+        <ProtectedLayout>
+          <Projects />
+        </ProtectedLayout>
+      )} />
+      
+      <ProtectedRoute path="/projects/:id" component={() => {
+        // Wrap this in a function that gets the params
+        return (
+          <Route path="/projects/:id">
+            {params => (
+              <ProtectedLayout>
+                <ProjectDetail projectId={parseInt(params.id)} />
+              </ProtectedLayout>
+            )}
+          </Route>
+        );
+      }} />
+      
+      <ProtectedRoute path="/projects/:projectId/requirements/:requirementId" component={() => {
+        return (
+          <Route path="/projects/:projectId/requirements/:requirementId">
+            {params => (
+              <ProtectedLayout>
+                <RequirementDetail 
+                  projectId={parseInt(params.projectId)} 
+                  requirementId={parseInt(params.requirementId)} 
+                />
+              </ProtectedLayout>
+            )}
+          </Route>
+        );
+      }} />
+      
+      <ProtectedRoute path="/tasks/:taskId" component={() => {
+        return (
+          <Route path="/tasks/:taskId">
+            {params => (
+              <ProtectedLayout>
+                <TaskDetail 
+                  taskId={parseInt(params.taskId)} 
+                />
+              </ProtectedLayout>
+            )}
+          </Route>
+        );
+      }} />
+      
+      <ProtectedRoute path="/settings" component={() => (
+        <ProtectedLayout>
+          <Settings />
+        </ProtectedLayout>
+      )} />
+      
+      {/* 404 - Not Found */}
+      <Route>
+        <ProtectedLayout>
+          <NotFound />
+        </ProtectedLayout>
+      </Route>
+    </Switch>
   );
 }
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
+      <AuthProvider>
+        <Router />
+        <Toaster />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
