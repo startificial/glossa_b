@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
@@ -12,6 +12,7 @@ import path from "path";
 import fs from "fs";
 import os from "os";
 import nlp from "compromise";
+import { processTextFile, generateRequirementsForFile } from "./gemini";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -233,101 +234,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate requirements from the uploaded file
       setTimeout(async () => {
         try {
-          // Initialize content for requirement extraction
-          let content = "";
+          console.log(`Processing file: ${req.file!.originalname} (${type}) with Gemini AI`);
           
-          // Extract content based on file type
-          if (type === 'text' || type === 'document' || type === 'pdf') {
-            try {
-              // For text files, read directly
-              content = fs.readFileSync(req.file!.path, 'utf8');
-            } catch (err) {
-              console.error("Error reading file:", err);
-              content = `This is an automated placeholder text for ${type} file processing. 
-              The system should properly extract information from ${req.file!.originalname}.
-              Users must be able to view and manage requirements generated from this file.
-              The application shall organize requirements by priority and category.
-              Security measures should be implemented for sensitive data from input sources.`;
+          let requirements = [];
+          
+          try {
+            // Process different file types with Gemini
+            if (type === 'text' || type === 'document' || type === 'pdf') {
+              // For text files, process content directly
+              requirements = await processTextFile(
+                req.file!.path, 
+                project.name, 
+                req.file!.originalname
+              );
+            } else {
+              // For non-text files, generate requirements based on file type
+              requirements = await generateRequirementsForFile(
+                type, 
+                req.file!.originalname, 
+                project.name
+              );
             }
-          } else if (type === 'audio' || type === 'video') {
-            // Simulate audio/video transcription
-            content = `Automated transcription from ${type} file: ${req.file!.originalname}.
-            The system must support ${type} processing for requirement extraction.
-            Users should be able to navigate through requirements efficiently.
-            The application shall display metadata about the source ${type} file.
-            Implementation of a search function is required to find specific requirements.
-            Security measures must be in place to protect sensitive ${type} content.`;
-          } else {
-            // For other file types
-            content = `Processing results for ${req.file!.originalname}.
-            The system should support this file format for requirement extraction.
-            Users must be able to filter requirements by different criteria.
-            The application shall provide detailed views of each requirement.
-            Security protocols should be implemented for all uploaded files.`;
-          }
-          
-          // Use NLP to extract and process requirements
-          const doc = nlp(content);
-          const sentences = doc.sentences().out('array');
-          
-          const requirementKeywords = [
-            'must', 'should', 'will', 'shall', 'required', 'needs to', 
-            'have to', 'system', 'user', 'implement', 'support',
-            'application', 'feature', 'functionality', 'interface'
-          ];
-          
-          // Filter sentences that are likely requirements
-          const potentialRequirements = sentences.filter(sentence => 
-            requirementKeywords.some(keyword => sentence.toLowerCase().includes(keyword)) &&
-            sentence.length > 20 && sentence.length < 200
-          );
-          
-          // If no requirements found, create some general ones based on file type
-          let requirementsToCreate = potentialRequirements;
-          if (requirementsToCreate.length === 0) {
-            requirementsToCreate = [
-              `The system must properly process ${type} files like ${req.file!.originalname}`,
-              `Users should be able to view detailed information about requirements extracted from ${type} files`,
-              `The application shall provide filtering and sorting options for requirements`,
-              `Implementation of version control is required for tracking requirement changes`,
-              `Security measures must be in place to protect sensitive data in uploaded files`
-            ];
-          }
-          
-          // Generate requirements from extracted text
-          for (let i = 0; i < Math.min(requirementsToCreate.length, 5); i++) {
-            const reqText = requirementsToCreate[i];
+          } catch (geminiError) {
+            console.error("Error with Gemini processing:", geminiError);
             
-            // Determine category based on content
-            let category = 'functional';
-            if (reqText.toLowerCase().includes('secur') || reqText.toLowerCase().includes('protect') || 
-                reqText.toLowerCase().includes('privacy') || reqText.toLowerCase().includes('authentication')) {
-              category = 'security';
-            } else if (reqText.toLowerCase().includes('perform') || reqText.toLowerCase().includes('fast') || 
-                      reqText.toLowerCase().includes('second') || reqText.toLowerCase().includes('response time')) {
-              category = 'performance';
-            } else if (reqText.toLowerCase().includes('interface') || reqText.toLowerCase().includes('usability') || 
-                      reqText.toLowerCase().includes('accessibility') || reqText.toLowerCase().includes('user experience')) {
-              category = 'non-functional';
+            // Fallback to basic NLP if Gemini fails
+            console.log("Falling back to basic NLP processing");
+            
+            // Initialize content for requirement extraction
+            let content = "";
+            
+            // Extract content based on file type
+            if (type === 'text' || type === 'document' || type === 'pdf') {
+              try {
+                // For text files, read directly
+                content = fs.readFileSync(req.file!.path, 'utf8');
+              } catch (err) {
+                console.error("Error reading file:", err);
+                content = `This is a sample text for ${type} file processing. 
+                The system should extract information from ${req.file!.originalname}.
+                Users must be able to view requirements generated from this file.
+                The application shall organize requirements by priority and category.
+                Security measures should be implemented for sensitive data from input sources.`;
+              }
+            } else if (type === 'audio' || type === 'video') {
+              // Placeholder for audio/video
+              content = `Transcription from ${type} file: ${req.file!.originalname}.
+              The system must support ${type} processing for requirements.
+              Users should be able to navigate through requirements efficiently.
+              The application shall display metadata about the source ${type} file.
+              Implementation of a search function is required to find specific requirements.
+              Security measures must be in place to protect sensitive ${type} content.`;
+            } else {
+              // For other file types
+              content = `Processing for ${req.file!.originalname}.
+              The system should support this file format for requirement extraction.
+              Users must be able to filter requirements by different criteria.
+              The application shall provide detailed views of each requirement.
+              Security protocols should be implemented for all uploaded files.`;
             }
+            
+            // Use NLP to extract and process requirements
+            const doc = nlp(content);
+            const sentences = doc.sentences().out('array');
+            
+            const requirementKeywords = [
+              'must', 'should', 'will', 'shall', 'required', 'needs to', 
+              'have to', 'system', 'user', 'implement', 'support',
+              'application', 'feature', 'functionality', 'interface'
+            ];
+            
+            // Filter sentences that are likely requirements
+            const potentialRequirements = sentences.filter((sentence: string) => 
+              requirementKeywords.some(keyword => sentence.toLowerCase().includes(keyword)) &&
+              sentence.length > 20 && sentence.length < 200
+            );
+            
+            // Format requirements for consistent processing
+            requirements = potentialRequirements.slice(0, 5).map((text: string) => ({
+              text,
+              category: 'functional',
+              priority: 'medium'
+            }));
+            
+            // If no requirements found, create some general ones based on file type
+            if (requirements.length === 0) {
+              requirements = [
+                { text: `The system must properly process ${type} files like ${req.file!.originalname}`, category: 'functional', priority: 'high' },
+                { text: `Users should be able to view detailed information about requirements extracted from ${type} files`, category: 'functional', priority: 'medium' },
+                { text: `The application shall provide filtering and sorting options for requirements`, category: 'functional', priority: 'medium' },
+                { text: `Implementation of version control is required for tracking requirement changes`, category: 'non-functional', priority: 'low' },
+                { text: `Security measures must be in place to protect sensitive data in uploaded files`, category: 'security', priority: 'high' }
+              ];
+            }
+          }
+          
+          // Process and store requirements
+          for (let i = 0; i < Math.min(requirements.length, 5); i++) {
+            const requirement = requirements[i];
             
             // Generate a code ID
             const requirementsCount = (await storage.getRequirementsByProject(projectId)).length;
             const codeId = `REQ-${(requirementsCount + i + 1).toString().padStart(3, '0')}`;
             
-            // Determine priority based on content
-            let priority = 'medium';
-            if (reqText.toLowerCase().includes('critical') || reqText.toLowerCase().includes('must') || 
-                reqText.toLowerCase().includes('security') || reqText.toLowerCase().includes('essential')) {
-              priority = 'high';
-            } else if (reqText.toLowerCase().includes('nice to have') || reqText.toLowerCase().includes('could')) {
-              priority = 'low';
-            }
-            
             await storage.createRequirement({
-              text: reqText,
-              category,
-              priority,
+              text: requirement.text,
+              category: requirement.category || 'functional',
+              priority: requirement.priority || 'medium',
               projectId,
               inputDataId: inputDataRecord.id,
               codeId,
