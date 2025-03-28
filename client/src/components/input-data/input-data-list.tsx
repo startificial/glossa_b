@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatBytes, formatRelativeTime, getFileIcon } from "@/lib/utils";
 import { InputData } from "@/lib/types";
 import { Eye, Download, FileText, FileAudio, FileVideo, File, RefreshCw } from "lucide-react";
@@ -22,15 +23,69 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
 
 interface InputDataListProps {
   projectId: number;
 }
 
 export function InputDataList({ projectId }: InputDataListProps) {
-  const { data: inputDataList, isLoading } = useQuery<InputData[]>({
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const { 
+    data: inputDataList, 
+    isLoading 
+  } = useQuery<InputData[]>({
     queryKey: [`/api/projects/${projectId}/input-data`],
+    refetchInterval: (data) => {
+      // If any input data is processing, refetch every 3 seconds
+      if (data && Array.isArray(data)) {
+        return data.some((item: InputData) => item.status === 'processing') ? 3000 : false;
+      }
+      return false;
+    }
   });
+  
+  // Check if we need to refetch requirements when processing completes
+  useEffect(() => {
+    let processingItems: InputData[] = [];
+    let processingInterval: NodeJS.Timeout | null = null;
+    let previousProcessingCount = 0;
+    
+    if (inputDataList) {
+      processingItems = inputDataList.filter((item: InputData) => item.status === 'processing');
+      
+      // If we have processing items, start polling for requirements
+      if (processingItems.length > 0) {
+        // Store the number of processing items for comparison later
+        previousProcessingCount = processingItems.length;
+        
+        processingInterval = setInterval(() => {
+          // Invalidate requirements cache to trigger fresh data fetch
+          queryClient.invalidateQueries({ 
+            queryKey: [`/api/projects/${projectId}/requirements`] 
+          });
+          queryClient.invalidateQueries({ 
+            queryKey: [`/api/projects/${projectId}/requirements/high-priority`] 
+          });
+        }, 5000); // Check every 5 seconds
+      } else if (previousProcessingCount > 0) {
+        // If we previously had processing items but not anymore, show a toast
+        toast({
+          title: "Processing complete",
+          description: "All requirements have been generated successfully.",
+        });
+      }
+    }
+    
+    // Cleanup interval when component unmounts or dependencies change
+    return () => {
+      if (processingInterval) {
+        clearInterval(processingInterval);
+      }
+    };
+  }, [inputDataList, projectId, queryClient, toast]);
 
   const getFileTypeIcon = (type: string) => {
     switch (type.toLowerCase()) {

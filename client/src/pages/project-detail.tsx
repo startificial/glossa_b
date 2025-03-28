@@ -47,17 +47,37 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
     }
   }, [error, toast]);
 
-  // Check for processing requirements when changing tabs
+  // Check for processing requirements and set up automatic tracking
   useEffect(() => {
-    if (previousTab === "inputData" && activeTab !== "inputData" && inputDataList) {
+    // If the user is on requirements tab or dashboard, we need to auto-update when requirements finish
+    const shouldAutoUpdate = activeTab === "requirements" || activeTab === "dashboard";
+    
+    if (inputDataList) {
       const processingItems = inputDataList.filter(item => item.status === "processing");
       
-      if (processingItems.length > 0) {
+      // Notify user if they switch away from the input data tab and there are processing items
+      if (previousTab === "inputData" && activeTab !== "inputData" && processingItems.length > 0) {
         toast({
           title: "Requirements being generated",
-          description: `${processingItems.length} ${processingItems.length === 1 ? 'file is' : 'files are'} still being processed. Requirements will appear in the Requirements tab when complete.`,
+          description: `${processingItems.length} ${processingItems.length === 1 ? 'file is' : 'files are'} being processed. Requirements will appear automatically when ready.`,
           duration: 5000,
         });
+      }
+      
+      // If we were previously processing but now finished, notify user and auto-switch to requirements
+      if (processingItems.length === 0 && shouldAutoUpdate) {
+        // Check if we have requirements and they were likely just generated
+        const recentlyCompleted = inputDataList.some((item: InputData) => 
+          item.processed && Date.now() - new Date(item.updatedAt || item.createdAt).getTime() < 10000
+        );
+        
+        if (recentlyCompleted) {
+          toast({
+            title: "Requirements generated",
+            description: "New requirements have been generated successfully.",
+            variant: "default",
+          });
+        }
       }
     }
     

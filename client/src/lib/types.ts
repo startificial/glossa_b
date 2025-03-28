@@ -35,6 +35,7 @@ export interface InputData {
   metadata: Record<string, any> | null;
   processed: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface AcceptanceCriterion {
