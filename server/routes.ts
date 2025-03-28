@@ -18,7 +18,6 @@ import nlp from "compromise";
 import { processTextFile, generateRequirementsForFile } from "./gemini";
 import crypto from "crypto";
 import { z } from "zod";
-import pdfParse from "pdf-parse";
 
 // Authentication middleware
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -513,33 +512,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             let content = "";
             
             // Extract content based on file type
-            if (type === 'text' || type === 'document') {
+            if (type === 'text' || type === 'document' || type === 'pdf') {
               try {
                 // For text files, read directly
                 content = fs.readFileSync(req.file!.path, 'utf8');
               } catch (err) {
                 console.error("Error reading file:", err);
                 content = `This is a sample text for ${type} file processing. 
-                The system should extract information from ${req.file!.originalname}.
-                Users must be able to view requirements generated from this file.
-                The application shall organize requirements by priority and category.
-                Security measures should be implemented for sensitive data from input sources.`;
-              }
-            } else if (type === 'pdf') {
-              try {
-                // For PDF files, use pdf-parse to extract text properly
-                const dataBuffer = fs.readFileSync(req.file!.path);
-                const pdfData = await pdfParse(dataBuffer);
-                // Clean up the text by removing excessive whitespace and normalizing line breaks
-                content = pdfData.text
-                  .replace(/\r\n/g, '\n') // Normalize line breaks
-                  .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
-                  .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
-                  .trim(); // Remove leading/trailing whitespace
-                console.log(`Extracted ${content.length} characters from PDF document`);
-              } catch (err) {
-                console.error("Error parsing PDF file:", err);
-                content = `This is a sample text for PDF file processing. 
                 The system should extract information from ${req.file!.originalname}.
                 Users must be able to view requirements generated from this file.
                 The application shall organize requirements by priority and category.

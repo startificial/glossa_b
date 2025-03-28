@@ -1,7 +1,6 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import fs from 'fs';
 import path from 'path';
-import pdfParse from 'pdf-parse';
 
 // Initialize the Gemini API with the API key
 const apiKey = process.env.GOOGLE_API_KEY || '';
@@ -101,74 +100,12 @@ function chunkTextContent(fileContent: string, chunkSize: number = 6000, overlap
  */
 export async function processTextFile(filePath: string, projectName: string, fileName: string, contentType: string = 'general', numRequirements: number = 5): Promise<any[]> {
   try {
-    // Determine if this is a PDF file
-    const isPdf = fileName.toLowerCase().endsWith('.pdf') || path.extname(filePath).toLowerCase() === '.pdf';
-    
-    // Read the file content - handle PDF files differently
-    let fileContent: string;
-    if (isPdf) {
-      try {
-        // For PDF files, use pdf-parse to extract text properly
-        const dataBuffer = fs.readFileSync(filePath);
-        
-        // Set options to limit the number of pages to process to avoid memory issues
-        const options = {
-          max: 10, // Limit to first 10 pages
-          pagerender: function(pageData: any) {
-            // Extract text content from page, limit to first 2000 chars per page to avoid memory issues
-            let text = pageData.getTextContent().then(function(textContent: any) {
-              let lastY, text = '';
-              for (let item of textContent.items) {
-                if (lastY == item.transform[5] || !lastY)
-                  text += item.str;
-                else
-                  text += '\n' + item.str;
-                lastY = item.transform[5];
-              }
-              return text.slice(0, 2000); // Limit text per page
-            });
-            return text;
-          }
-        };
-        
-        const pdfData = await pdfParse(dataBuffer, options);
-        
-        // Clean up the text by removing excessive whitespace and normalizing line breaks
-        fileContent = pdfData.text
-          .replace(/\r\n/g, '\n') // Normalize line breaks
-          .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
-          .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
-          .replace(/[^\x20-\x7E\n]/g, '') // Remove non-printable characters
-          .trim(); // Remove leading/trailing whitespace
-        
-        // Limit the total content size to avoid memory issues
-        const MAX_CONTENT_SIZE = 20000;
-        if (fileContent.length > MAX_CONTENT_SIZE) {
-          console.log(`PDF content too large (${fileContent.length} chars), truncating to ${MAX_CONTENT_SIZE} chars`);
-          fileContent = fileContent.slice(0, MAX_CONTENT_SIZE);
-        }
-        
-        console.log(`Extracted ${fileContent.length} characters from PDF document (${pdfData.numpages} pages)`);
-      } catch (error) {
-        console.error("Error processing PDF file:", error);
-        // Provide a fallback if PDF processing fails
-        fileContent = `Failed to process PDF file: ${fileName}. The system should generate requirements based on common migration needs.`;
-      }
-    } else {
-      // For regular text files, read directly
-      fileContent = fs.readFileSync(filePath, 'utf8');
-      
-      // Limit the total content size for text files too
-      const MAX_CONTENT_SIZE = 50000;
-      if (fileContent.length > MAX_CONTENT_SIZE) {
-        console.log(`Text content too large (${fileContent.length} chars), truncating to ${MAX_CONTENT_SIZE} chars`);
-        fileContent = fileContent.slice(0, MAX_CONTENT_SIZE);
-      }
-    }
+    // Read the file content
+    const fileContent = fs.readFileSync(filePath, 'utf8');
     
     // Get file size in KB
     const fileSizeKB = Buffer.byteLength(fileContent, 'utf8') / 1024;
-    console.log(`Processing ${isPdf ? 'PDF' : 'text'} file: ${fileName} (${fileSizeKB.toFixed(2)} KB)`);
+    console.log(`Processing text file: ${fileName} (${fileSizeKB.toFixed(2)} KB)`);
     
     // Split into chunks if large file
     const chunks = chunkTextContent(fileContent);
@@ -196,7 +133,6 @@ export async function processTextFile(filePath: string, projectName: string, fil
         Source file: ${fileName}
         Content type: ${contentType}
         Chunk: ${i+1} of ${chunks.length}
-        File type: ${isPdf ? 'PDF' : 'Text'}
         
         ${contentType === 'workflow' ? 
           `This content contains workflow descriptions that should be migrated from a source system to a target system. 
@@ -213,16 +149,13 @@ export async function processTextFile(filePath: string, projectName: string, fil
           : `Please analyze this general content and extract requirements based on the text.`
         }
         
-        ${isPdf ? `This content was extracted from a PDF file. Ignore any PDF artifacts, page numbers, headers, footers, or formatting codes. 
-        Focus only on extracting meaningful requirements from the actual document content.` : ''}
-        
         Please analyze the following content and extract clear, specific software requirements.
         ${chunks.length > 1 ? 'Only extract requirements that appear in this specific chunk. Do not manufacture requirements based on guessing what might be in other chunks.' : ''}
         
         ${chunks[i]}
         
         For each requirement:
-        1. Provide the requirement text (clear, specific, actionable) - clean up any PDF artifacts or strange formatting
+        1. Provide the requirement text (clear, specific, actionable)
         2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
         3. Assign a priority level: 'high', 'medium', or 'low'
         
