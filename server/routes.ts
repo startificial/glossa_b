@@ -248,8 +248,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 project.name, 
                 req.file!.originalname
               );
+            } else if (type === 'video') {
+              // For video files, use enhanced video processing
+              console.log(`Processing video file: ${req.file!.originalname} with specialized video analysis`);
+              requirements = await generateRequirementsForFile(
+                type, 
+                req.file!.originalname, 
+                project.name,
+                req.file!.path // Pass the file path for content-based analysis
+              );
             } else {
-              // For non-text files, generate requirements based on file type
+              // For other non-text files, generate requirements based on file type
               requirements = await generateRequirementsForFile(
                 type, 
                 req.file!.originalname, 
@@ -278,14 +287,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 The application shall organize requirements by priority and category.
                 Security measures should be implemented for sensitive data from input sources.`;
               }
-            } else if (type === 'audio' || type === 'video') {
-              // Placeholder for audio/video
-              content = `Transcription from ${type} file: ${req.file!.originalname}.
-              The system must support ${type} processing for requirements.
-              Users should be able to navigate through requirements efficiently.
-              The application shall display metadata about the source ${type} file.
-              Implementation of a search function is required to find specific requirements.
-              Security measures must be in place to protect sensitive ${type} content.`;
+            } else if (type === 'video') {
+              // Enhanced fallback for video files with more specific requirements
+              content = `Analysis of video file: ${req.file!.originalname}.
+              The system must support video content analysis with frame-by-frame processing capabilities.
+              The system should automatically extract and tag objects and people in video content with high accuracy.
+              The application shall provide an interactive timeline interface for navigating through video content.
+              Implementation of video compression and format conversion is required to optimize storage.
+              Security measures must be implemented for access control and content protection of sensitive videos.
+              The system should support metadata extraction including resolution, codec, and duration information.`;
+            } else if (type === 'audio') {
+              // Placeholder for audio
+              content = `Transcription from audio file: ${req.file!.originalname}.
+              The system must support audio processing for requirements extraction.
+              Users should be able to navigate through audio content with precise timestamp markers.
+              The application shall display waveform visualization of the audio content.
+              Implementation of audio analysis capabilities is required to identify speakers and key segments.
+              Security measures must be in place to protect sensitive audio content.`;
             } else {
               // For other file types
               content = `Processing for ${req.file!.originalname}.
