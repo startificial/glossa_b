@@ -355,6 +355,7 @@ export class MemStorage implements IStorage {
     const newRequirement: Requirement = { 
       ...requirement, 
       id, 
+      acceptanceCriteria: requirement.acceptanceCriteria || [],
       createdAt: now, 
       updatedAt: now 
     };

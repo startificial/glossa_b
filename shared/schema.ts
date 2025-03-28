@@ -62,6 +62,7 @@ export const requirements = pgTable("requirements", {
   priority: text("priority").notNull().default("medium"), // high, medium, low
   projectId: integer("project_id").notNull(),
   inputDataId: integer("input_data_id"), // Optional, if derived from input data
+  acceptanceCriteria: jsonb("acceptance_criteria").default([]), // Array of acceptance criteria items
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   codeId: text("code_id").notNull(), // REQ-001, REQ-002, etc.
@@ -74,6 +75,7 @@ export const insertRequirementSchema = createInsertSchema(requirements).pick({
   priority: true,
   projectId: true,
   inputDataId: true,
+  acceptanceCriteria: true,
   codeId: true,
   source: true,
 });

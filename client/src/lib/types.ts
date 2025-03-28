@@ -27,6 +27,13 @@ export interface InputData {
   createdAt: string;
 }
 
+export interface AcceptanceCriterion {
+  id: string;
+  description: string;
+  status: 'pending' | 'approved' | 'rejected';
+  notes?: string;
+}
+
 export interface Requirement {
   id: number;
   text: string;
@@ -34,6 +41,7 @@ export interface Requirement {
   priority: 'high' | 'medium' | 'low';
   projectId: number;
   inputDataId: number | null;
+  acceptanceCriteria: AcceptanceCriterion[];
   createdAt: string;
   updatedAt: string;
   codeId: string;

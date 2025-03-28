@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Requirement, Activity } from '@/lib/types';
+import { Requirement, Activity, AcceptanceCriterion, Project } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +14,9 @@ import { toast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getCategoryColor, getPriorityInfo, formatDateTime } from '@/lib/utils';
-import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles } from 'lucide-react';
 
 interface RequirementDetailProps {
   projectId: number;
@@ -24,6 +25,7 @@ interface RequirementDetailProps {
 
 export default function RequirementDetail({ projectId, requirementId }: RequirementDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isGeneratingCriteria, setIsGeneratingCriteria] = useState(false);
   const [, setLocation] = useLocation();
   
   // Form state
@@ -161,6 +163,82 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   
   const handlePriorityChange = (value: string) => {
     setFormData({ ...formData, priority: value });
+  };
+
+  // Mutation for generating acceptance criteria
+  const generateCriteriaMutation = useMutation({
+    mutationFn: async () => {
+      // In a real implementation, we would call an API endpoint
+      // For now, we'll generate them locally based on the requirement data
+      const { data: project } = await queryClient.ensureQueryData({
+        queryKey: ['/api/projects', projectId],
+        queryFn: async () => {
+          const result = await apiRequest("GET", `/api/projects/${projectId}`);
+          return result.json();
+        }
+      });
+      
+      // Create some acceptance criteria based on the requirement and project info
+      const criteriaTypes = [
+        {
+          description: `User should be able to verify that ${requirement.text.toLowerCase()}`,
+          status: 'pending'
+        },
+        {
+          description: `The system must successfully ${requirement.category === 'functional' ? 'perform the operation' : 'meet the requirement'} under normal conditions`,
+          status: 'pending'
+        },
+        {
+          description: `All error cases must be handled appropriately when attempting to ${requirement.text.toLowerCase().split(' ').slice(0, 5).join(' ')}...`,
+          status: 'pending'
+        }
+      ];
+      
+      // Generate unique IDs for each criterion
+      const criteria = criteriaTypes.map((crit) => ({
+        id: crypto.randomUUID(),
+        description: crit.description,
+        status: crit.status as 'pending' | 'approved' | 'rejected',
+        notes: ''
+      }));
+      
+      // Update the requirement with the new acceptance criteria
+      const result = await apiRequest(
+        "PUT",
+        `/api/projects/${projectId}/requirements/${requirementId}`,
+        { 
+          acceptanceCriteria: criteria 
+        }
+      );
+      
+      return result.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/projects', projectId, 'requirements', requirementId] 
+      });
+      
+      toast({
+        title: "Acceptance Criteria Generated",
+        description: "Acceptance criteria have been automatically generated for this requirement.",
+      });
+      
+      setIsGeneratingCriteria(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error Generating Criteria",
+        description: "There was a problem generating acceptance criteria.",
+        variant: "destructive",
+      });
+      
+      setIsGeneratingCriteria(false);
+    }
+  });
+  
+  const handleGenerateCriteria = () => {
+    setIsGeneratingCriteria(true);
+    generateCriteriaMutation.mutate();
   };
   
   if (isLoading) {
@@ -372,6 +450,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
               <Tabs defaultValue="metadata">
                 <TabsList className="mb-4">
                   <TabsTrigger value="metadata">Metadata</TabsTrigger>
+                  <TabsTrigger value="acceptance">Acceptance Criteria</TabsTrigger>
                   <TabsTrigger value="history">History</TabsTrigger>
                 </TabsList>
                 
@@ -397,6 +476,75 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                       <dd className="text-md font-semibold">{formatDateTime(requirement.updatedAt)}</dd>
                     </div>
                   </dl>
+                </TabsContent>
+                
+                <TabsContent value="acceptance">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-medium">Acceptance Criteria</h3>
+                      <Button variant="outline" size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Criterion
+                      </Button>
+                    </div>
+                    
+                    {requirement.acceptanceCriteria && requirement.acceptanceCriteria.length > 0 ? (
+                      <Table>
+                        <TableCaption>List of criteria that must be met for this requirement to be considered complete.</TableCaption>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]">#</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead className="w-[150px]">Status</TableHead>
+                            <TableHead className="w-[100px]">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {requirement.acceptanceCriteria.map((criterion: AcceptanceCriterion, index: number) => (
+                            <TableRow key={criterion.id}>
+                              <TableCell className="font-medium">{index + 1}</TableCell>
+                              <TableCell>{criterion.description}</TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={criterion.status === 'approved' ? 'default' : 
+                                          criterion.status === 'rejected' ? 'destructive' : 'outline'}
+                                >
+                                  {criterion.status.charAt(0).toUpperCase() + criterion.status.slice(1)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="icon">
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 border rounded-md bg-muted/10">
+                        <p className="text-muted-foreground mb-4">No acceptance criteria defined yet</p>
+                        <Button 
+                          variant="outline" 
+                          className="gap-2"
+                          onClick={handleGenerateCriteria}
+                          disabled={isGeneratingCriteria}
+                        >
+                          {isGeneratingCriteria ? (
+                            <>
+                              <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent"></div>
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4" />
+                              Generate Criteria Automatically
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="history">
