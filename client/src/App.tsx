@@ -15,16 +15,25 @@ import NotFound from "@/pages/not-found";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
+  };
+  
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
   return (
     <div className="h-screen flex flex-col">
       <Navbar toggleSidebar={toggleSidebar} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar isOpen={isSidebarOpen} />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          isCollapsed={isSidebarCollapsed}
+          toggleCollapse={toggleSidebarCollapse}
+        />
         <main className="flex-1 flex flex-col overflow-hidden">
           {children}
         </main>
