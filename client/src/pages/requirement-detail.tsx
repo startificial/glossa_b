@@ -269,10 +269,11 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
         description: "Implementation tasks have been generated for this requirement."
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const errorMessage = error.message || "There was a problem generating implementation tasks.";
       toast({
         title: "Error Generating Tasks",
-        description: "There was a problem generating implementation tasks.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -717,16 +718,22 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   <div className="space-y-4">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-medium">Implementation Tasks</h3>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={handleGenerateTasks}
-                        disabled={generateTasksMutation.isPending}
-                        className="flex gap-2 items-center"
-                      >
-                        <Sparkles className="h-4 w-4" />
-                        <span>Generate Tasks</span>
-                      </Button>
+                      <div className="relative group">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleGenerateTasks}
+                          disabled={generateTasksMutation.isPending}
+                          className="flex gap-2 items-center"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          <span>Generate Tasks</span>
+                        </Button>
+                        <div className="absolute right-0 top-full mt-2 w-72 p-2 bg-popover text-popover-foreground text-sm rounded-md shadow-md hidden group-hover:block z-50">
+                          Project must have source and target systems defined. 
+                          Edit the project details to add this information.
+                        </div>
+                      </div>
                     </div>
                     {isTasksLoading ? (
                       <div className="py-8 flex justify-center">
