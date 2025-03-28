@@ -455,7 +455,11 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
                   </TableHeader>
                   <TableBody>
                     {filteredTasks.map((task: ImplementationTask) => (
-                      <TableRow key={task.id}>
+                      <TableRow 
+                        key={task.id} 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => window.location.href = `/tasks/${task.id}`}
+                      >
                         <TableCell className="font-medium">
                           <div className="font-medium">{task.title}</div>
                           <div className="text-xs text-muted-foreground mt-1 line-clamp-2">

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Tab } from "@radix-ui/react-tabs";
 import { useQuery } from "@tanstack/react-query";
 import { ProjectHeader } from "@/components/projects/project-header";
 import { MetricsCard } from "@/components/dashboard/metrics-card";
@@ -8,6 +7,7 @@ import { PriorityRequirements } from "@/components/dashboard/priority-requiremen
 import { RequirementsList } from "@/components/requirements/requirements-list";
 import { InputDataList } from "@/components/input-data/input-data-list";
 import { InputDataUpload } from "@/components/input-data/input-data-upload";
+import { ProjectTasks } from "@/components/projects/project-tasks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -103,6 +103,9 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
             <TabsTrigger value="requirements" className="py-2">
               Requirements
             </TabsTrigger>
+            <TabsTrigger value="tasks" className="py-2">
+              Implementation Tasks
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="py-2">
               Analytics
             </TabsTrigger>
@@ -130,6 +133,10 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
           
           <TabsContent value="requirements" className="space-y-6">
             <RequirementsList projectId={projectId} />
+          </TabsContent>
+          
+          <TabsContent value="tasks" className="space-y-6">
+            <ProjectTasks projectId={projectId} />
           </TabsContent>
           
           <TabsContent value="analytics" className="space-y-6">
