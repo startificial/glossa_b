@@ -221,14 +221,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const type = mimeTypeMap[req.file.mimetype] || 'other';
       
+      // Get content type from form data, default to "general" if not provided
+      const contentType = req.body.contentType || "general";
+      
       // Create input data record
       const inputDataRecord = await storage.createInputData({
         name: req.file.originalname,
         type,
+        contentType,
         size: req.file.size,
         projectId,
         status: "processing",
-        metadata: { path: req.file.path }
+        metadata: { 
+          path: req.file.path,
+          contentType
+        }
       });
 
       // This would be a background job in a real app
@@ -240,29 +247,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let requirements = [];
           
           try {
-            // Process different file types with Gemini
+            // Process different file types with Gemini based on both file type and content type
             if (type === 'text' || type === 'document' || type === 'pdf') {
               // For text files, process content directly
               requirements = await processTextFile(
                 req.file!.path, 
                 project.name, 
-                req.file!.originalname
+                req.file!.originalname,
+                contentType // Pass content type for specialized processing
               );
             } else if (type === 'video') {
-              // For video files, use enhanced video processing
-              console.log(`Processing video file: ${req.file!.originalname} with specialized video analysis`);
+              // For video files, use enhanced video processing based on content type
+              console.log(`Processing video file: ${req.file!.originalname} with specialized ${contentType} analysis`);
               requirements = await generateRequirementsForFile(
                 type, 
                 req.file!.originalname, 
                 project.name,
-                req.file!.path // Pass the file path for content-based analysis
+                req.file!.path, // Pass the file path for content-based analysis
+                contentType // Pass content type for tailored processing
               );
             } else {
-              // For other non-text files, generate requirements based on file type
+              // For other non-text files, generate requirements based on file type and content type
               requirements = await generateRequirementsForFile(
                 type, 
                 req.file!.originalname, 
-                project.name
+                project.name,
+                undefined, // No file path
+                contentType // Pass content type
               );
             }
           } catch (geminiError) {

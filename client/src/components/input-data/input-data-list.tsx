@@ -26,7 +26,7 @@ interface InputDataListProps {
 }
 
 export function InputDataList({ projectId }: InputDataListProps) {
-  const { data: inputDataList, isLoading } = useQuery({
+  const { data: inputDataList, isLoading } = useQuery<InputData[]>({
     queryKey: [`/api/projects/${projectId}/input-data`],
   });
 
@@ -98,6 +98,7 @@ export function InputDataList({ projectId }: InputDataListProps) {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Content</TableHead>
                   <TableHead>Size</TableHead>
                   <TableHead>Uploaded</TableHead>
                   <TableHead>Status</TableHead>
@@ -105,13 +106,16 @@ export function InputDataList({ projectId }: InputDataListProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {inputDataList.map((item: InputData) => (
+                {inputDataList?.map((item: InputData) => (
                   <TableRow key={item.id}>
                     <TableCell className="flex items-center">
                       {getFileTypeIcon(item.type)}
                       <span className="ml-2 font-medium">{item.name}</span>
                     </TableCell>
                     <TableCell className="capitalize">{item.type}</TableCell>
+                    <TableCell className="capitalize">
+                      {item.contentType ? item.contentType.replace('_', ' ') : 'General'}
+                    </TableCell>
                     <TableCell>{formatBytes(item.size)}</TableCell>
                     <TableCell>{formatRelativeTime(item.createdAt)}</TableCell>
                     <TableCell>

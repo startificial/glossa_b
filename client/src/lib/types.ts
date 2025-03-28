@@ -23,6 +23,7 @@ export interface InputData {
   type: string;
   size: number;
   projectId: number;
+  contentType: string | null;
   status: 'processing' | 'completed' | 'failed';
   metadata: Record<string, any> | null;
   processed: boolean;

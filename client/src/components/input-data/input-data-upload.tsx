@@ -13,6 +13,14 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface InputDataUploadProps {
   projectId: number;
@@ -26,12 +34,14 @@ export function InputDataUpload({ projectId, onUploaded }: InputDataUploadProps)
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [contentType, setContentType] = useState<string>("general");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('contentType', contentType);
       
       // Custom implementation using XMLHttpRequest to track progress
       return new Promise((resolve, reject) => {
@@ -137,6 +147,29 @@ export function InputDataUpload({ projectId, onUploaded }: InputDataUploadProps)
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 space-y-2">
+          <Label htmlFor="content-type">Content Type</Label>
+          <Select 
+            value={contentType} 
+            onValueChange={setContentType} 
+            disabled={uploading}
+          >
+            <SelectTrigger id="content-type" className="w-full">
+              <SelectValue placeholder="Select content type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="workflow">Workflow Documentation</SelectItem>
+              <SelectItem value="user_feedback">User Feedback</SelectItem>
+              <SelectItem value="technical_documentation">Technical Documentation</SelectItem>
+              <SelectItem value="specifications">Specifications</SelectItem>
+              <SelectItem value="general">General</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Selecting the appropriate content type helps generate more accurate requirements.
+          </p>
+        </div>
+      
         <div
           className={`max-w-lg mx-auto flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md ${
             dragActive

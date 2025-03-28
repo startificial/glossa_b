@@ -41,6 +41,7 @@ export const inputData = pgTable("input_data", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   type: text("type").notNull(), // audio, video, text, etc.
+  contentType: text("content_type").default("general"), // workflow, user_feedback, documentation, specifications, etc.
   size: integer("size").notNull(), // in bytes
   projectId: integer("project_id").notNull(),
   status: text("status").notNull().default("processing"), // processing, completed, failed
@@ -52,6 +53,7 @@ export const inputData = pgTable("input_data", {
 export const insertInputDataSchema = createInsertSchema(inputData).pick({
   name: true,
   type: true,
+  contentType: true,
   size: true,
   projectId: true,
   status: true,
