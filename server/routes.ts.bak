@@ -1,0 +1,2998 @@
+import type { Express, Request, Response, NextFunction } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { 
+  insertProjectSchema, 
+  insertInputDataSchema, 
+  insertRequirementSchema,
+  insertActivitySchema,
+  insertImplementationTaskSchema
+} from "@shared/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import os from "os";
+import nlp from "compromise";
+import { processTextFile, generateRequirementsForFile } from "./gemini";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const tempDir = path.join(os.tmpdir(), 'reqgenius-uploads');
+      
+      // Create temp directory if it doesn't exist
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      cb(null, tempDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+  }),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+  }
+});
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  const httpServer = createServer(app);
+
+  // Current user endpoint (in a real app, this would use authentication)
+  app.get("/api/me", async (req: Request, res: Response) => {
+    // For demo, always return the demo user
+    const user = await storage.getUserByUsername("demo");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Don't return the password
+    const { password, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
+  });
+
+  // Project endpoints
+  app.get("/api/projects", async (req: Request, res: Response) => {
+    // For demo, always use the demo user
+    const user = await storage.getUserByUsername("demo");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const projects = await storage.getProjects(user.id);
+    res.json(projects);
+  });
+
+  app.get("/api/projects/:id", async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.id);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    const project = await storage.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    res.json(project);
+  });
+
+  app.post("/api/projects", async (req: Request, res: Response) => {
+    try {
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const validatedData = insertProjectSchema.parse({
+        ...req.body,
+        userId: user.id
+      });
+
+      const project = await storage.createProject(validatedData);
+      
+      // Add activity for project creation
+      await storage.createActivity({
+        type: "created_project",
+        description: `${user.username} created project "${project.name}"`,
+        userId: user.id,
+        projectId: project.id,
+        relatedEntityId: null
+      });
+
+      res.status(201).json(project);
+    } catch (error) {
+      console.error("Error creating project:", error);
+      res.status(400).json({ message: "Invalid project data", error });
+    }
+  });
+
+  app.put("/api/projects/:id", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // We don't need to validate the entire schema since it's a partial update
+      const updatedProject = await storage.updateProject(projectId, req.body);
+      
+      // Add activity for project update
+      await storage.createActivity({
+        type: "updated_project",
+        description: `${user.username} updated project "${updatedProject!.name}"`,
+        userId: user.id,
+        projectId: projectId,
+        relatedEntityId: null
+      });
+
+      res.json(updatedProject);
+    } catch (error) {
+      console.error("Error updating project:", error);
+      res.status(400).json({ message: "Invalid project data", error });
+    }
+  });
+
+  app.delete("/api/projects/:id", async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.id);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    const project = await storage.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Delete the project
+    await storage.deleteProject(projectId);
+    
+    // In a real app, we would also delete related data (requirements, input data, etc.)
+    
+    res.status(204).end();
+  });
+
+  // Input data endpoints
+  app.get("/api/projects/:projectId/input-data", async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    const project = await storage.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    const inputDataItems = await storage.getInputDataByProject(projectId);
+    res.json(inputDataItems);
+  });
+
+  app.post("/api/projects/:projectId/input-data", upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Get file type from mimetype
+      const mimeTypeMap: Record<string, string> = {
+        'audio/mpeg': 'audio',
+        'audio/mp3': 'audio',
+        'audio/wav': 'audio',
+        'video/mp4': 'video',
+        'video/mpeg': 'video',
+        'video/quicktime': 'video',
+        'application/pdf': 'pdf',
+        'text/plain': 'text',
+        'application/msword': 'document',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'document'
+      };
+
+      const type = mimeTypeMap[req.file.mimetype] || 'other';
+      
+      // Create input data record
+      const inputDataRecord = await storage.createInputData({
+        name: req.file.originalname,
+        type,
+        size: req.file.size,
+        projectId,
+        status: "processing",
+        metadata: { path: req.file.path }
+      });
+
+      // This would be a background job in a real app
+      // Generate requirements from the uploaded file
+      setTimeout(async () => {
+        try {
+          console.log(`Processing file: ${req.file!.originalname} (${type}) with Gemini AI`);
+          
+          let requirements = [];
+          
+          try {
+            // Process different file types with Gemini
+            if (type === 'text' || type === 'document' || type === 'pdf') {
+              // For text files, process content directly
+              requirements = await processTextFile(
+                req.file!.path, 
+                project.name, 
+                req.file!.originalname
+              );
+            } else {
+              // For non-text files, generate requirements based on file type
+              requirements = await generateRequirementsForFile(
+                type, 
+                req.file!.originalname, 
+                project.name
+              );
+            }
+          } catch (geminiError) {
+            console.error("Error with Gemini processing:", geminiError);
+            
+            // Fallback to basic NLP if Gemini fails
+            console.log("Falling back to basic NLP processing");
+            
+            // Initialize content for requirement extraction
+            let content = "";
+            
+            // Extract content based on file type
+            if (type === 'text' || type === 'document' || type === 'pdf') {
+              try {
+                // For text files, read directly
+                content = fs.readFileSync(req.file!.path, 'utf8');
+              } catch (err) {
+                console.error("Error reading file:", err);
+                content = `This is a sample text for ${type} file processing. 
+                The system should extract information from ${req.file!.originalname}.
+                Users must be able to view requirements generated from this file.
+                The application shall organize requirements by priority and category.
+                Security measures should be implemented for sensitive data from input sources.`;
+              }
+            } else if (type === 'audio' || type === 'video') {
+              // Placeholder for audio/video
+              content = `Transcription from ${type} file: ${req.file!.originalname}.
+              The system must support ${type} processing for requirements.
+              Users should be able to navigate through requirements efficiently.
+              The application shall display metadata about the source ${type} file.
+              Implementation of a search function is required to find specific requirements.
+              Security measures must be in place to protect sensitive ${type} content.`;
+            } else {
+              // For other file types
+              content = `Processing for ${req.file!.originalname}.
+              The system should support this file format for requirement extraction.
+              Users must be able to filter requirements by different criteria.
+              The application shall provide detailed views of each requirement.
+              Security protocols should be implemented for all uploaded files.`;
+            }
+            
+            // Use NLP to extract and process requirements
+            const doc = nlp(content);
+            const sentences = doc.sentences().out('array');
+            
+            const requirementKeywords = [
+              'must', 'should', 'will', 'shall', 'required', 'needs to', 
+              'have to', 'system', 'user', 'implement', 'support',
+              'application', 'feature', 'functionality', 'interface'
+            ];
+            
+            // Filter sentences that are likely requirements
+            const potentialRequirements = sentences.filter((sentence: string) => 
+              requirementKeywords.some(keyword => sentence.toLowerCase().includes(keyword)) &&
+              sentence.length > 20 && sentence.length < 200
+            );
+            
+            // Format requirements for consistent processing
+            requirements = potentialRequirements.slice(0, 5).map((text: string) => ({
+              text,
+              category: 'functional',
+              priority: 'medium'
+            }));
+            
+            // If no requirements found, create some general ones based on file type
+            if (requirements.length === 0) {
+              requirements = [
+                { text: `The system must properly process ${type} files like ${req.file!.originalname}`, category: 'functional', priority: 'high' },
+                { text: `Users should be able to view detailed information about requirements extracted from ${type} files`, category: 'functional', priority: 'medium' },
+                { text: `The application shall provide filtering and sorting options for requirements`, category: 'functional', priority: 'medium' },
+                { text: `Implementation of version control is required for tracking requirement changes`, category: 'non-functional', priority: 'low' },
+                { text: `Security measures must be in place to protect sensitive data in uploaded files`, category: 'security', priority: 'high' }
+              ];
+            }
+          }
+          
+          // Process and store requirements
+          for (let i = 0; i < Math.min(requirements.length, 5); i++) {
+            const requirement = requirements[i];
+            
+            // Generate a code ID
+            const requirementsCount = (await storage.getRequirementsByProject(projectId)).length;
+            const codeId = `REQ-${(requirementsCount + i + 1).toString().padStart(3, '0')}`;
+            
+            await storage.createRequirement({
+              text: requirement.text,
+              category: requirement.category || 'functional',
+              priority: requirement.priority || 'medium',
+              projectId,
+              inputDataId: inputDataRecord.id,
+              codeId,
+              source: inputDataRecord.name
+            });
+          }
+          
+          // Update input data status to completed
+          await storage.updateInputData(inputDataRecord.id, { status: "completed" });
+          
+          // Add activity
+          await storage.createActivity({
+            type: "generated_requirements",
+            description: `${user.username} generated requirements from ${inputDataRecord.name}`,
+            userId: user.id,
+            projectId,
+            relatedEntityId: inputDataRecord.id
+          });
+        } catch (error) {
+          console.error("Error processing file:", error);
+          await storage.updateInputData(inputDataRecord.id, { status: "failed" });
+        }
+      }, 2000);
+
+      // Add activity for upload
+      await storage.createActivity({
+        type: "uploaded_data",
+        description: `${user.username} uploaded ${req.file.originalname}`,
+        userId: user.id,
+        projectId,
+        relatedEntityId: inputDataRecord.id
+      });
+
+      res.status(201).json(inputDataRecord);
+    } catch (error) {
+      console.error("Error uploading input data:", error);
+      res.status(400).json({ message: "Error uploading file", error });
+    }
+  });
+
+  // Requirements endpoints
+  // Define high-priority requirements route explicitly first
+  app.get("/api/projects/:projectId/requirements/high-priority", async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    const project = await storage.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 4;
+    const requirements = await storage.getHighPriorityRequirements(projectId, limit);
+    
+    res.json(requirements);
+  });
+  
+  // Get a specific requirement by ID - this needs to come BEFORE the general requirements route
+  app.get("/api/projects/:projectId/requirements/:id([0-9]+)", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const requirementId = parseInt(req.params.id);
+      
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+      
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+      
+      // Check if requirement belongs to the specified project
+      if (requirement.projectId !== projectId) {
+        return res.status(404).json({ message: "Requirement not found in this project" });
+      }
+      
+      res.json(requirement);
+    } catch (error) {
+      console.error("Error fetching requirement:", error);
+      res.status(500).json({ message: "Error fetching requirement" });
+    }
+  });
+
+  // Get all requirements with filtering
+  app.get("/api/projects/:projectId/requirements", async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    const project = await storage.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Filter parameters
+    const category = req.query.category as string | undefined;
+    const priority = req.query.priority as string | undefined;
+    const source = req.query.source as string | undefined;
+    const search = req.query.search as string | undefined;
+
+    let requirements = await storage.getRequirementsByProject(projectId);
+    
+    // Apply filters
+    if (category) {
+      requirements = requirements.filter(req => req.category === category);
+    }
+    
+    if (priority) {
+      requirements = requirements.filter(req => req.priority === priority);
+    }
+    
+    if (source) {
+      requirements = requirements.filter(req => req.source === source);
+    }
+    
+    if (search) {
+      const searchLower = search.toLowerCase();
+      requirements = requirements.filter(req => 
+        req.text.toLowerCase().includes(searchLower) || 
+        req.codeId.toLowerCase().includes(searchLower)
+      );
+    }
+
+    res.json(requirements);
+  });
+
+  app.post("/api/projects/:projectId/requirements", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Generate a code ID
+      const requirementsCount = (await storage.getRequirementsByProject(projectId)).length;
+      const codeId = `REQ-${(requirementsCount + 1).toString().padStart(3, '0')}`;
+
+      const validatedData = insertRequirementSchema.parse({
+        ...req.body,
+        projectId,
+        codeId
+      });
+
+      const requirement = await storage.createRequirement(validatedData);
+      
+      // Add activity
+      await storage.createActivity({
+        type: "created_requirement",
+        description: `${user.username} created requirement "${codeId}"`,
+        userId: user.id,
+        projectId,
+        relatedEntityId: requirement.id
+      });
+
+      res.status(201).json(requirement);
+    } catch (error) {
+      console.error("Error creating requirement:", error);
+      res.status(400).json({ message: "Invalid requirement data", error });
+    }
+  });
+
+  app.put("/api/projects/:projectId/requirements/:id", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const requirementId = parseInt(req.params.id);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+
+      if (requirement.projectId !== projectId) {
+        return res.status(403).json({ message: "Requirement does not belong to the specified project" });
+      }
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Update the requirement
+      const updatedRequirement = await storage.updateRequirement(requirementId, req.body);
+      
+      // Add activity for requirement update
+      await storage.createActivity({
+        type: "updated_requirement",
+        description: `${user.username} updated requirement "${requirement.codeId}"`,
+        userId: user.id,
+        projectId,
+        relatedEntityId: requirementId
+      });
+
+      res.json(updatedRequirement);
+    } catch (error) {
+      console.error("Error updating requirement:", error);
+      res.status(400).json({ message: "Invalid requirement data", error });
+    }
+  });
+
+  app.delete("/api/projects/:projectId/requirements/:id", async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    const requirementId = parseInt(req.params.id);
+    if (isNaN(requirementId)) {
+      return res.status(400).json({ message: "Invalid requirement ID" });
+    }
+
+    const requirement = await storage.getRequirement(requirementId);
+    if (!requirement) {
+      return res.status(404).json({ message: "Requirement not found" });
+    }
+
+    if (requirement.projectId !== projectId) {
+      return res.status(403).json({ message: "Requirement does not belong to the specified project" });
+    }
+
+    // Delete the requirement
+    await storage.deleteRequirement(requirementId);
+    
+    // For demo, always use the demo user
+    const user = await storage.getUserByUsername("demo");
+    
+    if (user) {
+      // Add activity for requirement deletion
+      await storage.createActivity({
+        type: "deleted_requirement",
+        description: `${user.username} deleted requirement "${requirement.codeId}"`,
+        userId: user.id,
+        projectId,
+        relatedEntityId: null
+      });
+    }
+
+    res.status(204).end();
+  });
+
+  // Activities endpoints
+  app.get("/api/projects/:projectId/activities", async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    const project = await storage.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    const activities = await storage.getActivitiesByProject(projectId, limit);
+    
+    res.json(activities);
+  });
+
+  // Export requirements
+  app.get("/api/projects/:projectId/export", async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+
+    const project = await storage.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    
+    const requirements = await storage.getRequirementsByProject(projectId);
+    
+    // Format for export
+    const exportData = {
+      project: {
+        name: project.name,
+        description: project.description,
+        type: project.type,
+        exportDate: new Date().toISOString()
+      },
+      requirements: requirements.map(req => ({
+        id: req.codeId,
+        text: req.text,
+        category: req.category,
+        priority: req.priority,
+        source: req.source
+      }))
+    };
+    
+    res.json(exportData);
+  });
+
+  // Implementation Task endpoints
+  app.get("/api/requirements/:requirementId/tasks", async (req: Request, res: Response) => {
+    const requirementId = parseInt(req.params.requirementId);
+    if (isNaN(requirementId)) {
+      return res.status(400).json({ message: "Invalid requirement ID" });
+    }
+
+    const requirement = await storage.getRequirement(requirementId);
+    if (!requirement) {
+      return res.status(404).json({ message: "Requirement not found" });
+    }
+
+    const tasks = await storage.getImplementationTasksByRequirement(requirementId);
+    res.json(tasks);
+  });
+
+  app.post("/api/requirements/:requirementId/tasks", async (req: Request, res: Response) => {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+
+      const validatedData = insertImplementationTaskSchema.parse({
+        ...req.body,
+        requirementId
+      });
+
+      const task = await storage.createImplementationTask(validatedData);
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (user) {
+        // Add activity for task creation
+        await storage.createActivity({
+          type: "created_task",
+          description: `${user.username} created implementation task "${task.title}"`,
+          userId: user.id,
+          projectId: requirement.projectId,
+          relatedEntityId: requirement.id
+        });
+      }
+
+      res.status(201).json(task);
+    } catch (error) {
+      console.error("Error creating implementation task:", error);
+      res.status(400).json({ message: "Invalid task data", error });
+    }
+  });
+
+  app.get("/api/tasks/:id", async (req: Request, res: Response) => {
+    const taskId = parseInt(req.params.id);
+    if (isNaN(taskId)) {
+      return res.status(400).json({ message: "Invalid task ID" });
+    }
+
+    const task = await storage.getImplementationTask(taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Implementation task not found" });
+    }
+
+    res.json(task);
+  });
+
+  app.put("/api/tasks/:id", async (req: Request, res: Response) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ message: "Invalid task ID" });
+      }
+
+      const task = await storage.getImplementationTask(taskId);
+      if (!task) {
+        return res.status(404).json({ message: "Implementation task not found" });
+      }
+
+      // We don't need to validate the entire schema since it's a partial update
+      const updatedTask = await storage.updateImplementationTask(taskId, req.body);
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (user) {
+        // Get the requirement to get the project ID
+        const requirement = await storage.getRequirement(task.requirementId);
+        if (requirement) {
+          // Add activity for task update
+          await storage.createActivity({
+            type: "updated_task",
+            description: `${user.username} updated implementation task "${updatedTask!.title}"`,
+            userId: user.id,
+            projectId: requirement.projectId,
+            relatedEntityId: task.requirementId
+          });
+        }
+      }
+
+      res.json(updatedTask);
+    } catch (error) {
+      console.error("Error updating implementation task:", error);
+      res.status(400).json({ message: "Invalid task data", error });
+    }
+  });
+
+  app.delete("/api/tasks/:id", async (req: Request, res: Response) => {
+    const taskId = parseInt(req.params.id);
+    if (isNaN(taskId)) {
+      return res.status(400).json({ message: "Invalid task ID" });
+    }
+
+    const task = await storage.getImplementationTask(taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Implementation task not found" });
+    }
+
+    // Delete the task
+    await storage.deleteImplementationTask(taskId);
+    
+    res.status(204).end();
+  });
+
+  // Endpoint to automatically generate implementation tasks for a requirement
+  app.post("/api/requirements/:requirementId/generate-tasks", async (req: Request, res: Response) => {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+
+      const project = await storage.getProject(requirement.projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if source and target systems are defined
+      if (!project.sourceSystem || !project.targetSystem) {
+        return res.status(400).json({ 
+          message: "Source or target system not defined for this project. Please update the project with these details first."
+        });
+      }
+
+      // Generate detailed, system-specific implementation tasks
+      function generateSourceSystemTasks(sourceSystem: string, requirementText: string) {
+        // Define system-specific task templates
+        const systemTemplates: Record<string, any[]> = {
+          "Oracle": [
+            {
+              title: `Extract Oracle data models and table schemas`,
+              description: `
+## Objective
+Extract the Oracle database schema, table relationships, and data models needed to implement: "${requirementText}"
+
+## Detailed Steps
+1. Connect to Oracle database using SQL*Plus or Oracle SQL Developer with appropriate credentials
+   - Connection string: \`sqlplus username/password@//hostname:port/service_name\`
+   - Alternative: \`sqlplus username/password@tnsname\`
+
+2. Identify relevant tables and their relationships:
+   \`\`\`sql
+   SELECT table_name FROM user_tables WHERE table_name LIKE '%RELEVANT_PREFIX%';
+   
+   -- For each table, examine its structure
+   DESCRIBE table_name;
+   
+   -- Identify relationships between tables
+   SELECT a.table_name, a.constraint_name, a.column_name, 
+          c_pk.table_name as referenced_table
+   FROM user_cons_columns a
+   JOIN user_constraints c ON a.constraint_name = c.constraint_name
+   JOIN user_constraints c_pk ON c.r_constraint_name = c_pk.constraint_name
+   WHERE c.constraint_type = 'R' AND a.table_name = 'TABLE_NAME';
+   \`\`\`
+
+3. Create a data dictionary document that includes:
+   - Table names, primary keys, and descriptions
+   - Column names, data types, and business definitions
+   - Foreign key relationships and constraints
+   - Indexing strategy
+   - Any special handling for NULL values or defaults
+
+4. Document all stored procedures and functions that interact with this data:
+   ```sql
+   SELECT object_name, object_type FROM user_objects 
+   WHERE object_type IN ('PROCEDURE', 'FUNCTION', 'PACKAGE', 'TRIGGER');
+   ```
+
+5. Analyze existing queries and data access patterns via AWR reports:
+   ```sql
+   -- Check for frequently run queries
+   SELECT sql_text FROM v$sqlarea ORDER BY executions DESC FETCH FIRST 20 ROWS ONLY;
+   ```
+
+## Expected Output
+- Data dictionary document (.xlsx or .md)
+- Entity-Relationship Diagram (ERD)
+- SQL scripts for data extraction
+- Data volume metrics (row counts, growth patterns)
+- Documentation of any data quality issues discovered
+
+## Verification Criteria
+- Schema must include all required fields for migration
+- Data relationships must be correctly identified
+- All stored procedures affecting the data must be documented
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 8,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Analyze Oracle PL/SQL business logic`,
+              description: `
+## Objective
+Reverse engineer existing PL/SQL business logic related to: "${requirementText}"
+
+## Detailed Steps
+1. Identify all PL/SQL components (packages, procedures, functions, triggers) that implement business rules:
+   ```sql
+   SELECT name, type, line, text
+   FROM user_source
+   WHERE name IN (
+     -- List relevant package names here
+     'PACKAGE_NAME1', 'PACKAGE_NAME2'
+   )
+   ORDER BY name, type, line;
+   
+   -- For triggers
+   SELECT trigger_name, table_name, trigger_type, triggering_event
+   FROM user_triggers
+   WHERE table_name IN ('TABLE1', 'TABLE2');
+   ```
+
+2. For each component, extract and document:
+   ```sql
+   -- Get package specification
+   SELECT text FROM user_source 
+   WHERE name = 'PACKAGE_NAME' AND type = 'PACKAGE'
+   ORDER BY line;
+   
+   -- Get package body
+   SELECT text FROM user_source 
+   WHERE name = 'PACKAGE_NAME' AND type = 'PACKAGE BODY'
+   ORDER BY line;
+   ```
+
+3. Map business flows through sequence diagrams:
+   - Identify entry points for business processes
+   - Document call hierarchy and dependencies
+   - Note all validation rules and constraints
+   - Map error handling and exception paths
+
+4. Extract business rule patterns:
+   - Validation logic patterns
+   - Calculation formulas and algorithms
+   - State transitions and workflow rules
+   - Integration points with other systems
+
+5. Document performance considerations:
+   - Identify bulk operations vs. row-by-row processing
+   - Note any cursor usage or custom indexing
+   - Document any custom caching mechanisms
+   
+## Expected Output
+- Business rules documentation (markdown format)
+- Sequence diagrams for key processes
+- Decision table for business rules
+- Pseudocode representations of complex algorithms
+- Dependency map of procedure/function calls
+
+## Verification Criteria
+- All business validations must be identified
+- Exception handling paths must be documented
+- Performance considerations must be noted
+- Integration touchpoints must be identified
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 12,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Extract Oracle data for migration testing`,
+              description: `
+## Objective
+Create a representative dataset from Oracle for testing the migration of: "${requirementText}"
+
+## Detailed Steps
+1. Identify required test data volume:
+   - Development testing: ~100 records per entity
+   - System testing: ~1,000 records per entity
+   - Performance testing: ~10,000+ records per entity
+
+2. Create data extraction scripts:
+   ```sql
+   -- Create staging tables for extracted data
+   CREATE TABLE staging_table_name AS 
+   SELECT * FROM source_table
+   WHERE <selection_criteria>
+   AND ROWNUM <= <row_limit>;
+   
+   -- Add script for extracting hierarchical/related data
+   -- Maintain referential integrity in the extract
+   ```
+
+3. Define data masking requirements for sensitive information:
+   ```sql
+   -- Example masking for PII data
+   UPDATE staging_customer
+   SET 
+     email = 'customer_' || customer_id || '@example.com',
+     phone_number = '555-' || LPAD(ABS(MOD(customer_id, 10000)), 4, '0'),
+     credit_card_number = RPAD('4111', 16, '1');
+   ```
+
+4. Generate data extract files:
+   ```sql
+   -- For CSV output
+   SET HEADING ON
+   SET FEEDBACK OFF
+   SET PAGESIZE 0
+   SET TRIMSPOOL ON
+   SET LINESIZE 5000
+   SET COLSEP ','
+   
+   SPOOL /tmp/extract_file.csv
+   SELECT * FROM staging_table_name;
+   SPOOL OFF
+   ```
+
+5. Verify data extract for completeness:
+   - Check record counts match expected numbers
+   - Verify all required fields are included
+   - Confirm referential integrity is maintained
+   - Validate masking of sensitive data
+
+## Expected Output
+- Test data extraction scripts (SQL)
+- CSV or JSON data files
+- Data mapping documentation
+- Validation report confirming data quality
+- Data refresh procedure documentation
+
+## Verification Criteria
+- Dataset must cover all required test scenarios
+- Data volume must meet testing requirements
+- All sensitive data must be properly masked
+- Referential integrity must be maintained
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 6,
+              complexity: "medium",
+              assignee: null
+            }
+          ],
+          "SAP": [
+            {
+              title: `Extract SAP data models and configuration`,
+              description: `
+## Objective
+Document SAP data structures and configuration settings related to: "${requirementText}"
+
+## Detailed Steps
+1. Access SAP system using transaction codes:
+   - SE11: Data Dictionary
+   - SE16: Data Browser
+   - SM30: Table Maintenance
+   - SE37: Function Modules
+   - SE80: Object Navigator
+
+2. Document relevant tables using transaction SE11:
+   - For each table, document:
+     - Fields and data types
+     - Key fields
+     - Relationships to other tables
+     - Customizing vs. transactional data
+
+3. Extract table data using SE16 or SE16N:
+   - For customizing tables, capture all configuration
+   - For transactional tables, extract sample data
+   - Use variant for saved selection criteria
+
+4. Document ABAP programs via SE38:
+   - Identify all custom Z* programs
+   - Document standard programs with modifications
+   - List BADIs, user exits and enhancement spots
+   - Capture ABAP reports, function modules and methods
+
+5. Extract business process configuration using transaction SPRO:
+   - Document IMG settings for relevant modules
+   - Capture variant configuration settings
+   - Document number range objects (transaction SNRO)
+   - Extract workflow configurations (SWDD)
+
+## Expected Output
+- SAP module configuration documentation
+- Table structure documentation with ERD
+- Transaction usage guide
+- Custom code inventory
+- Configuration change log
+
+## Verification Criteria
+- All Z* custom objects must be documented
+- All modified standard objects must be identified
+- Configuration settings must cover all scenarios
+- Data dictionary must include all relevant tables
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 10,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Analyze SAP business processes`,
+              description: `
+## Objective
+Document all SAP business processes and workflows related to: "${requirementText}"
+
+## Detailed Steps
+1. Identify relevant business processes:
+   - Use transaction SU01 to review key user roles
+   - Document transaction codes (T-codes) frequently used
+   - Review SAP Solution Manager for process documentation
+   - Interview key users about their daily processes
+
+2. Map business processes using transaction code SWDD:
+   - Document workflow steps and decision points
+   - Identify workflow triggers and completion criteria
+   - Map approval hierarchies and authorization requirements
+   - Document integration points with other modules
+
+3. Extract ABAP business logic using Code Inspector (transaction SCI):
+   - Create variant to analyze specific components
+   - Focus on custom Z* objects and modified standard objects
+   - Document any RICEF objects (Reports, Interfaces, Conversions, Enhancements, Forms)
+   - Analyze BAdI implementations and user exits
+
+4. Document business rules using transaction AVER or PCR:
+   - Extract validation rules
+   - Document pricing procedures
+   - Map account determination
+   - Document output determination
+
+5. Document batch jobs using SM36/SM37:
+   - List all scheduled background jobs
+   - Document job dependencies
+   - Extract job parameters and schedules
+   - Map interfaces and data extraction jobs
+
+## Expected Output
+- Process flow diagrams
+- T-code usage guide by role
+- Job scheduling documentation
+- Business rule documentation
+- Customization inventory
+
+## Verification Criteria
+- Process flows must cover all user scenarios
+- All custom business logic must be documented
+- Integration points must be clearly identified
+- Batch process dependencies must be mapped
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 8,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Extract SAP master and transactional data`,
+              description: `
+## Objective
+Extract required master and transactional data from SAP to support: "${requirementText}"
+
+## Detailed Steps
+1. Prepare extraction environment:
+   - Create dedicated extraction user with appropriate roles
+   - Set up extraction server with SAP client
+   - Configure RFC connections if needed
+   - Verify data access authorizations
+
+2. Extract master data:
+   - Use LSMW, transaction LTMC, or custom programs for extraction
+   - For key master data objects, use standard transactions:
+     - Material master: MM01/MM02/MM03
+     - Customer master: XD01/XD02/XD03
+     - Vendor master: XK01/XK02/XK03
+     - GL accounts: FS00
+
+3. Extract transactional data:
+   ```abap
+   REPORT Z_DATA_EXTRACT.
+   
+   DATA: lt_data TYPE TABLE OF <table_name>.
+   
+   SELECT * FROM <table_name>
+     INTO TABLE lt_data
+     WHERE <selection_fields> IN <selection_range>
+     AND <date_field> BETWEEN <start_date> AND <end_date>.
+   
+   CALL FUNCTION 'GUI_DOWNLOAD'
+     EXPORTING
+       filename = 'C:\\temp\\data_extract.csv'
+       filetype = 'ASC'
+     TABLES
+       data_tab = lt_data.
+   ```
+
+4. Document data relationships:
+   - Map parent-child relationships
+   - Document data dependencies
+   - Create data flow diagrams
+   - Map document flow (VA03 → Display Sales Order → follow document flow)
+
+5. Verify data completeness:
+   - Reconcile record counts with SAP reports
+   - Verify field mappings
+   - Validate date ranges
+   - Check for data consistency across related objects
+
+## Expected Output
+- Data extraction programs (ABAP)
+- Master data files (CSV/Excel)
+- Transaction data files (CSV/Excel)
+- Data mapping documentation
+- Data dictionary
+
+## Verification Criteria
+- All required fields must be extracted
+- Data volumes must match SAP system counts
+- Referential integrity must be maintained
+- Extraction must be repeatable with documentation
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 8,
+              complexity: "medium",
+              assignee: null
+            }
+          ],
+          "Salesforce": [
+            {
+              title: `Extract Salesforce org metadata`,
+              description: `
+## Objective
+Extract and document Salesforce metadata configuration related to: "${requirementText}"
+
+## Detailed Steps
+1. Use Salesforce CLI to extract metadata:
+   ```bash
+   # Install Salesforce CLI
+   npm install -g sfdx-cli
+   
+   # Authenticate to org
+   sfdx auth:web:login -a SourceOrg
+   
+   # Extract metadata
+   sfdx force:mdapi:retrieve -r ./mdapi -u SourceOrg -p "Profile,CustomObject,ApexClass,Trigger,Flow,Layout,CustomField,ValidationRule,PermissionSet"
+   
+   # Extract specific objects
+   sfdx force:source:retrieve -m CustomObject:Account,CustomObject:Contact,CustomObject:Opportunity
+   ```
+
+2. Document object model:
+   - Use Schema Builder to visualize and export ERD
+   - Document custom objects, standard object customizations
+   - Map field-level details including:
+     - Data types and lengths
+     - Formulas and roll-up summaries
+     - Picklist values
+     - Required fields and default values
+
+3. Extract business automation:
+   - Process Builder flows
+   - Lightning Flows
+   - Approval Processes
+   - Workflow Rules
+   - Validation Rules
+
+4. Document Apex code:
+   ```bash
+   # Extract Apex classes and triggers
+   sfdx force:source:retrieve -m ApexClass,ApexTrigger
+   
+   # For code analysis
+   sfdx force:apex:execute -f scripts/apex/analyzeCodeCoverage.apex
+   ```
+
+5. Map integrations and external dependencies:
+   - Document Named Credentials
+   - Extract Connected Apps
+   - Document Auth. Providers
+   - List External Services
+   - Map API usage points
+   
+## Expected Output
+- Complete metadata package (.zip)
+- Object relationship diagram
+- Apex code documentation
+- Business process documentation
+- Integration mapping document
+
+## Verification Criteria
+- Metadata package must be extractable to compatible org
+- All custom developments must be documented
+- All integrations must be mapped
+- Security model must be documented
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 8,
+              complexity: "medium",
+              assignee: null
+            },
+            {
+              title: `Analyze Salesforce business processes`,
+              description: `
+## Objective
+Document Salesforce business processes, automations, and workflows related to: "${requirementText}"
+
+## Detailed Steps
+1. Document Flow and Process Builder automations:
+   - Navigate to Setup → Process Automation → Flows
+   - Document each automation:
+     - Trigger conditions (record create/update, schedule, etc.)
+     - Decision criteria and branching logic
+     - Actions performed
+     - Error handling
+
+2. Export and analyze Lightning Flows:
+   ```bash
+   # Export flow definitions
+   sfdx force:source:retrieve -m Flow
+   
+   # Review flow metadata
+   cat force-app/main/default/flows/*.flow-meta.xml
+   ```
+
+3. Document Apex Triggers and order of execution:
+   - Map all triggers on affected objects
+   - Document execution order and dependencies
+   - Identify handler classes and service classes
+   - Map transaction boundaries and governor limit considerations
+
+4. Document Reports and Dashboards:
+   - Export list of related reports
+   - Document dashboard components and source reports
+   - Map scheduling and subscription settings
+   - Note any embedded dashboard filtering
+
+5. Document User Experience:
+   - Map Lightning page layouts and components
+   - Document custom Lightning Components
+   - Capture Screen Flows and Guided Actions
+   - Document Mobile configurations
+   - Map Lightning App navigation and tabs
+
+## Expected Output
+- Process flowcharts
+- Trigger execution documentation
+- User journey maps
+- Automation logic documentation
+- Page layout and component specs
+
+## Verification Criteria
+- All automations must be mapped to business requirements
+- Transaction boundaries must be clearly identified
+- UX flows must be documented with screenshots
+- Integration touchpoints must be documented
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 6,
+              complexity: "medium",
+              assignee: null
+            },
+            {
+              title: `Extract Salesforce data for migration`,
+              description: `
+## Objective
+Extract and prepare Salesforce data for migration related to: "${requirementText}"
+
+## Detailed Steps
+1. Prepare data extraction tools:
+   - Set up Data Loader with appropriate API credentials
+   - Configure SOQL queries for data extraction
+   - Prepare Data Export service in Setup
+   - Consider Salesforce Data Export service for weekly backups
+
+2. Create SOQL queries for targeted data extraction:
+   ```sql
+   SELECT Id, Name, Type, Industry, BillingStreet, BillingCity, BillingState,
+          BillingPostalCode, BillingCountry, Phone, Website,
+          ParentId, OwnerId, CreatedDate, LastModifiedDate
+   FROM Account
+   WHERE LastModifiedDate > LAST_N_DAYS:90
+   ORDER BY LastModifiedDate DESC
+   
+   -- Extract related child records
+   SELECT Id, AccountId, FirstName, LastName, Email, Phone, Title,
+          OwnerId, CreatedDate, LastModifiedDate
+   FROM Contact
+   WHERE AccountId IN (SELECT Id FROM Account WHERE LastModifiedDate > LAST_N_DAYS:90)
+   ```
+
+3. Handle record relationships and dependencies:
+   - Document object dependencies (parent-child)
+   - Create extraction sequence diagram
+   - Map lookup and master-detail relationships
+   - Document required fields for each object
+
+4. Extract and format data:
+   ```bash
+   # Using Salesforce CLI for data extraction
+   sfdx force:data:soql:query -q "SELECT Id, Name FROM Account LIMIT 10" -r csv
+   
+   # Using Data Loader CLI for automation
+   process.bat csvExtract
+   ```
+
+5. Verify data extracts:
+   - Validate record counts against Salesforce reports
+   - Check data types and formats
+   - Verify relationship IDs are maintained
+   - Check for duplicate records or data inconsistencies
+
+## Expected Output
+- CSV data extracts for each object
+- Data extraction scripts (SOQL)
+- Data dictionary with field mappings
+- Data volume metrics
+- Data quality report
+
+## Verification Criteria
+- All required data must be extracted with proper relationships
+- Data must pass validation rules for target system
+- Data extraction must be repeatable via documentation
+- External IDs must be included for data matching
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 6,
+              complexity: "medium",
+              assignee: null
+            }
+          ],
+          // Default template for any system not specifically covered
+          "default": [
+            {
+              title: `Extract data from ${sourceSystem}`,
+              description: `
+## Objective
+Extract and document all data structures from ${sourceSystem} required for: "${requirementText}"
+
+## Detailed Steps
+1. Analyze system architecture:
+   - Document database/data storage technology
+   - Map connection parameters and access methods
+   - Identify data owners and system administrators
+   - Document API access points if available
+
+2. Extract data model documentation:
+   - Create entity relationship diagram
+   - Document tables/collections/data structures
+   - Map data types and constraints
+   - Document indexing and performance features
+
+3. Map business processes:
+   - Document user workflows and journeys
+   - Identify transaction boundaries
+   - Map integration points with other systems
+   - Document batch processes and schedules
+
+4. Extract sample data sets:
+   - Create sanitized data extracts for testing
+   - Document data volumes and growth patterns
+   - Identify data quality issues or anomalies
+   - Create data dictionaries with business definitions
+
+5. Document authentication and security model:
+   - Map user roles and permissions
+   - Document security implementations
+   - Identify data access controls
+   - Document audit and compliance requirements
+
+## Expected Output
+- System architecture documentation
+- Data model diagrams and documentation
+- Business process flows
+- Sample data sets for testing
+- Security model documentation
+
+## Verification Criteria
+- All data structures must be fully documented
+- Sample data must be sufficient for testing
+- Business rules must be clearly documented
+- Security and access controls must be mapped
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 8,
+              complexity: "medium",
+              assignee: null
+            },
+            {
+              title: `Analyze ${sourceSystem} implementation`,
+              description: `
+## Objective
+Document current implementation patterns in ${sourceSystem} related to: "${requirementText}"
+
+## Detailed Steps
+1. Perform code review:
+   - Document programming languages and frameworks used
+   - Identify design patterns implemented
+   - Review algorithm efficiency and performance
+   - Document technical debt and known issues
+
+2. Map system architecture:
+   - Document deployment model (on-prem, cloud, hybrid)
+   - Map servers, services, and components
+   - Document network topology and infrastructure
+   - Identify scalability and high-availability features
+
+3. Analyze integration patterns:
+   - Document APIs (REST, SOAP, GraphQL, etc.)
+   - Map message queues and event streams
+   - Document file-based integrations
+   - Map real-time vs. batch interfaces
+
+4. Review performance considerations:
+   - Document response time requirements
+   - Map caching implementations
+   - Identify database query optimization
+   - Document throughput requirements
+
+5. Document testing approach:
+   - Map test cases and scenarios
+   - Document test automation
+   - Identify test data requirements
+   - Document test environments
+
+## Expected Output
+- Code review documentation
+- Architecture diagrams
+- Integration mapping
+- Performance baseline metrics
+- Test case inventory
+
+## Verification Criteria
+- All code patterns must be documented
+- Architecture must be fully mapped
+- Integration points must be clearly defined
+- Performance considerations must be documented
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "source",
+              requirementId: requirement.id,
+              estimatedHours: 6,
+              complexity: "medium",
+              assignee: null
+            }
+          ]
+        };
+        
+        // Use the appropriate template or fall back to default
+        const templates = systemTemplates[sourceSystem] || systemTemplates["default"];
+        return templates.map(template => ({
+          ...template,
+          requirementId: requirement.id,
+          priority: requirement.priority
+        }));
+      }
+
+      function generateTargetSystemTasks(targetSystem: string, requirementText: string) {
+        // Define system-specific task templates
+        const systemTemplates: Record<string, any[]> = {
+          "Salesforce": [
+            {
+              title: `Design Salesforce data model`,
+              description: `
+## Objective
+Design Salesforce data model to implement: "${requirementText}"
+
+## Detailed Steps
+1. Analyze requirements and map to Salesforce data architecture:
+   - Determine which data elements map to standard objects
+   - Design custom objects for domain-specific data
+   - Plan field-level mapping with appropriate data types
+   - Design relationships (lookup vs. master-detail)
+
+2. Create object model diagram:
+   - Use Salesforce Architect tools or Lucidchart
+   - Document object relationships and cardinality
+   - Map required fields and constraints
+   - Document formula fields and roll-up calculations
+
+3. Design field-level specifications:
+   ```
+   Object: [Object Name]
+   Field: [Field Name]
+   Type: [Text, Number, Date, Lookup, etc.]
+   Length: [For text fields]
+   Precision: [For number fields]
+   Required: [Yes/No]
+   Unique: [Yes/No]
+   External ID: [Yes/No]
+   Formula: [If applicable]
+   Description: [Business definition]
+   ```
+
+4. Plan object-level automation:
+   - Document required validation rules
+   - Design workflow rules or process builders
+   - Plan required triggers
+   - Map record-triggered flows
+
+5. Define security model:
+   - Design field-level security
+   - Plan sharing rules and org-wide defaults
+   - Design permission sets and profiles
+   - Document row-level access requirements
+
+## Expected Output
+- Salesforce ERD (PDF/PNG)
+- Object specification document
+- Field mapping spreadsheet
+- Security model documentation
+- Automation design document
+
+## Verification Criteria
+- Data model must support all requirements
+- Design must follow Salesforce best practices
+- Field limits and governor limits must be considered
+- Design must be scalable for future growth
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 8,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Implement Salesforce customizations`,
+              description: `
+## Objective
+Build Salesforce customizations to implement: "${requirementText}"
+
+## Detailed Steps
+1. Set up development environment:
+   ```bash
+   # Create scratch org or use sandbox
+   sfdx force:org:create -f config/project-scratch-def.json -a DevOrg
+   
+   # Install required packages
+   sfdx force:package:install -p 04t... -u DevOrg
+   
+   # Push initial configuration
+   sfdx force:source:push -u DevOrg
+   ```
+
+2. Create or modify custom objects:
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+     <fields>
+       <fullName>CustomField__c</fullName>
+       <type>Text</type>
+       <length>255</length>
+       <label>Custom Field</label>
+       <required>false</required>
+     </fields>
+     <!-- Additional fields... -->
+   </CustomObject>
+   ```
+
+3. Develop Apex classes and triggers:
+   ```java
+   /**
+    * @description Handler class for Object__c
+    */
+   public with sharing class ObjectHandler {
+     public static void handleBeforeInsert(List<Object__c> newRecords) {
+       // Implement business logic
+       for (Object__c record : newRecords) {
+         // Apply validations and transformations
+         if (record.Field__c == null) {
+           record.Field__c = 'Default Value';
+         }
+       }
+     }
+     
+     // Additional handler methods...
+   }
+   ```
+
+4. Create Lightning Components:
+   ```javascript
+   // lightning/customComponent/customComponent.js
+   import { LightningElement, api, track } from 'lwc';
+   import getRecords from '@salesforce/apex/Controller.getRecords';
+   
+   export default class CustomComponent extends LightningElement {
+     @api recordId;
+     @track records = [];
+     
+     connectedCallback() {
+       this.loadRecords();
+     }
+     
+     loadRecords() {
+       getRecords({ parentId: this.recordId })
+         .then(result => {
+           this.records = result;
+         })
+         .catch(error => {
+           console.error('Error loading records', error);
+         });
+     }
+     
+     // Additional component methods...
+   }
+   ```
+
+5. Build automation with Flow:
+   - Create record-triggered flows for object automation
+   - Build screen flows for guided user experiences
+   - Implement scheduled flows for recurring processes
+   - Create auto-launched flows for system integrations
+
+## Expected Output
+- Salesforce metadata package
+- Apex classes with unit tests (>85% coverage)
+- Lightning components
+- Flow definitions
+- Configuration documentation
+
+## Verification Criteria
+- Code must follow Salesforce best practices
+- Unit tests must achieve >85% coverage
+- Solution must be deployable via metadata API
+- Implementation must meet all requirements
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 12,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Develop Salesforce integration components`,
+              description: `
+## Objective
+Create integration components in Salesforce to implement: "${requirementText}"
+
+## Detailed Steps
+1. Design integration architecture:
+   - Map integration patterns (real-time, batch, hybrid)
+   - Document authentication methods
+   - Define error handling and retry policies
+   - Design monitoring and alerting approach
+
+2. Create external system connection:
+   ```
+   # Named Credential Configuration
+   Named Credential Name: ExternalSystem
+   URL: https://api.example.com
+   Authentication: OAuth 2.0
+   Authentication Protocol: JWT Bearer Flow
+   Scope: api
+   JWT Signing Certificate: [Certificate Name]
+   ```
+
+3. Develop integration Apex classes:
+   ```java
+   /**
+    * @description Service class for external system integration
+    */
+   public with sharing class ExternalSystemService {
+     private static final String NAMED_CREDENTIAL = 'callout:ExternalSystem';
+     
+     /**
+      * @description Make API call to external system
+      * @param endpoint API endpoint
+      * @param method HTTP method
+      * @param payload Request payload
+      * @return API response
+      */
+     public static HttpResponse makeApiCall(String endpoint, String method, String payload) {
+       Http http = new Http();
+       HttpRequest request = new HttpRequest();
+       request.setEndpoint(NAMED_CREDENTIAL + endpoint);
+       request.setMethod(method);
+       request.setHeader('Content-Type', 'application/json');
+       
+       if (payload != null) {
+         request.setBody(payload);
+       }
+       
+       try {
+         return http.send(request);
+       } catch (Exception e) {
+         // Log error and handle exception
+         System.debug('Error calling external system: ' + e.getMessage());
+         throw new ExternalSystemException('Failed to call external system: ' + e.getMessage());
+       }
+     }
+     
+     // Additional integration methods...
+   }
+   ```
+
+4. Implement data transformation classes:
+   ```java
+   /**
+    * @description Data transformer for external system integration
+    */
+   public with sharing class DataTransformer {
+     /**
+      * @description Transform Salesforce record to external system format
+      * @param record Salesforce record
+      * @return JSON string for external system
+      */
+     public static String transformToExternalSystem(SObject record) {
+       Map<String, Object> result = new Map<String, Object>();
+       
+       // Map fields from Salesforce to external system format
+       if (record instanceof Account) {
+         Account acct = (Account)record;
+         result.put('companyName', acct.Name);
+         result.put('companyId', acct.Id);
+         result.put('industry', acct.Industry);
+         // Additional field mapping...
+       }
+       
+       return JSON.serialize(result);
+     }
+     
+     // Additional transformation methods...
+   }
+   ```
+
+5. Create batch processing for large data volumes:
+   ```java
+   /**
+    * @description Batch process for external system synchronization
+    */
+   public class ExternalSystemBatch implements Database.Batchable<SObject>, Database.AllowsCallouts, Schedulable {
+     public Database.QueryLocator start(Database.BatchableContext bc) {
+       return Database.getQueryLocator('SELECT Id, Name, [...] FROM Account WHERE LastModifiedDate > YESTERDAY');
+     }
+     
+     public void execute(Database.BatchableContext bc, List<SObject> scope) {
+       // Process records in batches
+       List<Object> results = new List<Object>();
+       
+       for (SObject record : scope) {
+         String payload = DataTransformer.transformToExternalSystem(record);
+         HttpResponse response = ExternalSystemService.makeApiCall('/api/resource', 'POST', payload);
+         
+         // Process response
+         if (response.getStatusCode() == 200) {
+           // Handle success
+         } else {
+           // Handle error
+         }
+       }
+     }
+     
+     public void finish(Database.BatchableContext bc) {
+       // Send completion notification
+     }
+     
+     public void execute(SchedulableContext sc) {
+       Database.executeBatch(this, 100);
+     }
+   }
+   ```
+
+## Expected Output
+- Integration architecture document
+- Apex integration classes
+- Data transformation components
+- Batch processing implementation
+- Error handling framework
+- Integration testing documentation
+
+## Verification Criteria
+- Code must handle API limits and bulk operations
+- Error handling must be comprehensive
+- Solution must handle authentication securely
+- Implementation must be maintainable and documented
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 10,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Test Salesforce implementation`,
+              description: `
+## Objective
+Test Salesforce implementation of: "${requirementText}"
+
+## Detailed Steps
+1. Develop unit tests for Apex classes:
+   ```java
+   /**
+    * @description Test class for ObjectHandler
+    */
+   @isTest
+   private class ObjectHandlerTest {
+     @isTest
+     static void testBeforeInsert() {
+       // Create test data
+       Object__c testRecord = new Object__c(
+         Name = 'Test Record',
+         Field__c = null
+       );
+       
+       // Execute test
+       Test.startTest();
+       insert testRecord;
+       Test.stopTest();
+       
+       // Verify results
+       Object__c result = [SELECT Field__c FROM Object__c WHERE Id = :testRecord.Id];
+       System.assertEquals('Default Value', result.Field__c, 'Default value should be set');
+     }
+     
+     // Additional test methods...
+   }
+   ```
+
+2. Create test scripts for UI testing:
+   - Document manual test cases with steps and expected results
+   - Create Lightning Testing Service tests for Lightning components
+   - Develop UI automation tests using Selenium or similar
+
+3. Implement integration tests:
+   ```java
+   @isTest
+   private class IntegrationTest {
+     @isTest
+     static void testExternalSystemIntegration() {
+       // Create mock HTTP response
+       HttpCalloutMock mock = new HttpCalloutMockImpl();
+       Test.setMock(HttpCalloutMock.class, mock);
+       
+       // Create test data
+       Account testAccount = new Account(Name = 'Test Account');
+       insert testAccount;
+       
+       // Execute test
+       Test.startTest();
+       HttpResponse response = ExternalSystemService.makeApiCall('/api/resource', 'GET', null);
+       Test.stopTest();
+       
+       // Verify results
+       System.assertEquals(200, response.getStatusCode(), 'Status code should be 200');
+       Map<String, Object> responseBody = (Map<String, Object>)JSON.deserializeUntyped(response.getBody());
+       System.assertNotEquals(null, responseBody.get('id'), 'Response should contain ID');
+     }
+     
+     // Mock implementation
+     private class HttpCalloutMockImpl implements HttpCalloutMock {
+       public HttpResponse respond(HttpRequest request) {
+         HttpResponse response = new HttpResponse();
+         response.setStatusCode(200);
+         response.setBody('{"id": "12345", "status": "success"}');
+         return response;
+       }
+     }
+   }
+   ```
+
+4. Perform user acceptance testing:
+   - Create UAT scripts for each user story
+   - Document test scenarios with expected results
+   - Conduct user testing sessions
+   - Gather and document feedback
+
+5. Run performance and load testing:
+   - Test governor limits under load
+   - Measure response times
+   - Test bulk data operations
+   - Validate batch processes with large data volumes
+
+## Expected Output
+- Unit test classes with >85% coverage
+- Integration test documentation
+- UAT test scripts and results
+- Performance testing results
+- Test coverage report
+
+## Verification Criteria
+- All unit tests must pass with >85% coverage
+- UAT must verify all requirements
+- Performance must meet defined SLAs
+- All edge cases must be tested and documented
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 8,
+              complexity: "medium",
+              assignee: null
+            }
+          ],
+          "AWS": [
+            {
+              title: `Design AWS cloud architecture`,
+              description: `
+## Objective
+Design AWS cloud architecture to implement: "${requirementText}"
+
+## Detailed Steps
+1. Define architecture requirements:
+   - Document functional requirements
+   - Define non-functional requirements (scalability, availability, security)
+   - Identify performance and cost constraints
+   - Map compliance and regulatory requirements
+
+2. Design infrastructure as code (IaC):
+   ```yaml
+   # CloudFormation template example
+   AWSTemplateFormatVersion: '2010-09-09'
+   Description: 'Architecture for ${requirementText}'
+   
+   Resources:
+     # VPC configuration
+     VPC:
+       Type: 'AWS::EC2::VPC'
+       Properties:
+         CidrBlock: 10.0.0.0/16
+         EnableDnsSupport: true
+         EnableDnsHostnames: true
+         Tags:
+           - Key: Name
+             Value: MyVPC
+     
+     # Subnets
+     PublicSubnet1:
+       Type: 'AWS::EC2::Subnet'
+       Properties:
+         VpcId: !Ref VPC
+         CidrBlock: 10.0.1.0/24
+         AvailabilityZone: !Select [0, !GetAZs '']
+         Tags:
+           - Key: Name
+             Value: Public Subnet 1
+     
+     # Additional resources as needed...
+   ```
+
+3. Design serverless architecture (if applicable):
+   ```yaml
+   # SAM template example
+   AWSTemplateFormatVersion: '2010-09-09'
+   Transform: 'AWS::Serverless-2016-10-31'
+   Description: 'Serverless architecture for ${requirementText}'
+   
+   Resources:
+     # Lambda function
+     MyFunction:
+       Type: 'AWS::Serverless::Function'
+       Properties:
+         Handler: index.handler
+         Runtime: nodejs14.x
+         CodeUri: ./src
+         Events:
+           ApiEvent:
+             Type: Api
+             Properties:
+               Path: /resource
+               Method: get
+     
+     # Additional serverless resources...
+   ```
+
+4. Design data architecture:
+   - Map data storage requirements to AWS services (RDS, DynamoDB, S3)
+   - Document database schema or data model
+   - Design data backup and recovery strategy
+   - Plan data migration approach
+
+5. Design security controls:
+   - Document IAM roles and policies
+   - Plan network security (security groups, NACLs)
+   - Design encryption strategy (at rest and in transit)
+   - Map compliance controls to AWS services
+
+## Expected Output
+- Architecture diagram (Visio, Lucidchart, or AWS Draw.io)
+- CloudFormation/SAM templates
+- Cost estimation
+- Security controls documentation
+- Implementation roadmap
+
+## Verification Criteria
+- Architecture must meet all requirements
+- Design must follow AWS Well-Architected Framework
+- Security controls must address all compliance requirements
+- Cost estimates must be detailed and realistic
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 10,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Implement AWS infrastructure`,
+              description: `
+## Objective
+Build and deploy AWS infrastructure to implement: "${requirementText}"
+
+## Detailed Steps
+1. Set up infrastructure as code (IaC) repository:
+   ```bash
+   # Initialize Terraform project
+   mkdir -p terraform/modules
+   cd terraform
+   
+   # Create main configuration files
+   cat > main.tf << 'EOF'
+   provider "aws" {
+     region = "us-west-2"
+   }
+   
+   module "vpc" {
+     source = "./modules/vpc"
+     # Module parameters...
+   }
+   
+   # Additional module configurations...
+   EOF
+   
+   # Initialize terraform
+   terraform init
+   ```
+
+2. Create VPC and networking:
+   ```terraform
+   # modules/vpc/main.tf
+   resource "aws_vpc" "main" {
+     cidr_block           = var.vpc_cidr
+     enable_dns_support   = true
+     enable_dns_hostnames = true
+     
+     tags = {
+       Name = "${var.project_name}-vpc"
+     }
+   }
+   
+   resource "aws_subnet" "public" {
+     count             = length(var.public_subnet_cidrs)
+     vpc_id            = aws_vpc.main.id
+     cidr_block        = var.public_subnet_cidrs[count.index]
+     availability_zone = var.availability_zones[count.index]
+     
+     tags = {
+       Name = "${var.project_name}-public-subnet-${count.index + 1}"
+     }
+   }
+   
+   # Additional networking resources...
+   ```
+
+3. Deploy compute resources:
+   ```terraform
+   # modules/compute/main.tf
+   resource "aws_instance" "app_server" {
+     count         = var.instance_count
+     ami           = var.ami_id
+     instance_type = var.instance_type
+     subnet_id     = var.subnet_ids[count.index % length(var.subnet_ids)]
+     key_name      = var.key_name
+     
+     vpc_security_group_ids = [aws_security_group.app_sg.id]
+     
+     user_data = <<-EOF
+       #!/bin/bash
+       echo "Installing dependencies..."
+       yum update -y
+       yum install -y httpd
+       systemctl start httpd
+       systemctl enable httpd
+       EOF
+     
+     tags = {
+       Name = "${var.project_name}-app-server-${count.index + 1}"
+     }
+   }
+   
+   # Additional compute resources...
+   ```
+
+4. Configure database and storage:
+   ```terraform
+   # modules/database/main.tf
+   resource "aws_db_instance" "database" {
+     allocated_storage    = var.allocated_storage
+     engine               = var.engine
+     engine_version       = var.engine_version
+     instance_class       = var.instance_class
+     name                 = var.db_name
+     username             = var.username
+     password             = var.password
+     parameter_group_name = var.parameter_group_name
+     db_subnet_group_name = aws_db_subnet_group.default.name
+     vpc_security_group_ids = [aws_security_group.db_sg.id]
+     skip_final_snapshot  = true
+     
+     tags = {
+       Name = "${var.project_name}-database"
+     }
+   }
+   
+   # Additional database resources...
+   ```
+
+5. Set up CI/CD pipeline:
+   ```yaml
+   # AWS CodePipeline configuration
+   version: 0.2
+   
+   phases:
+     install:
+       runtime-versions:
+         nodejs: 14
+     pre_build:
+       commands:
+         - echo Installing dependencies...
+         - npm install
+     build:
+       commands:
+         - echo Build started on \`date\`
+         - npm run build
+     post_build:
+       commands:
+         - echo Build completed on \`date\`
+         - aws s3 sync ./build s3://my-app-bucket/ --delete
+   
+   artifacts:
+     files:
+       - build/**/*
+     discard-paths: no
+     base-directory: build
+   ```
+
+## Expected Output
+- Terraform/CloudFormation code for infrastructure
+- Deployment pipeline configuration
+- Environment configuration
+- Infrastructure documentation
+- Monitoring and alerting setup
+
+## Verification Criteria
+- Infrastructure must be deployed via IaC
+- Environment must be properly secured
+- Deployment must be automated
+- Resources must be properly tagged
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 12,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Develop AWS application components`,
+              description: `
+## Objective
+Develop application components on AWS to implement: "${requirementText}"
+
+## Detailed Steps
+1. Create API Gateway and Lambda functions:
+   ```javascript
+   // Lambda function handler
+   exports.handler = async (event) => {
+     try {
+       console.log('Event:', JSON.stringify(event));
+       
+       // Extract path parameters and query string parameters
+       const pathParameters = event.pathParameters || {};
+       const queryStringParameters = event.queryStringParameters || {};
+       
+       // Process request
+       const response = await processRequest(pathParameters, queryStringParameters);
+       
+       // Return successful response
+       return {
+         statusCode: 200,
+         headers: {
+           'Content-Type': 'application/json',
+         },
+         body: JSON.stringify(response),
+       };
+     } catch (error) {
+       console.error('Error:', error);
+       
+       // Return error response
+       return {
+         statusCode: 500,
+         headers: {
+           'Content-Type': 'application/json',
+         },
+         body: JSON.stringify({
+           message: 'Internal server error',
+           error: error.message,
+         }),
+       };
+     }
+   };
+   
+   async function processRequest(pathParameters, queryStringParameters) {
+     // Implement business logic
+     // ...
+     
+     return {
+       message: 'Success',
+       data: {
+         // Response data
+       },
+     };
+   }
+   ```
+
+2. Implement data access layer:
+   ```javascript
+   // DynamoDB data access
+   const AWS = require('aws-sdk');
+   const docClient = new AWS.DynamoDB.DocumentClient();
+   
+   async function createItem(tableName, item) {
+     const params = {
+       TableName: tableName,
+       Item: item,
+     };
+     
+     try {
+       await docClient.put(params).promise();
+       return item;
+     } catch (error) {
+       console.error('Error creating item:', error);
+       throw error;
+     }
+   }
+   
+   async function getItem(tableName, key) {
+     const params = {
+       TableName: tableName,
+       Key: key,
+     };
+     
+     try {
+       const result = await docClient.get(params).promise();
+       return result.Item;
+     } catch (error) {
+       console.error('Error getting item:', error);
+       throw error;
+     }
+   }
+   
+   // Additional data access methods...
+   ```
+
+3. Configure Amazon Cognito for authentication:
+   ```javascript
+   // Authorization middleware
+   const jwt = require('jsonwebtoken');
+   const jwksClient = require('jwks-rsa');
+   
+   const client = jwksClient({
+     jwksUri: 'https://cognito-idp.{region}.amazonaws.com/{userPoolId}/.well-known/jwks.json',
+   });
+   
+   function getKey(header, callback) {
+     client.getSigningKey(header.kid, function(err, key) {
+       const signingKey = key.publicKey || key.rsaPublicKey;
+       callback(null, signingKey);
+     });
+   }
+   
+   function verifyToken(token) {
+     return new Promise((resolve, reject) => {
+       jwt.verify(token, getKey, {}, function(err, decoded) {
+         if (err) {
+           reject(err);
+         } else {
+           resolve(decoded);
+         }
+       });
+     });
+   }
+   
+   // Use in Lambda authorizer
+   exports.authorizerHandler = async (event) => {
+     try {
+       const token = event.authorizationToken.split(' ')[1];
+       const decoded = await verifyToken(token);
+       
+       // Generate policy
+       return generatePolicy(decoded.sub, 'Allow', event.methodArn);
+     } catch (error) {
+       console.error('Error authorizing:', error);
+       return generatePolicy('user', 'Deny', event.methodArn);
+     }
+   };
+   ```
+
+4. Implement event-driven architecture using SQS/SNS:
+   ```javascript
+   // SNS publisher
+   const AWS = require('aws-sdk');
+   const sns = new AWS.SNS();
+   
+   async function publishEvent(topicArn, message, subject) {
+     const params = {
+       TopicArn: topicArn,
+       Message: JSON.stringify(message),
+       Subject: subject,
+     };
+     
+     try {
+       const result = await sns.publish(params).promise();
+       console.log('Event published:', result.MessageId);
+       return result.MessageId;
+     } catch (error) {
+       console.error('Error publishing event:', error);
+       throw error;
+     }
+   }
+   
+   // SQS consumer
+   const sqs = new AWS.SQS();
+   
+   async function receiveMessages(queueUrl, maxMessages = 10) {
+     const params = {
+       QueueUrl: queueUrl,
+       MaxNumberOfMessages: maxMessages,
+       WaitTimeSeconds: 20,
+     };
+     
+     try {
+       const result = await sqs.receiveMessage(params).promise();
+       return result.Messages || [];
+     } catch (error) {
+       console.error('Error receiving messages:', error);
+       throw error;
+     }
+   }
+   ```
+
+5. Implement S3 file handling:
+   ```javascript
+   // S3 operations
+   const AWS = require('aws-sdk');
+   const s3 = new AWS.S3();
+   
+   async function uploadFile(bucketName, key, body, contentType) {
+     const params = {
+       Bucket: bucketName,
+       Key: key,
+       Body: body,
+       ContentType: contentType,
+     };
+     
+     try {
+       const result = await s3.upload(params).promise();
+       console.log('File uploaded:', result.Location);
+       return result.Location;
+     } catch (error) {
+       console.error('Error uploading file:', error);
+       throw error;
+     }
+   }
+   
+   async function getSignedUrl(bucketName, key, operation, expires = 3600) {
+     const params = {
+       Bucket: bucketName,
+       Key: key,
+       Expires: expires,
+     };
+     
+     try {
+       let url;
+       if (operation === 'getObject') {
+         url = await s3.getSignedUrlPromise('getObject', params);
+       } else if (operation === 'putObject') {
+         url = await s3.getSignedUrlPromise('putObject', params);
+       }
+       
+       return url;
+     } catch (error) {
+       console.error('Error generating signed URL:', error);
+       throw error;
+     }
+   }
+   ```
+
+## Expected Output
+- Lambda function implementations
+- Data access components
+- Authentication and authorization
+- Event handling components
+- File storage components
+- API documentation
+
+## Verification Criteria
+- Code must follow AWS best practices
+- Authentication must be secure
+- Error handling must be robust
+- Implementation must address all requirements
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 16,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Test AWS implementation`,
+              description: `
+## Objective
+Test AWS implementation of: "${requirementText}"
+
+## Detailed Steps
+1. Create unit tests for Lambda functions:
+   ```javascript
+   // handler.test.js
+   const { handler } = require('./handler');
+   const sinon = require('sinon');
+   const chai = require('chai');
+   const expect = chai.expect;
+   
+   describe('Lambda Handler', () => {
+     before(() => {
+       // Setup test environment
+     });
+     
+     after(() => {
+       // Cleanup test environment
+     });
+     
+     it('should return 200 for valid request', async () => {
+       // Arrange
+       const event = {
+         pathParameters: { id: '123' },
+         queryStringParameters: { filter: 'active' },
+       };
+       
+       // Act
+       const result = await handler(event);
+       
+       // Assert
+       expect(result.statusCode).to.equal(200);
+       const body = JSON.parse(result.body);
+       expect(body).to.have.property('message', 'Success');
+     });
+     
+     it('should return 500 for error', async () => {
+       // Arrange
+       const event = {
+         // Invalid event that will cause an error
+       };
+       
+       // Act
+       const result = await handler(event);
+       
+       // Assert
+       expect(result.statusCode).to.equal(500);
+     });
+     
+     // Additional test cases...
+   });
+   ```
+
+2. Implement integration tests:
+   ```javascript
+   // integration.test.js
+   const axios = require('axios');
+   const chai = require('chai');
+   const expect = chai.expect;
+   
+   describe('API Integration Tests', () => {
+     const baseUrl = process.env.API_ENDPOINT;
+     let authToken;
+     
+     before(async () => {
+       // Get authentication token
+       const response = await axios.post(process.env.AUTH_ENDPOINT, {
+         username: process.env.TEST_USERNAME,
+         password: process.env.TEST_PASSWORD,
+       });
+       
+       authToken = response.data.token;
+     });
+     
+     it('should create a resource', async () => {
+       // Arrange
+       const resource = {
+         name: 'Test Resource',
+         description: 'This is a test resource',
+       };
+       
+       // Act
+       const response = await axios.post(`${baseUrl}/resources`, resource, {
+         headers: {
+           Authorization: `Bearer ${authToken}`,
+         },
+       });
+       
+       // Assert
+       expect(response.status).to.equal(201);
+       expect(response.data).to.have.property('id');
+       expect(response.data.name).to.equal(resource.name);
+     });
+     
+     // Additional test cases...
+   });
+   ```
+
+3. Create infrastructure tests:
+   ```bash
+   #!/bin/bash
+   
+   # Test VPC configuration
+   echo "Testing VPC configuration..."
+   VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=MyVPC" --query "Vpcs[0].VpcId" --output text)
+   
+   if [ "$VPC_ID" == "None" ] || [ -z "$VPC_ID" ]; then
+     echo "Error: VPC not found"
+     exit 1
+   fi
+   
+   echo "VPC found: $VPC_ID"
+   
+   # Test subnet configuration
+   echo "Testing subnet configuration..."
+   SUBNET_COUNT=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query "length(Subnets)" --output text)
+   
+   if [ "$SUBNET_COUNT" -lt 2 ]; then
+     echo "Error: Expected at least 2 subnets, found $SUBNET_COUNT"
+     exit 1
+   fi
+   
+   echo "Found $SUBNET_COUNT subnets"
+   
+   # Additional tests...
+   ```
+
+4. Perform load testing:
+   ```javascript
+   // loadtest.js (using Artillery)
+   module.exports = {
+     config: {
+       target: "https://api.example.com",
+       phases: [
+         { duration: 60, arrivalRate: 5 },
+         { duration: 120, arrivalRate: 5, rampTo: 50 },
+         { duration: 60, arrivalRate: 50 },
+       ],
+       defaults: {
+         headers: {
+           "Content-Type": "application/json",
+           "Accept": "application/json",
+         },
+       },
+     },
+     scenarios: [
+       {
+         name: "Get resources",
+         flow: [
+           {
+             post: {
+               url: "/auth",
+               json: {
+                 username: "{{ $processEnvironment.TEST_USERNAME }}",
+                 password: "{{ $processEnvironment.TEST_PASSWORD }}",
+               },
+               capture: {
+                 json: "$.token",
+                 as: "token",
+               },
+             },
+           },
+           {
+             get: {
+               url: "/resources",
+               headers: {
+                 Authorization: "Bearer {{ token }}",
+               },
+             },
+           },
+         ],
+       },
+       // Additional scenarios...
+     ],
+   };
+   ```
+
+5. Implement security testing:
+   ```bash
+   #!/bin/bash
+   
+   # Test S3 bucket policies
+   echo "Testing S3 bucket policies..."
+   BUCKET_NAME="my-app-bucket"
+   
+   BUCKET_POLICY=$(aws s3api get-bucket-policy --bucket $BUCKET_NAME --query Policy --output text 2>/dev/null)
+   
+   if [ $? -ne 0 ]; then
+     echo "Error: Failed to get bucket policy for $BUCKET_NAME"
+     exit 1
+   fi
+   
+   # Check for public access
+   PUBLIC_ACCESS=$(aws s3api get-bucket-policy-status --bucket $BUCKET_NAME --query PolicyStatus.IsPublic --output text)
+   
+   if [ "$PUBLIC_ACCESS" == "true" ]; then
+     echo "Warning: Bucket $BUCKET_NAME is publicly accessible"
+   else
+     echo "Bucket $BUCKET_NAME is not publicly accessible"
+   fi
+   
+   # Additional security tests...
+   ```
+
+## Expected Output
+- Unit test suite
+- Integration test suite
+- Infrastructure validation tests
+- Load test results
+- Security test report
+- Test coverage report
+
+## Verification Criteria
+- All unit tests must pass
+- Integration tests must verify end-to-end functionality
+- Load tests must demonstrate required performance
+- Security tests must verify no vulnerabilities
+- Test coverage must meet required threshold
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 8,
+              complexity: "medium",
+              assignee: null
+            }
+          ],
+          // Default template for any system not specifically covered
+          "default": [
+            {
+              title: `Design ${targetSystem} solution`,
+              description: `
+## Objective
+Create a detailed design for implementing in ${targetSystem}: "${requirementText}"
+
+## Detailed Steps
+1. Analyze requirements:
+   - Break down requirements into functional components
+   - Identify system constraints and limitations
+   - Document non-functional requirements
+   - Identify dependencies and integration points
+
+2. Create architecture design:
+   - Document system components and their interactions
+   - Create component diagrams
+   - Map data flows between components
+   - Design system interfaces and APIs
+
+3. Design data model:
+   - Create entity relationship diagrams
+   - Define data structures and schemas
+   - Document data validation rules
+   - Design data access patterns
+
+4. Design user interfaces:
+   - Create wireframes for key screens
+   - Document user workflows
+   - Define UI components and their interactions
+   - Design responsive layouts and mobile considerations
+
+5. Plan security controls:
+   - Design authentication and authorization
+   - Document data encryption requirements
+   - Plan audit logging and monitoring
+   - Design security controls for integrations
+
+## Expected Output
+- Architecture document with diagrams
+- Data model specifications
+- Interface design specifications
+- Security design document
+- Design review documentation
+
+## Verification Criteria
+- Design must satisfy all requirements
+- Architecture must be scalable and maintainable
+- Security controls must be comprehensive
+- Design must adhere to system constraints
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 8,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Implement in ${targetSystem}`,
+              description: `
+## Objective
+Develop the implementation in ${targetSystem} for: "${requirementText}"
+
+## Detailed Steps
+1. Set up development environment:
+   - Install required development tools
+   - Configure version control
+   - Set up build and deployment pipeline
+   - Configure development environment variables
+
+2. Implement data models:
+   - Create database schemas or data structures
+   - Implement data access layer
+   - Create data migration scripts
+   - Implement data validation
+
+3. Develop system components:
+   - Implement business logic components
+   - Create service layer implementations
+   - Develop integration components
+   - Implement error handling and logging
+
+4. Create user interface:
+   - Implement UI components based on designs
+   - Develop responsive layouts
+   - Implement client-side validation
+   - Create UI state management
+
+5. Implement security controls:
+   - Create authentication and authorization components
+   - Implement data encryption
+   - Add input validation and sanitization
+   - Implement audit logging
+
+## Expected Output
+- Source code in version control
+- Database scripts and migrations
+- Build and deployment configuration
+- Environment configuration
+- Implementation documentation
+
+## Verification Criteria
+- Implementation must satisfy all requirements
+- Code must follow best practices and standards
+- Unit tests must cover critical functionality
+- Security controls must be properly implemented
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 12,
+              complexity: "high",
+              assignee: null
+            },
+            {
+              title: `Test ${targetSystem} implementation`,
+              description: `
+## Objective
+Test and validate the implementation in ${targetSystem} for: "${requirementText}"
+
+## Detailed Steps
+1. Create test plan:
+   - Define test objectives
+   - Identify test scope
+   - Create test schedule
+   - Define test environments
+
+2. Develop test cases:
+   - Create unit test cases
+   - Develop integration test scenarios
+   - Create system test cases
+   - Design performance test scenarios
+   - Create security test cases
+
+3. Execute tests:
+   - Run unit tests
+   - Perform integration testing
+   - Execute system tests
+   - Conduct performance testing
+   - Perform security testing
+
+4. Document test results:
+   - Record test execution results
+   - Document defects found
+   - Track defect resolution
+   - Create test summary report
+
+5. Conduct user acceptance testing:
+   - Create UAT test scripts
+   - Facilitate UAT sessions
+   - Document feedback
+   - Track resolution of UAT issues
+
+## Expected Output
+- Test plan
+- Test cases
+- Test execution results
+- Defect reports
+- UAT documentation
+- Test summary report
+
+## Verification Criteria
+- All test cases must be executed
+- Critical defects must be resolved
+- Test coverage must meet requirements
+- Performance must meet defined criteria
+- Security requirements must be validated
+              `,
+              status: "pending",
+              priority: requirement.priority,
+              system: "target",
+              requirementId: requirement.id,
+              estimatedHours: 8,
+              complexity: "medium",
+              assignee: null
+            }
+          ]
+        };
+        
+        // Use the appropriate template or fall back to default
+        const templates = systemTemplates[targetSystem] || systemTemplates["default"];
+        return templates.map(template => ({
+          ...template,
+          requirementId: requirement.id,
+          priority: requirement.priority
+        }));
+      }
+
+      // Generate tasks based on source and target systems
+      const sourceTasks = generateSourceSystemTasks(project.sourceSystem, requirement.text);
+      const targetTasks = generateTargetSystemTasks(project.targetSystem, requirement.text);
+
+      // Create all tasks in sequence
+      const allTasks = [];
+      
+      for (const taskData of [...sourceTasks, ...targetTasks]) {
+        const task = await storage.createImplementationTask(taskData);
+        allTasks.push(task);
+      }
+
+      // Create activity for task generation
+      await storage.createActivity({
+        type: "generated_tasks",
+        description: `${user.username} automatically generated implementation tasks for requirement "${requirement.codeId}"`,
+        userId: user.id,
+        projectId: requirement.projectId,
+        relatedEntityId: requirement.id
+      });
+
+      res.status(201).json({ 
+        message: `Successfully generated ${allTasks.length} implementation tasks`,
+        tasks: allTasks
+      });
+    } catch (error) {
+      console.error("Error generating implementation tasks:", error);
+      res.status(400).json({ message: "Error generating tasks", error });
+    }
+  });
+
+  return httpServer;
+}

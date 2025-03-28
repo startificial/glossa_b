@@ -424,61 +424,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!requirement) {
         return res.status(404).json({ message: "Requirement not found" });
       }
-      
-      // Check if requirement belongs to the specified project
+
       if (requirement.projectId !== projectId) {
-        return res.status(404).json({ message: "Requirement not found in this project" });
+        return res.status(404).json({ message: "Requirement does not belong to this project" });
       }
-      
+
       res.json(requirement);
     } catch (error) {
       console.error("Error fetching requirement:", error);
-      res.status(500).json({ message: "Error fetching requirement" });
+      res.status(400).json({ message: "Error fetching requirement", error });
     }
   });
 
-  // Get all requirements with filtering
   app.get("/api/projects/:projectId/requirements", async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.projectId);
-    if (isNaN(projectId)) {
-      return res.status(400).json({ message: "Invalid project ID" });
-    }
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
 
-    const project = await storage.getProject(projectId);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
 
-    // Filter parameters
-    const category = req.query.category as string | undefined;
-    const priority = req.query.priority as string | undefined;
-    const source = req.query.source as string | undefined;
-    const search = req.query.search as string | undefined;
+      const requirements = await storage.getRequirementsByProject(projectId);
+      
+      // Filter requirements based on query params
+      let filteredRequirements = [...requirements];
+      
+      // Apply category filter
+      if (req.query.category) {
+        filteredRequirements = filteredRequirements.filter(
+          r => r.category === req.query.category
+        );
+      }
+      
+      // Apply priority filter
+      if (req.query.priority) {
+        filteredRequirements = filteredRequirements.filter(
+          r => r.priority === req.query.priority
+        );
+      }
+      
+      // Apply source filter
+      if (req.query.source) {
+        filteredRequirements = filteredRequirements.filter(
+          r => r.source === req.query.source
+        );
+      }
+      
+      // Apply search filter (case-insensitive partial match)
+      if (req.query.search) {
+        const searchTerm = (req.query.search as string).toLowerCase();
+        filteredRequirements = filteredRequirements.filter(
+          r => r.text.toLowerCase().includes(searchTerm) || 
+               r.category.toLowerCase().includes(searchTerm) ||
+               (r.source && r.source.toLowerCase().includes(searchTerm))
+        );
+      }
 
-    let requirements = await storage.getRequirementsByProject(projectId);
-    
-    // Apply filters
-    if (category) {
-      requirements = requirements.filter(req => req.category === category);
+      res.json(filteredRequirements);
+    } catch (error) {
+      console.error("Error fetching requirements:", error);
+      res.status(400).json({ message: "Error fetching requirements", error });
     }
-    
-    if (priority) {
-      requirements = requirements.filter(req => req.priority === priority);
-    }
-    
-    if (source) {
-      requirements = requirements.filter(req => req.source === source);
-    }
-    
-    if (search) {
-      const searchLower = search.toLowerCase();
-      requirements = requirements.filter(req => 
-        req.text.toLowerCase().includes(searchLower) || 
-        req.codeId.toLowerCase().includes(searchLower)
-      );
-    }
-
-    res.json(requirements);
   });
 
   app.post("/api/projects/:projectId/requirements", async (req: Request, res: Response) => {
@@ -502,19 +512,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate a code ID
       const requirementsCount = (await storage.getRequirementsByProject(projectId)).length;
       const codeId = `REQ-${(requirementsCount + 1).toString().padStart(3, '0')}`;
-
-      const validatedData = insertRequirementSchema.parse({
+      
+      // Handle null values for optional fields
+      const requestData = {
         ...req.body,
         projectId,
-        codeId
-      });
+        inputDataId: req.body.inputDataId || null,
+        codeId,
+        source: req.body.source || null
+      };
 
+      const validatedData = insertRequirementSchema.parse(requestData);
       const requirement = await storage.createRequirement(validatedData);
-      
+
       // Add activity
       await storage.createActivity({
         type: "created_requirement",
-        description: `${user.username} created requirement "${codeId}"`,
+        description: `${user.username} created requirement ${requirement.codeId}`,
         userId: user.id,
         projectId,
         relatedEntityId: requirement.id
@@ -530,13 +544,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/projects/:projectId/requirements/:id", async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      const requirementId = parseInt(req.params.id);
+      
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-
-      const requirementId = parseInt(req.params.id);
+      
       if (isNaN(requirementId)) {
         return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
       }
 
       const requirement = await storage.getRequirement(requirementId);
@@ -545,7 +565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (requirement.projectId !== projectId) {
-        return res.status(403).json({ message: "Requirement does not belong to the specified project" });
+        return res.status(404).json({ message: "Requirement does not belong to this project" });
       }
 
       // For demo, always use the demo user
@@ -554,13 +574,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Update the requirement
-      const updatedRequirement = await storage.updateRequirement(requirementId, req.body);
-      
-      // Add activity for requirement update
+      // Handle null values for optional fields
+      const requestData = {
+        ...req.body,
+        inputDataId: req.body.inputDataId === "" ? null : req.body.inputDataId,
+        source: req.body.source === "" ? null : req.body.source
+      };
+
+      const updatedRequirement = await storage.updateRequirement(requirementId, requestData);
+
+      // Add activity
       await storage.createActivity({
         type: "updated_requirement",
-        description: `${user.username} updated requirement "${requirement.codeId}"`,
+        description: `${user.username} updated requirement ${updatedRequirement!.codeId}`,
         userId: user.id,
         projectId,
         relatedEntityId: requirementId
@@ -574,111 +600,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.delete("/api/projects/:projectId/requirements/:id", async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.projectId);
-    if (isNaN(projectId)) {
-      return res.status(400).json({ message: "Invalid project ID" });
-    }
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const requirementId = parseInt(req.params.id);
+      
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+      
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
 
-    const requirementId = parseInt(req.params.id);
-    if (isNaN(requirementId)) {
-      return res.status(400).json({ message: "Invalid requirement ID" });
-    }
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
 
-    const requirement = await storage.getRequirement(requirementId);
-    if (!requirement) {
-      return res.status(404).json({ message: "Requirement not found" });
-    }
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
 
-    if (requirement.projectId !== projectId) {
-      return res.status(403).json({ message: "Requirement does not belong to the specified project" });
-    }
+      if (requirement.projectId !== projectId) {
+        return res.status(404).json({ message: "Requirement does not belong to this project" });
+      }
 
-    // Delete the requirement
-    await storage.deleteRequirement(requirementId);
-    
-    // For demo, always use the demo user
-    const user = await storage.getUserByUsername("demo");
-    
-    if (user) {
-      // Add activity for requirement deletion
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Delete the requirement
+      await storage.deleteRequirement(requirementId);
+
+      // Add activity
       await storage.createActivity({
         type: "deleted_requirement",
-        description: `${user.username} deleted requirement "${requirement.codeId}"`,
+        description: `${user.username} deleted requirement ${requirement.codeId}`,
         userId: user.id,
         projectId,
         relatedEntityId: null
       });
-    }
 
-    res.status(204).end();
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting requirement:", error);
+      res.status(400).json({ message: "Error deleting requirement", error });
+    }
   });
 
-  // Activities endpoints
+  // Activities endpoint
   app.get("/api/projects/:projectId/activities", async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.projectId);
-    if (isNaN(projectId)) {
-      return res.status(400).json({ message: "Invalid project ID" });
-    }
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
 
-    const project = await storage.getProject(projectId);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const activities = await storage.getActivitiesByProject(projectId, limit);
+      
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching activities:", error);
+      res.status(400).json({ message: "Error fetching activities", error });
     }
-    
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
-    const activities = await storage.getActivitiesByProject(projectId, limit);
-    
-    res.json(activities);
   });
 
-  // Export requirements
+  // Export endpoint
   app.get("/api/projects/:projectId/export", async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.projectId);
-    if (isNaN(projectId)) {
-      return res.status(400).json({ message: "Invalid project ID" });
-    }
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
 
-    const project = await storage.getProject(projectId);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      const requirements = await storage.getRequirementsByProject(projectId);
+      
+      // Create the export data structure
+      const exportData = {
+        project: {
+          name: project.name,
+          description: project.description,
+          type: project.type,
+          exportDate: new Date().toISOString()
+        },
+        requirements: requirements.map(r => ({
+          id: r.codeId,
+          text: r.text,
+          category: r.category,
+          priority: r.priority,
+          source: r.source
+        }))
+      };
+      
+      res.json(exportData);
+    } catch (error) {
+      console.error("Error generating export:", error);
+      res.status(400).json({ message: "Error generating export", error });
     }
-    
-    const requirements = await storage.getRequirementsByProject(projectId);
-    
-    // Format for export
-    const exportData = {
-      project: {
-        name: project.name,
-        description: project.description,
-        type: project.type,
-        exportDate: new Date().toISOString()
-      },
-      requirements: requirements.map(req => ({
-        id: req.codeId,
-        text: req.text,
-        category: req.category,
-        priority: req.priority,
-        source: req.source
-      }))
-    };
-    
-    res.json(exportData);
   });
 
-  // Implementation Task endpoints
+  // Implementation Tasks endpoints
   app.get("/api/requirements/:requirementId/tasks", async (req: Request, res: Response) => {
-    const requirementId = parseInt(req.params.requirementId);
-    if (isNaN(requirementId)) {
-      return res.status(400).json({ message: "Invalid requirement ID" });
-    }
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
 
-    const requirement = await storage.getRequirement(requirementId);
-    if (!requirement) {
-      return res.status(404).json({ message: "Requirement not found" });
-    }
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
 
-    const tasks = await storage.getImplementationTasksByRequirement(requirementId);
-    res.json(tasks);
+      const tasks = await storage.getImplementationTasksByRequirement(requirementId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      res.status(400).json({ message: "Error fetching tasks", error });
+    }
   });
 
   app.post("/api/requirements/:requirementId/tasks", async (req: Request, res: Response) => {
@@ -693,45 +746,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Requirement not found" });
       }
 
-      const validatedData = insertImplementationTaskSchema.parse({
-        ...req.body,
-        requirementId
-      });
-
-      const task = await storage.createImplementationTask(validatedData);
-
       // For demo, always use the demo user
       const user = await storage.getUserByUsername("demo");
-      if (user) {
-        // Add activity for task creation
-        await storage.createActivity({
-          type: "created_task",
-          description: `${user.username} created implementation task "${task.title}"`,
-          userId: user.id,
-          projectId: requirement.projectId,
-          relatedEntityId: requirement.id
-        });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
+
+      // Handle null values for optional fields
+      const requestData = {
+        ...req.body,
+        requirementId,
+        estimatedHours: req.body.estimatedHours || null,
+        complexity: req.body.complexity || null,
+        assignee: req.body.assignee || null
+      };
+
+      const validatedData = insertImplementationTaskSchema.parse(requestData);
+      const task = await storage.createImplementationTask(validatedData);
+
+      // Add activity
+      await storage.createActivity({
+        type: "created_task",
+        description: `${user.username} created implementation task "${task.title}"`,
+        userId: user.id,
+        projectId: requirement.projectId,
+        relatedEntityId: task.id
+      });
 
       res.status(201).json(task);
     } catch (error) {
-      console.error("Error creating implementation task:", error);
+      console.error("Error creating task:", error);
       res.status(400).json({ message: "Invalid task data", error });
     }
   });
 
   app.get("/api/tasks/:id", async (req: Request, res: Response) => {
-    const taskId = parseInt(req.params.id);
-    if (isNaN(taskId)) {
-      return res.status(400).json({ message: "Invalid task ID" });
-    }
+    try {
+      const taskId = parseInt(req.params.id);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ message: "Invalid task ID" });
+      }
 
-    const task = await storage.getImplementationTask(taskId);
-    if (!task) {
-      return res.status(404).json({ message: "Implementation task not found" });
-    }
+      const task = await storage.getImplementationTask(taskId);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
 
-    res.json(task);
+      res.json(task);
+    } catch (error) {
+      console.error("Error fetching task:", error);
+      res.status(400).json({ message: "Error fetching task", error });
+    }
   });
 
   app.put("/api/tasks/:id", async (req: Request, res: Response) => {
@@ -743,51 +808,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const task = await storage.getImplementationTask(taskId);
       if (!task) {
-        return res.status(404).json({ message: "Implementation task not found" });
+        return res.status(404).json({ message: "Task not found" });
       }
-
-      // We don't need to validate the entire schema since it's a partial update
-      const updatedTask = await storage.updateImplementationTask(taskId, req.body);
 
       // For demo, always use the demo user
       const user = await storage.getUserByUsername("demo");
-      if (user) {
-        // Get the requirement to get the project ID
-        const requirement = await storage.getRequirement(task.requirementId);
-        if (requirement) {
-          // Add activity for task update
-          await storage.createActivity({
-            type: "updated_task",
-            description: `${user.username} updated implementation task "${updatedTask!.title}"`,
-            userId: user.id,
-            projectId: requirement.projectId,
-            relatedEntityId: task.requirementId
-          });
-        }
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
+
+      // Handle null values for optional fields
+      const requestData = {
+        ...req.body,
+        estimatedHours: req.body.estimatedHours === "" ? null : req.body.estimatedHours,
+        complexity: req.body.complexity === "" ? null : req.body.complexity,
+        assignee: req.body.assignee === "" ? null : req.body.assignee
+      };
+
+      const updatedTask = await storage.updateImplementationTask(taskId, requestData);
+
+      // Get the requirement to find the project ID
+      const requirement = await storage.getRequirement(task.requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Related requirement not found" });
+      }
+
+      // Add activity
+      await storage.createActivity({
+        type: "updated_task",
+        description: `${user.username} updated implementation task "${updatedTask!.title}"`,
+        userId: user.id,
+        projectId: requirement.projectId,
+        relatedEntityId: taskId
+      });
 
       res.json(updatedTask);
     } catch (error) {
-      console.error("Error updating implementation task:", error);
+      console.error("Error updating task:", error);
       res.status(400).json({ message: "Invalid task data", error });
     }
   });
 
   app.delete("/api/tasks/:id", async (req: Request, res: Response) => {
-    const taskId = parseInt(req.params.id);
-    if (isNaN(taskId)) {
-      return res.status(400).json({ message: "Invalid task ID" });
-    }
+    try {
+      const taskId = parseInt(req.params.id);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ message: "Invalid task ID" });
+      }
 
-    const task = await storage.getImplementationTask(taskId);
-    if (!task) {
-      return res.status(404).json({ message: "Implementation task not found" });
-    }
+      const task = await storage.getImplementationTask(taskId);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
 
-    // Delete the task
-    await storage.deleteImplementationTask(taskId);
-    
-    res.status(204).end();
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get the requirement to find the project ID
+      const requirement = await storage.getRequirement(task.requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Related requirement not found" });
+      }
+
+      // Delete the task
+      await storage.deleteImplementationTask(taskId);
+
+      // Add activity
+      await storage.createActivity({
+        type: "deleted_task",
+        description: `${user.username} deleted implementation task "${task.title}"`,
+        userId: user.id,
+        projectId: requirement.projectId,
+        relatedEntityId: null
+      });
+
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      res.status(400).json({ message: "Error deleting task", error });
+    }
   });
 
   // Endpoint to automatically generate implementation tasks for a requirement
@@ -821,12 +923,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // This would use AI to generate implementation tasks in a real app
-      // For now, we'll create some sample tasks based on the requirement
+      // Create detailed source system tasks
       const sourceTasks = [
         {
-          title: `Extract data from ${project.sourceSystem}`,
-          description: `Connect to ${project.sourceSystem} and extract relevant data needed for: ${requirement.text}`,
+          title: `Extract data model from ${project.sourceSystem}`,
+          description: `Document the data model, extract schema, and identify relationships from ${project.sourceSystem} needed to implement: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "source",
+          requirementId: requirement.id,
+          estimatedHours: 6,
+          complexity: "high",
+          assignee: null
+        },
+        {
+          title: `Analyze business logic in ${project.sourceSystem}`,
+          description: `Reverse-engineer and document existing business rules, workflows, and processes in ${project.sourceSystem} relevant to: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "source",
+          requirementId: requirement.id,
+          estimatedHours: 8, 
+          complexity: "high",
+          assignee: null
+        },
+        {
+          title: `Extract test data from ${project.sourceSystem}`,
+          description: `Create representative dataset from ${project.sourceSystem} for testing the migration of: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
@@ -834,81 +957,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
           estimatedHours: 4,
           complexity: "medium",
           assignee: null
-        },
-        {
-          title: `Analyze ${project.sourceSystem} implementation`,
-          description: `Study the current implementation in ${project.sourceSystem} related to: ${requirement.text}`,
-          status: "pending",
-          priority: requirement.priority,
-          system: "source",
-          requirementId: requirement.id,
-          estimatedHours: 3, 
-          complexity: "medium",
-          assignee: null
         }
       ];
 
+      // Create detailed target system tasks
       const targetTasks = [
         {
-          title: `Design ${project.targetSystem} component`,
-          description: `Create design for the ${project.targetSystem} component that will implement: ${requirement.text}`,
-          status: "pending",
-          priority: requirement.priority,
-          system: "target",
-          requirementId: requirement.id,
-          estimatedHours: 5,
-          complexity: "medium",
-          assignee: null
-        },
-        {
-          title: `Implement in ${project.targetSystem}`,
-          description: `Develop the implementation in ${project.targetSystem} for: ${requirement.text}`,
+          title: `Design ${project.targetSystem} architecture`,
+          description: `Create detailed architecture and data model for ${project.targetSystem} to implement: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
           requirementId: requirement.id,
           estimatedHours: 8,
-          complexity: requirement.priority === "high" ? "high" : "medium",
+          complexity: "high",
           assignee: null
         },
         {
-          title: `Test ${project.targetSystem} implementation`,
-          description: `Create and execute tests for the implementation of: ${requirement.text}`,
+          title: `Implement core features in ${project.targetSystem}`,
+          description: `Develop the primary implementation in ${project.targetSystem} for: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
           requirementId: requirement.id,
-          estimatedHours: 4,
+          estimatedHours: 12,
+          complexity: requirement.priority === "high" ? "high" : "medium",
+          assignee: null
+        },
+        {
+          title: `Develop integration components for ${project.targetSystem}`,
+          description: `Build integration components in ${project.targetSystem} to connect with external systems for: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 6,
+          complexity: "medium",
+          assignee: null
+        },
+        {
+          title: `Test ${project.targetSystem} implementation`,
+          description: `Create and execute comprehensive tests for the implementation of: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 6,
           complexity: "medium",
           assignee: null
         }
       ];
 
-      // Create all tasks in sequence
-      const allTasks = [];
+      // Combine all tasks
+      const allTasks = [...sourceTasks, ...targetTasks];
       
-      for (const taskData of [...sourceTasks, ...targetTasks]) {
+      // Create all tasks
+      const createdTasks = [];
+      for (const taskData of allTasks) {
         const task = await storage.createImplementationTask(taskData);
-        allTasks.push(task);
+        createdTasks.push(task);
       }
 
-      // Create activity for task generation
+      // Add activity
       await storage.createActivity({
         type: "generated_tasks",
-        description: `${user.username} automatically generated implementation tasks for requirement "${requirement.codeId}"`,
+        description: `${user.username} generated ${createdTasks.length} implementation tasks for requirement ${requirement.codeId}`,
         userId: user.id,
         projectId: requirement.projectId,
         relatedEntityId: requirement.id
       });
 
-      res.status(201).json({ 
-        message: `Successfully generated ${allTasks.length} implementation tasks`,
-        tasks: allTasks
-      });
+      res.status(201).json(createdTasks);
     } catch (error) {
-      console.error("Error generating implementation tasks:", error);
-      res.status(400).json({ message: "Error generating tasks", error });
+      console.error("Error generating tasks:", error);
+      res.status(500).json({ message: "Error generating implementation tasks", error });
     }
+  });
+
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error("Unhandled error:", err);
+    res.status(500).json({ message: "An unexpected error occurred", error: err.message });
   });
 
   return httpServer;
