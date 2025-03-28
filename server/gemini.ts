@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import fs from 'fs';
 import path from 'path';
+import pdfParse from 'pdf-parse';
 
 // Initialize the Gemini API with the API key
 const apiKey = process.env.GOOGLE_API_KEY || '';
@@ -100,12 +101,32 @@ function chunkTextContent(fileContent: string, chunkSize: number = 6000, overlap
  */
 export async function processTextFile(filePath: string, projectName: string, fileName: string, contentType: string = 'general', numRequirements: number = 5): Promise<any[]> {
   try {
-    // Read the file content
-    const fileContent = fs.readFileSync(filePath, 'utf8');
+    // Determine if this is a PDF file
+    const isPdf = fileName.toLowerCase().endsWith('.pdf') || path.extname(filePath).toLowerCase() === '.pdf';
+    
+    // Read the file content - handle PDF files differently
+    let fileContent: string;
+    if (isPdf) {
+      // For PDF files, use pdf-parse to extract text properly
+      const dataBuffer = fs.readFileSync(filePath);
+      const pdfData = await pdfParse(dataBuffer);
+      
+      // Clean up the text by removing excessive whitespace and normalizing line breaks
+      fileContent = pdfData.text
+        .replace(/\r\n/g, '\n') // Normalize line breaks
+        .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
+        .replace(/\s{2,}/g, ' ') // Replace multiple spaces with a single space
+        .trim(); // Remove leading/trailing whitespace
+      
+      console.log(`Extracted ${fileContent.length} characters from PDF document (${pdfData.numpages} pages)`);
+    } else {
+      // For regular text files, read directly
+      fileContent = fs.readFileSync(filePath, 'utf8');
+    }
     
     // Get file size in KB
     const fileSizeKB = Buffer.byteLength(fileContent, 'utf8') / 1024;
-    console.log(`Processing text file: ${fileName} (${fileSizeKB.toFixed(2)} KB)`);
+    console.log(`Processing ${isPdf ? 'PDF' : 'text'} file: ${fileName} (${fileSizeKB.toFixed(2)} KB)`);
     
     // Split into chunks if large file
     const chunks = chunkTextContent(fileContent);
@@ -133,6 +154,7 @@ export async function processTextFile(filePath: string, projectName: string, fil
         Source file: ${fileName}
         Content type: ${contentType}
         Chunk: ${i+1} of ${chunks.length}
+        File type: ${isPdf ? 'PDF' : 'Text'}
         
         ${contentType === 'workflow' ? 
           `This content contains workflow descriptions that should be migrated from a source system to a target system. 
@@ -149,13 +171,16 @@ export async function processTextFile(filePath: string, projectName: string, fil
           : `Please analyze this general content and extract requirements based on the text.`
         }
         
+        ${isPdf ? `This content was extracted from a PDF file. Ignore any PDF artifacts, page numbers, headers, footers, or formatting codes. 
+        Focus only on extracting meaningful requirements from the actual document content.` : ''}
+        
         Please analyze the following content and extract clear, specific software requirements.
         ${chunks.length > 1 ? 'Only extract requirements that appear in this specific chunk. Do not manufacture requirements based on guessing what might be in other chunks.' : ''}
         
         ${chunks[i]}
         
         For each requirement:
-        1. Provide the requirement text (clear, specific, actionable)
+        1. Provide the requirement text (clear, specific, actionable) - clean up any PDF artifacts or strange formatting
         2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
         3. Assign a priority level: 'high', 'medium', or 'low'
         
