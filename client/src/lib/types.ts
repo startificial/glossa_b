@@ -101,3 +101,18 @@ export interface ExportData {
     source: string | null;
   }[];
 }
+
+export interface ImplementationTask {
+  id: number;
+  title: string;
+  description: string;
+  status: 'pending' | 'in-progress' | 'completed';
+  priority: 'high' | 'medium' | 'low';
+  system: 'source' | 'target';
+  requirementId: number;
+  estimatedHours: number | null;
+  complexity: string | null;
+  assignee: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

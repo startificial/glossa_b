@@ -21,6 +21,8 @@ export const projects = pgTable("projects", {
   description: text("description"),
   type: text("type").notNull(),
   userId: integer("user_id").notNull(),
+  sourceSystem: text("source_system"), // System being migrated from
+  targetSystem: text("target_system"), // System being migrated to
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -30,6 +32,8 @@ export const insertProjectSchema = createInsertSchema(projects).pick({
   description: true,
   type: true,
   userId: true,
+  sourceSystem: true,
+  targetSystem: true,
 });
 
 // Input data schema
@@ -99,6 +103,34 @@ export const insertActivitySchema = createInsertSchema(activities).pick({
   relatedEntityId: true,
 });
 
+// Implementation Tasks schema
+export const implementationTasks = pgTable("implementation_tasks", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  status: text("status").notNull().default("pending"), // pending, in-progress, completed, blocked
+  priority: text("priority").notNull().default("medium"), // high, medium, low
+  system: text("system").notNull(), // source, target, both
+  requirementId: integer("requirement_id").notNull(),
+  estimatedHours: integer("estimated_hours"), // Optional
+  complexity: text("complexity").default("medium"), // low, medium, high
+  assignee: text("assignee"), // Optional
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertImplementationTaskSchema = createInsertSchema(implementationTasks).pick({
+  title: true,
+  description: true,
+  status: true,
+  priority: true,
+  system: true,
+  requirementId: true,
+  estimatedHours: true,
+  complexity: true,
+  assignee: true,
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -114,3 +146,6 @@ export type InsertRequirement = z.infer<typeof insertRequirementSchema>;
 
 export type Activity = typeof activities.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
+
+export type ImplementationTask = typeof implementationTasks.$inferSelect;
+export type InsertImplementationTask = z.infer<typeof insertImplementationTaskSchema>;

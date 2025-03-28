@@ -3,7 +3,8 @@ import {
   projects, type Project, type InsertProject,
   inputData, type InputData, type InsertInputData,
   requirements, type Requirement, type InsertRequirement,
-  activities, type Activity, type InsertActivity
+  activities, type Activity, type InsertActivity,
+  implementationTasks, type ImplementationTask, type InsertImplementationTask
 } from "@shared/schema";
 
 export interface IStorage {
@@ -38,6 +39,13 @@ export interface IStorage {
   // Activity methods
   getActivitiesByProject(projectId: number, limit?: number): Promise<Activity[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
+  
+  // Implementation Task methods
+  getImplementationTask(id: number): Promise<ImplementationTask | undefined>;
+  getImplementationTasksByRequirement(requirementId: number): Promise<ImplementationTask[]>;
+  createImplementationTask(task: InsertImplementationTask): Promise<ImplementationTask>;
+  updateImplementationTask(id: number, task: Partial<InsertImplementationTask>): Promise<ImplementationTask | undefined>;
+  deleteImplementationTask(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -46,11 +54,13 @@ export class MemStorage implements IStorage {
   private inputDataItems: Map<number, InputData>;
   private requirements: Map<number, Requirement>;
   private activities: Map<number, Activity>;
+  private implementationTasks: Map<number, ImplementationTask>;
   private userIdCounter: number;
   private projectIdCounter: number;
   private inputDataIdCounter: number;
   private requirementIdCounter: number;
   private activityIdCounter: number;
+  private implementationTaskIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -58,11 +68,13 @@ export class MemStorage implements IStorage {
     this.inputDataItems = new Map();
     this.requirements = new Map();
     this.activities = new Map();
+    this.implementationTasks = new Map();
     this.userIdCounter = 1;
     this.projectIdCounter = 1;
     this.inputDataIdCounter = 1;
     this.requirementIdCounter = 1;
     this.activityIdCounter = 1;
+    this.implementationTaskIdCounter = 1;
 
     // Add a demo user
     this.createUser({
@@ -405,6 +417,47 @@ export class MemStorage implements IStorage {
     };
     this.activities.set(id, newActivity);
     return newActivity;
+  }
+
+  // Implementation Task methods
+  async getImplementationTask(id: number): Promise<ImplementationTask | undefined> {
+    return this.implementationTasks.get(id);
+  }
+
+  async getImplementationTasksByRequirement(requirementId: number): Promise<ImplementationTask[]> {
+    return Array.from(this.implementationTasks.values()).filter(
+      task => task.requirementId === requirementId
+    );
+  }
+
+  async createImplementationTask(task: InsertImplementationTask): Promise<ImplementationTask> {
+    const id = this.implementationTaskIdCounter++;
+    const now = new Date();
+    const newTask: ImplementationTask = { 
+      ...task, 
+      id, 
+      createdAt: now, 
+      updatedAt: now 
+    };
+    this.implementationTasks.set(id, newTask);
+    return newTask;
+  }
+
+  async updateImplementationTask(id: number, task: Partial<InsertImplementationTask>): Promise<ImplementationTask | undefined> {
+    const existingTask = this.implementationTasks.get(id);
+    if (!existingTask) return undefined;
+    
+    const updatedTask: ImplementationTask = { 
+      ...existingTask, 
+      ...task, 
+      updatedAt: new Date() 
+    };
+    this.implementationTasks.set(id, updatedTask);
+    return updatedTask;
+  }
+
+  async deleteImplementationTask(id: number): Promise<boolean> {
+    return this.implementationTasks.delete(id);
   }
 }
 

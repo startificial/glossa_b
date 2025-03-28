@@ -5,7 +5,8 @@ import {
   insertProjectSchema, 
   insertInputDataSchema, 
   insertRequirementSchema,
-  insertActivitySchema
+  insertActivitySchema,
+  insertImplementationTaskSchema
 } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -662,6 +663,252 @@ export async function registerRoutes(app: Express): Promise<Server> {
     };
     
     res.json(exportData);
+  });
+
+  // Implementation Task endpoints
+  app.get("/api/requirements/:requirementId/tasks", async (req: Request, res: Response) => {
+    const requirementId = parseInt(req.params.requirementId);
+    if (isNaN(requirementId)) {
+      return res.status(400).json({ message: "Invalid requirement ID" });
+    }
+
+    const requirement = await storage.getRequirement(requirementId);
+    if (!requirement) {
+      return res.status(404).json({ message: "Requirement not found" });
+    }
+
+    const tasks = await storage.getImplementationTasksByRequirement(requirementId);
+    res.json(tasks);
+  });
+
+  app.post("/api/requirements/:requirementId/tasks", async (req: Request, res: Response) => {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+
+      const validatedData = insertImplementationTaskSchema.parse({
+        ...req.body,
+        requirementId
+      });
+
+      const task = await storage.createImplementationTask(validatedData);
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (user) {
+        // Add activity for task creation
+        await storage.createActivity({
+          type: "created_task",
+          description: `${user.username} created implementation task "${task.title}"`,
+          userId: user.id,
+          projectId: requirement.projectId,
+          relatedEntityId: requirement.id
+        });
+      }
+
+      res.status(201).json(task);
+    } catch (error) {
+      console.error("Error creating implementation task:", error);
+      res.status(400).json({ message: "Invalid task data", error });
+    }
+  });
+
+  app.get("/api/tasks/:id", async (req: Request, res: Response) => {
+    const taskId = parseInt(req.params.id);
+    if (isNaN(taskId)) {
+      return res.status(400).json({ message: "Invalid task ID" });
+    }
+
+    const task = await storage.getImplementationTask(taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Implementation task not found" });
+    }
+
+    res.json(task);
+  });
+
+  app.put("/api/tasks/:id", async (req: Request, res: Response) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ message: "Invalid task ID" });
+      }
+
+      const task = await storage.getImplementationTask(taskId);
+      if (!task) {
+        return res.status(404).json({ message: "Implementation task not found" });
+      }
+
+      // We don't need to validate the entire schema since it's a partial update
+      const updatedTask = await storage.updateImplementationTask(taskId, req.body);
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (user) {
+        // Get the requirement to get the project ID
+        const requirement = await storage.getRequirement(task.requirementId);
+        if (requirement) {
+          // Add activity for task update
+          await storage.createActivity({
+            type: "updated_task",
+            description: `${user.username} updated implementation task "${updatedTask!.title}"`,
+            userId: user.id,
+            projectId: requirement.projectId,
+            relatedEntityId: task.requirementId
+          });
+        }
+      }
+
+      res.json(updatedTask);
+    } catch (error) {
+      console.error("Error updating implementation task:", error);
+      res.status(400).json({ message: "Invalid task data", error });
+    }
+  });
+
+  app.delete("/api/tasks/:id", async (req: Request, res: Response) => {
+    const taskId = parseInt(req.params.id);
+    if (isNaN(taskId)) {
+      return res.status(400).json({ message: "Invalid task ID" });
+    }
+
+    const task = await storage.getImplementationTask(taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Implementation task not found" });
+    }
+
+    // Delete the task
+    await storage.deleteImplementationTask(taskId);
+    
+    res.status(204).end();
+  });
+
+  // Endpoint to automatically generate implementation tasks for a requirement
+  app.post("/api/requirements/:requirementId/generate-tasks", async (req: Request, res: Response) => {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+
+      const project = await storage.getProject(requirement.projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if source and target systems are defined
+      if (!project.sourceSystem || !project.targetSystem) {
+        return res.status(400).json({ 
+          message: "Source or target system not defined for this project. Please update the project with these details first."
+        });
+      }
+
+      // This would use AI to generate implementation tasks in a real app
+      // For now, we'll create some sample tasks based on the requirement
+      const sourceTasks = [
+        {
+          title: `Extract data from ${project.sourceSystem}`,
+          description: `Connect to ${project.sourceSystem} and extract relevant data needed for: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "source",
+          requirementId: requirement.id,
+          estimatedHours: 4,
+          complexity: "medium",
+          assignee: null
+        },
+        {
+          title: `Analyze ${project.sourceSystem} implementation`,
+          description: `Study the current implementation in ${project.sourceSystem} related to: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "source",
+          requirementId: requirement.id,
+          estimatedHours: 3, 
+          complexity: "medium",
+          assignee: null
+        }
+      ];
+
+      const targetTasks = [
+        {
+          title: `Design ${project.targetSystem} component`,
+          description: `Create design for the ${project.targetSystem} component that will implement: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 5,
+          complexity: "medium",
+          assignee: null
+        },
+        {
+          title: `Implement in ${project.targetSystem}`,
+          description: `Develop the implementation in ${project.targetSystem} for: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 8,
+          complexity: requirement.priority === "high" ? "high" : "medium",
+          assignee: null
+        },
+        {
+          title: `Test ${project.targetSystem} implementation`,
+          description: `Create and execute tests for the implementation of: ${requirement.text}`,
+          status: "pending",
+          priority: requirement.priority,
+          system: "target",
+          requirementId: requirement.id,
+          estimatedHours: 4,
+          complexity: "medium",
+          assignee: null
+        }
+      ];
+
+      // Create all tasks in sequence
+      const allTasks = [];
+      
+      for (const taskData of [...sourceTasks, ...targetTasks]) {
+        const task = await storage.createImplementationTask(taskData);
+        allTasks.push(task);
+      }
+
+      // Create activity for task generation
+      await storage.createActivity({
+        type: "generated_tasks",
+        description: `${user.username} automatically generated implementation tasks for requirement "${requirement.codeId}"`,
+        userId: user.id,
+        projectId: requirement.projectId,
+        relatedEntityId: requirement.id
+      });
+
+      res.status(201).json({ 
+        message: `Successfully generated ${allTasks.length} implementation tasks`,
+        tasks: allTasks
+      });
+    } catch (error) {
+      console.error("Error generating implementation tasks:", error);
+      res.status(400).json({ message: "Error generating tasks", error });
+    }
   });
 
   return httpServer;

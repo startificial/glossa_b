@@ -17,7 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getCategoryColor, getPriorityInfo, formatDateTime } from '@/lib/utils';
-import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles, Wrench } from 'lucide-react';
+import { TasksTable } from '@/components/implementation-tasks/tasks-table';
 
 interface RequirementDetailProps {
   projectId: number;
