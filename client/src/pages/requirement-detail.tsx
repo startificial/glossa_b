@@ -50,8 +50,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const { data: requirement, isLoading, isError } = useQuery({
     queryKey: ['/api/projects', projectId, 'requirements', requirementId],
     queryFn: async () => {
-      const result = await apiRequest("GET", `/api/projects/${projectId}/requirements/${requirementId}`);
-      return result.json();
+      return apiRequest("GET", `/api/projects/${projectId}/requirements/${requirementId}`);
     }
   });
   
@@ -59,8 +58,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const { data: activities } = useQuery({
     queryKey: ['/api/projects', projectId, 'activities'],
     queryFn: async () => {
-      const result = await apiRequest("GET", `/api/projects/${projectId}/activities`);
-      return result.json();
+      return apiRequest("GET", `/api/projects/${projectId}/activities`);
     }
   });
   
@@ -72,12 +70,11 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   // Update requirement mutation
   const updateRequirementMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const result = await apiRequest(
+      return apiRequest(
         "PUT",
         `/api/projects/${projectId}/requirements/${requirementId}`,
         data
       );
-      return result.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
@@ -180,8 +177,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       const { data: project } = await queryClient.ensureQueryData({
         queryKey: ['/api/projects', projectId],
         queryFn: async () => {
-          const result = await apiRequest("GET", `/api/projects/${projectId}`);
-          return result.json();
+          return apiRequest("GET", `/api/projects/${projectId}`);
         }
       });
       
@@ -210,15 +206,13 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       }));
       
       // Update the requirement with the new acceptance criteria
-      const result = await apiRequest(
+      return apiRequest(
         "PUT",
         `/api/projects/${projectId}/requirements/${requirementId}`,
         { 
           acceptanceCriteria: criteria 
         }
       );
-      
-      return result.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
@@ -263,15 +257,13 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       };
       
       // Update the requirement with the new acceptance criteria
-      const result = await apiRequest(
+      return apiRequest(
         "PUT",
         `/api/projects/${projectId}/requirements/${requirementId}`,
         { 
           acceptanceCriteria: [...currentCriteria, newCriterionWithId]
         }
       );
-      
-      return result.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
