@@ -362,40 +362,14 @@ export default function AuthPage() {
       </div>
       
       {/* Hero section */}
-      <div className="hidden md:flex md:w-1/2 bg-gradient-to-r from-primary/80 to-primary flex-col justify-center items-center p-10 text-white">
-        <div className="max-w-md">
-          <h1 className="text-4xl font-bold mb-6">Glossa</h1>
-          <h2 className="text-2xl font-semibold mb-4">Intelligent Requirements Management</h2>
-          <p className="text-lg mb-6">
-            Extract, manage, and track project requirements with AI-powered insights. Streamline your
-            system migration process with automated requirement generation.
-          </p>
-          <ul className="space-y-2">
-            <li className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              AI-powered requirement extraction
-            </li>
-            <li className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              Automated task generation
-            </li>
-            <li className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              System migration documentation
-            </li>
-            <li className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              Comprehensive project management
-            </li>
-          </ul>
+      <div className="hidden md:flex md:w-1/2 bg-black flex-col justify-center items-center p-10 text-white">
+        <div className="flex items-center">
+          <img 
+            src="/glossa-logo.png" 
+            alt="Glossa Logo" 
+            className="h-20 w-auto mr-6" 
+          />
+          <h1 className="text-6xl font-bold">Glossa</h1>
         </div>
       </div>
     </div>
