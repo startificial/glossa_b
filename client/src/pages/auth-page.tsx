@@ -363,17 +363,8 @@ export default function AuthPage() {
       
       {/* Hero section */}
       <div className="hidden md:flex md:w-1/2 bg-black flex-col justify-center items-center p-10 text-white">
-        <div className="flex items-center">
-          <svg 
-            viewBox="0 0 980 980"
-            width="100" 
-            height="100" 
-            className="mr-6 text-white" 
-            fill="currentColor"
-          >
-            <path d="M970 485c0 267.3-216.7 484-484 484-155.4 0-312.5-76.3-387.2-196.4v196.4H0V109.7C47.6 44.8 132.6 1 230 1c125.7 0 230.9 85.4 262.5 201.2C525.1 85.4 630.3 1 756 1c118.5 0 214.5 96 214.5 214.5 0 35.7-8.8 69.3-24.2 98.9C925.4 314.4 970 253.6 970 179.4V485z"/>
-          </svg>
-          <h1 className="text-6xl font-bold">Glossa</h1>
+        <div className="flex items-center justify-center">
+          <h1 className="text-7xl font-bold tracking-tight">Glossa</h1>
         </div>
       </div>
     </div>
