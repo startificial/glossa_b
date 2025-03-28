@@ -63,8 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      const res = await apiRequest("POST", "/api/login", credentials);
-      return await res.json();
+      return await apiRequest<User>("POST", "/api/login", credentials);
     },
     onSuccess: (user: User) => {
       queryClient.setQueryData(["/api/me"], user);
@@ -87,8 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Remove confirmPassword before sending
       const { confirmPassword, ...registrationData } = userData;
       
-      const res = await apiRequest("POST", "/api/register", registrationData);
-      return await res.json();
+      return await apiRequest<User>("POST", "/api/register", registrationData);
     },
     onSuccess: (user: User) => {
       queryClient.setQueryData(["/api/me"], user);
