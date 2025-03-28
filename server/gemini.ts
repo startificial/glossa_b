@@ -137,6 +137,20 @@ export async function processVideoFile(filePath: string, fileName: string, proje
       modified: stats.mtime.toISOString(),
     };
 
+    // Extract potential domain information from filename and project name
+    const potentialDomains = ['CRM', 'ERP', 'service cloud', 'sales cloud', 'marketing cloud', 'commerce cloud', 'call center', 
+      'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
+    
+    // Check if any domain keywords are in the filename or project name
+    const domainKeywords = potentialDomains.filter(domain => 
+      fileName.toLowerCase().includes(domain.toLowerCase()) || 
+      projectName.toLowerCase().includes(domain.toLowerCase())
+    );
+    
+    const inferredDomain = domainKeywords.length > 0 
+      ? domainKeywords.join(', ') 
+      : "service management"; // Default to service management if no specific domain is detected
+
     // Get the Gemini model
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-pro",
@@ -146,7 +160,7 @@ export async function processVideoFile(filePath: string, fileName: string, proje
 
     // Create a specialized prompt for video content based on the content type
     const prompt = `
-      You are a business process analysis expert specializing in requirement extraction from videos. Your task is to analyze a video file and generate requirements for a software system.
+      You are a business process expert specializing in software migration projects. Your task is to analyze a video file that demonstrates workflows in a source system and generate specific requirements for implementing these workflows in a target system.
       
       Project context: ${projectName}
       Video file details:
@@ -155,63 +169,76 @@ export async function processVideoFile(filePath: string, fileName: string, proje
       - Created: ${new Date(fileInfo.created).toLocaleString()}
       - Modified: ${new Date(fileInfo.modified).toLocaleString()}
       - Content type: ${contentType}
+      - Inferred domain: ${inferredDomain}
       
       ${contentType === 'workflow' ? 
-        `This video shows one or more business workflows or processes being performed in a source system that need to be recreated in a target system.
-        Analyze the video file name and metadata to infer what workflows might be captured, and then generate requirements for implementing these workflows in the target system.
+        `This video demonstrates specific workflows and business processes in a ${inferredDomain} system that must be recreated in a target system.
+        Based on the file name '${fileName}' and project context '${projectName}', this video likely shows:
         
-        Your requirements should:
-        1. Identify specific business workflows that would likely be shown in this type of video
-        2. Specify how these workflows should be implemented in the target system
-        3. Include details about user interactions, data flow, validation rules, and business logic
-        4. Consider integration points with other systems
-        5. Address migration-specific concerns (data mapping, transformation rules, etc.)`
+        1. Service call center functionality in a service cloud or CRM system
+        2. Customer service representative workflows when handling customer inquiries
+        3. Case management, customer information lookup, and service request handling
+        4. Integration with knowledge bases, customer history, and service level agreements
+        5. Data entry, validation, and workflow approval processes
+        
+        Generate requirements that focus on implementing these specific service cloud workflows in the target system, 
+        with emphasis on preserving business rules, user experience, data relationships, and integration points.
+        
+        Your requirements should include details about:
+        - Specific call center functionality that must be migrated
+        - User role permissions and access controls
+        - Customer data management capabilities
+        - Service level agreement tracking
+        - Reporting and analytics needs
+        - Integration with telephony or communication systems`
         
         : contentType === 'user_feedback' ?
-        `This video contains user feedback about an existing system. 
-        The video likely shows users discussing their experiences, demonstrating pain points, or suggesting improvements.
+        `This video shows users providing feedback about a ${inferredDomain} system.
+        Based on the file name '${fileName}' and project context '${projectName}', users are likely discussing:
         
-        Your requirements should:
-        1. Identify user pain points and frustrations that would likely be discussed
-        2. Capture user suggestions and desired improvements
-        3. Specify usability enhancements needed in the target system
-        4. Identify workflow improvements based on user feedback
-        5. Prioritize changes that would have the highest impact on user satisfaction`
+        1. Pain points in the current service center or CRM workflows
+        2. Difficulties with customer information access or updates
+        3. Challenges with service request management or routing
+        4. Suggestions for improving customer engagement processes
+        5. Issues with reporting or performance metrics
+        
+        Generate requirements that address these specific pain points and suggestions for the target system.`
         
         : contentType === 'training' ? 
-        `This video contains training material that demonstrates how to use a system.
-        The video likely walks through specific procedures, features, or workflows step by step.
+        `This video shows training for users of a ${inferredDomain} system.
+        Based on the file name '${fileName}' and project context '${projectName}', this training likely covers:
         
-        Your requirements should:
-        1. Identify the key procedures being demonstrated
-        2. Specify how these procedures should be implemented in the target system
-        3. Capture any best practices or guidelines mentioned in the training
-        4. Identify features that require user education or documentation
-        5. Specify any training-specific tools or modes that should be implemented`
+        1. Step-by-step procedures for handling different types of service requests
+        2. Navigation of customer information screens and service history
+        3. Best practices for service ticket categorization and prioritization
+        4. How to use knowledge articles or solution databases
+        5. Processes for escalation and supervisor involvement
+        
+        Generate requirements that ensure these training scenarios are supported in the target system.`
         
         : contentType === 'demonstration' ?
-        `This video contains a demonstration of system features or capabilities.
-        The video likely showcases functionality, user interfaces, and system behaviors.
+        `This video demonstrates features of a ${inferredDomain} system.
+        Based on the file name '${fileName}' and project context '${projectName}', this demo likely shows:
         
-        Your requirements should:
-        1. Identify the key features being demonstrated
-        2. Specify how these features should be implemented in the target system
-        3. Capture the user experience aspects that should be preserved
-        4. Identify integration points with other systems shown in the demo
-        5. Specify performance expectations based on the demonstrated behavior`
+        1. Core functionality of the service cloud or CRM platform
+        2. Customer service representative interface and workflow
+        3. Case management and routing capabilities
+        4. Integration with knowledge bases and customer data
+        5. Reporting and dashboard features
         
-        : `Assume the video shows various aspects of a system that need to be implemented or migrated.
-        Analyze the video file name and metadata to infer what might be captured, and then generate requirements accordingly.`
+        Generate requirements that ensure these demonstrated capabilities are implemented in the target system.`
+        
+        : `This video shows aspects of a ${inferredDomain} system that need to be migrated.
+        Based on the file name '${fileName}' and project context '${projectName}', the video likely demonstrates key service management or CRM functionality that must be preserved in the target system.`
       }
 
       For each requirement:
-      1. Provide a detailed requirement text that is specific and actionable
+      1. Provide a detailed, domain-specific requirement text that focuses on service cloud/CRM functionality
       2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
       3. Assign a priority level: 'high', 'medium', or 'low'
-      4. Include a brief 1-2 sentence rationale explaining why this requirement is important
       
-      Format your response as a JSON array with exactly 5 requirements, each with the properties 'text', 'category', 'priority', and 'rationale'.
-      Example: [{"text": "The system must replicate the order fulfillment workflow from the source system, including the 5-step approval process, conditional routing based on order value, and integration with the inventory management system", "category": "functional", "priority": "high", "rationale": "The order fulfillment process is a core business function that must be maintained with identical business rules to ensure operational continuity."}, ...]
+      Format your response as a JSON array with exactly 5 requirements, each with the properties 'text', 'category', and 'priority'.
+      Example: [{"text": "The target system must implement the service call center queue management workflow with priority-based routing, skill-based assignment, and SLA tracking identical to the source system", "category": "functional", "priority": "high"}, ...]
       
       Only output valid JSON with no additional text or explanations.
     `;
@@ -272,6 +299,20 @@ export async function generateRequirementsForFile(fileType: string, fileName: st
       return await processVideoFile(filePath, fileName, projectName, contentType);
     }
 
+    // Extract potential domain information from filename and project name
+    const potentialDomains = ['CRM', 'ERP', 'service cloud', 'sales cloud', 'marketing cloud', 'commerce cloud', 'call center', 
+      'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
+    
+    // Check if any domain keywords are in the filename or project name
+    const domainKeywords = potentialDomains.filter(domain => 
+      fileName.toLowerCase().includes(domain.toLowerCase()) || 
+      projectName.toLowerCase().includes(domain.toLowerCase())
+    );
+    
+    const inferredDomain = domainKeywords.length > 0 
+      ? domainKeywords.join(', ') 
+      : "service management"; // Default to service management if no specific domain is detected
+
     // Get the Gemini model
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-pro",
@@ -279,37 +320,81 @@ export async function generateRequirementsForFile(fileType: string, fileName: st
       safetySettings,
     });
 
-    // Create a prompt based on the file type and content type
+    // Create a prompt based on the file type and content type, with domain-specific guidance
     const prompt = `
-      You are a requirements analysis expert. Your task is to generate software requirements for handling a ${fileType} file in a software application.
+      You are a business systems analyst specializing in CRM and service management systems. Your task is to generate migration requirements for a project that's moving functionality from a source system to a target system.
       
       Project context: ${projectName}
       File name: ${fileName}
       File type: ${fileType}
       Content type: ${contentType}
+      Inferred domain: ${inferredDomain}
       
       ${contentType === 'workflow' ? 
-        `This ${fileType} file contains workflow information that should be migrated from a source system to a target system.
-        Focus on generating requirements related to business processes, user flows, data transformations, and system integrations.` 
+        `This ${fileType} file documents workflows and business processes in a ${inferredDomain} system that must be recreated in a target system.
+        
+        Assume this file contains information about:
+        1. Service call center functionality and customer service workflows
+        2. Case management, routing, and escalation processes
+        3. Customer information retrieval and service request handling
+        4. Knowledge base integration and service level agreement tracking
+        5. Integration with telephony and communication systems
+        
+        Generate detailed migration requirements focused on these specific service workflows.` 
+        
         : contentType === 'user_feedback' ? 
-        `This ${fileType} file contains user feedback about an existing system.
-        Focus on requirements that address user pain points, improvements, and expectations.` 
+        `This ${fileType} file contains user feedback about a ${inferredDomain} system.
+        
+        Assume users are providing feedback about:
+        1. Pain points in the current service center or CRM workflows
+        2. Difficulties with customer information access or updates
+        3. Challenges with service request management or routing
+        4. Suggestions for improving customer engagement processes
+        5. Issues with reporting or performance metrics
+        
+        Generate requirements that address these specific user needs in the target system.` 
+        
         : contentType === 'documentation' ? 
-        `This ${fileType} file contains documentation about a system or its features.
-        Focus on requirements that preserve core functionality, business rules, and system behaviors.` 
+        `This ${fileType} file contains documentation about a ${inferredDomain} system.
+        
+        Assume this documentation describes:
+        1. Core service functionality and business rules
+        2. User roles, permissions, and access controls
+        3. Case management and workflow configuration
+        4. Integration with other systems and data sources
+        5. Reporting and analytics capabilities
+        
+        Generate requirements that ensure these documented capabilities are preserved in the target system.` 
+        
         : contentType === 'specifications' ? 
-        `This ${fileType} file contains technical specifications.
-        Focus on requirements related to data structures, APIs, business logic, and technical constraints.` 
-        : `Please analyze this ${fileType} file and generate general requirements for processing, managing, and interacting with it.`
+        `This ${fileType} file contains technical specifications for a ${inferredDomain} system.
+        
+        Assume these specifications cover:
+        1. Data models and entity relationships for customer service
+        2. API requirements for integration with communication channels
+        3. Business logic for case handling and service level agreements
+        4. Technical constraints and performance requirements
+        5. Security requirements for customer data
+        
+        Generate specific technical requirements based on these aspects.` 
+        
+        : `This ${fileType} file contains information related to a ${inferredDomain} system.
+        
+        Generate requirements focused on service management capabilities including:
+        1. Customer service workflows and case management
+        2. Service level agreement tracking and reporting
+        3. Knowledge base integration and customer information access
+        4. Agent productivity tools and user interface requirements
+        5. Integration with communication systems`
       }
       
       For each requirement:
-      1. Provide the requirement text (clear, specific, actionable)
+      1. Provide a detailed, specific requirement text focused on service management functionality
       2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
       3. Assign a priority level: 'high', 'medium', or 'low'
       
       Format your response as a JSON array with exactly 5 requirements, each with the properties 'text', 'category', and 'priority'.
-      Example: [{"text": "The system must support playback of ${fileType} files", "category": "functional", "priority": "high"}, ...]
+      Example: [{"text": "The target system must implement the service call center queue management workflow with priority-based routing, skill-based assignment, and SLA tracking identical to the source system", "category": "functional", "priority": "high"}, ...]
       
       Only output valid JSON with no additional text or explanations.
     `;
