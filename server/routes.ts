@@ -19,7 +19,7 @@ import { processTextFile, generateRequirementsForFile } from "./gemini";
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      const tempDir = path.join(os.tmpdir(), 'reqgenius-uploads');
+      const tempDir = path.join(os.tmpdir(), 'glossa-uploads');
       
       // Create temp directory if it doesn't exist
       if (!fs.existsSync(tempDir)) {

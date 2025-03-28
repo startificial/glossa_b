@@ -28,7 +28,7 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
                 <Menu className="h-6 w-6" />
               </button>
               <Link href="/" className="flex items-center">
-                <span className="text-primary text-2xl font-bold">ReqGenius</span>
+                <span className="text-primary text-2xl font-bold">Glossa</span>
               </Link>
             </div>
 
