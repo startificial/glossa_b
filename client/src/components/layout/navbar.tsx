@@ -6,6 +6,7 @@ import { PlusIcon, Menu, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ProjectForm } from "@/components/projects/project-form";
+import glossaLogo from "../../assets/glossa-logo.png";
 
 interface NavbarProps {
   toggleSidebar: () => void;
@@ -27,7 +28,8 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
               >
                 <Menu className="h-6 w-6" />
               </button>
-              <Link href="/" className="flex items-center">
+              <Link href="/" className="flex items-center gap-2">
+                <img src={glossaLogo} alt="Glossa Logo" className="w-8 h-8" />
                 <span className="text-primary text-2xl font-bold">Glossa</span>
               </Link>
             </div>

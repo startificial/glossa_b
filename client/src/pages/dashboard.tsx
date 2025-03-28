@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { PlusIcon } from "lucide-react";
 import { useLocation } from "wouter";
+import glossaLogo from "../assets/glossa-logo.png";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -40,7 +41,10 @@ export default function Dashboard() {
         <header className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome to Glossa</h1>
+              <div className="flex items-center gap-3 mb-2">
+                <img src={glossaLogo} alt="Glossa Logo" className="w-10 h-10" />
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome to Glossa</h1>
+              </div>
               <p className="mt-2 text-gray-600 dark:text-gray-400">
                 Intelligent requirements generation and management platform
               </p>
