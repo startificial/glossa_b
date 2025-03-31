@@ -496,8 +496,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Pass the inputDataId to enable scene cutting
               const processVideoFileWithScenes = async () => {
                 // Import here to avoid circular dependency
-                const { processVideoFile } = require('./gemini');
-                return processVideoFile(
+                const geminiModule = await import('./gemini.js');
+                return geminiModule.processVideoFile(
                   req.file!.path,
                   req.file!.originalname,
                   project.name,
