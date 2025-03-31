@@ -166,7 +166,7 @@ export function SearchResults() {
     <div className="container py-6 space-y-6">
       <PageHeader title="Search Results" description="Find projects, requirements, input data, and tasks" />
       
-      <div className="grid gap-6 md:grid-cols-[300px_1fr]">
+      <div className="grid gap-10 md:grid-cols-[300px_1fr]">
         {/* Filters sidebar */}
         <div className="space-y-4">
           <Card>
@@ -278,9 +278,9 @@ export function SearchResults() {
         </div>
         
         {/* Results area */}
-        <div className="space-y-4 pl-4">
+        <div className="space-y-4 pl-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-5 px-2">
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="projects">Projects</TabsTrigger>
               <TabsTrigger value="requirements">Requirements</TabsTrigger>
@@ -288,7 +288,7 @@ export function SearchResults() {
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
             </TabsList>
             
-            <div className="mt-4">
+            <div className="mt-6 px-2">
               {/* Loading state */}
               {isLoading && (
                 <div className="text-center py-8">
