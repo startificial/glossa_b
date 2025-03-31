@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequirementCard } from "@/components/requirements/requirement-card";
 import { RequirementsFilter } from "@/components/requirements/requirements-filter";
 import { Requirement, RequirementsFilter as FilterType } from "@/lib/types";
@@ -21,10 +21,14 @@ interface RequirementsListProps {
 
 export function RequirementsList({ projectId }: RequirementsListProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterType>({});
   const [page, setPage] = useState(1);
   const itemsPerPage = 9; // 3x3 grid
-
+  const initialMountRef = useRef(true);
+  const [checkingForNew, setCheckingForNew] = useState(false);
+  
+  // Query for requirements data
   const { 
     data: requirements, 
     isLoading, 
@@ -34,12 +38,16 @@ export function RequirementsList({ projectId }: RequirementsListProps) {
     queryFn: async ({ queryKey }) => {
       const [url, currentFilter] = queryKey;
       const params = new URLSearchParams();
-      if (currentFilter.category) params.append('category', currentFilter.category);
-      if (currentFilter.priority) params.append('priority', currentFilter.priority);
-      if (currentFilter.source) params.append('source', currentFilter.source);
-      if (currentFilter.search) params.append('search', currentFilter.search);
       
-      const response = await fetch(`${url}?${params.toString()}`);
+      // Ensure currentFilter is treated as a FilterType object
+      const typedFilter = currentFilter as FilterType;
+      
+      if (typedFilter.category) params.append('category', typedFilter.category);
+      if (typedFilter.priority) params.append('priority', typedFilter.priority);
+      if (typedFilter.source) params.append('source', typedFilter.source);
+      if (typedFilter.search) params.append('search', typedFilter.search);
+      
+      const response = await fetch(`${url as string}?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch requirements');
       }
@@ -47,6 +55,41 @@ export function RequirementsList({ projectId }: RequirementsListProps) {
     }
   });
 
+  // Auto-refresh effect
+  useEffect(() => {
+    // Initial invalidation when component mounts
+    queryClient.invalidateQueries({ 
+      queryKey: [`/api/projects/${projectId}/requirements`] 
+    });
+    
+    // Mark that we've mounted once
+    initialMountRef.current = false;
+    
+    // Set up periodic refresh interval
+    const refreshInterval = setInterval(() => {
+      // Check if we should show "checking" message
+      if (requirements && requirements.length === 0 && !checkingForNew) {
+        setCheckingForNew(true);
+        toast({
+          title: "Checking for requirements",
+          description: "Looking for newly generated requirements...",
+          duration: 2000,
+        });
+      } else if (requirements && requirements.length > 0) {
+        // Reset checking flag once we have requirements
+        setCheckingForNew(false);
+      }
+      
+      // Refresh the data
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/projects/${projectId}/requirements`] 
+      });
+    }, 5000); // Check every 5 seconds
+    
+    // Clean up the interval on unmount
+    return () => clearInterval(refreshInterval);
+  }, [projectId, queryClient, toast, requirements, checkingForNew]);
+  
   // Handle filtering
   const handleFilterChange = (newFilter: FilterType) => {
     setFilter(newFilter);
@@ -60,13 +103,16 @@ export function RequirementsList({ projectId }: RequirementsListProps) {
   const endIdx = Math.min(startIdx + itemsPerPage, totalRequirements);
   const currentPageRequirements = requirements?.slice(startIdx, endIdx) || [];
 
-  if (error) {
-    toast({
-      title: "Error",
-      description: "Failed to load requirements.",
-      variant: "destructive",
-    });
-  }
+  // Show error toast if needed
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load requirements.",
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
 
   return (
     <div className="space-y-6">

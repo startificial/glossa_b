@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatBytes, formatRelativeTime, getFileIcon } from "@/lib/utils";
 import { InputData } from "@/lib/types";
@@ -32,6 +32,9 @@ interface InputDataListProps {
 export function InputDataList({ projectId }: InputDataListProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [processingItems, setProcessingItems] = useState<InputData[]>([]);
+  const processingIdsRef = useRef<Set<number>>(new Set());
+  const completedIdsRef = useRef<Set<number>>(new Set());
   
   const { 
     data: inputDataList, 
@@ -39,44 +42,86 @@ export function InputDataList({ projectId }: InputDataListProps) {
   } = useQuery<InputData[]>({
     queryKey: [`/api/projects/${projectId}/input-data`],
     refetchInterval: (data) => {
-      // If any input data is processing, refetch every 3 seconds
+      // If any input data is processing, refetch every 2 seconds
       if (data && Array.isArray(data)) {
-        return data.some((item: InputData) => item.status === 'processing') ? 3000 : false;
+        return data.some((item: InputData) => item.status === 'processing') ? 2000 : false;
       }
       return false;
     }
   });
   
-  // Check if we need to refetch requirements when processing completes
+  // Track and handle status transitions
   useEffect(() => {
-    let processingItems: InputData[] = [];
-    let processingInterval: NodeJS.Timeout | null = null;
-    let previousProcessingCount = 0;
+    if (!inputDataList) return;
     
-    if (inputDataList) {
-      processingItems = inputDataList.filter((item: InputData) => item.status === 'processing');
-      
-      // If we have processing items, start polling for requirements
-      if (processingItems.length > 0) {
-        // Store the number of processing items for comparison later
-        previousProcessingCount = processingItems.length;
+    // Update currently processing items
+    const currentProcessingItems = inputDataList.filter(
+      (item: InputData) => item.status === 'processing'
+    );
+    
+    // Create a set of processing IDs for current items
+    const currentProcessingIds = new Set(currentProcessingItems.map(item => item.id));
+    
+    // Track which previously processing items are now completed
+    if (processingItems.length > 0) {
+      // Check each previously processing item to see if it's no longer processing
+      processingItems.forEach(prevItem => {
+        const isStillProcessing = currentProcessingIds.has(prevItem.id);
+        const hasBeenNotified = completedIdsRef.current.has(prevItem.id);
         
-        processingInterval = setInterval(() => {
-          // Invalidate requirements cache to trigger fresh data fetch
-          queryClient.invalidateQueries({ 
-            queryKey: [`/api/projects/${projectId}/requirements`] 
-          });
-          queryClient.invalidateQueries({ 
-            queryKey: [`/api/projects/${projectId}/requirements/high-priority`] 
-          });
-        }, 5000); // Check every 5 seconds
-      } else if (previousProcessingCount > 0) {
-        // If we previously had processing items but not anymore, show a toast
-        toast({
-          title: "Processing complete",
-          description: "All requirements have been generated successfully.",
+        // If an item was processing before but isn't now, and we haven't notified about it yet
+        if (!isStillProcessing && !hasBeenNotified) {
+          // Add to completed set to avoid repeated notifications
+          completedIdsRef.current.add(prevItem.id);
+          
+          // Find the current state of the file
+          const completedFile = inputDataList.find(item => item.id === prevItem.id);
+          
+          if (completedFile && completedFile.status === 'completed') {
+            // Notify about the completed file
+            toast({
+              title: "Processing complete",
+              description: `Requirements generated from ${completedFile.name}`,
+            });
+            
+            // Immediately refresh requirements data
+            queryClient.invalidateQueries({ 
+              queryKey: [`/api/projects/${projectId}/requirements`] 
+            });
+            queryClient.invalidateQueries({ 
+              queryKey: [`/api/projects/${projectId}/requirements/high-priority`] 
+            });
+          } else if (completedFile && completedFile.status === 'failed') {
+            // Notify about the failed file
+            toast({
+              title: "Processing failed",
+              description: `Failed to generate requirements from ${completedFile.name}`,
+              variant: "destructive"
+            });
+          }
+        }
+      });
+    }
+    
+    // Update track of current processing items for next comparison
+    setProcessingItems(currentProcessingItems);
+    
+    // Setup ongoing polling if items are still processing
+    let processingInterval: NodeJS.Timeout | null = null;
+    
+    if (currentProcessingItems.length > 0) {
+      processingInterval = setInterval(() => {
+        // Refresh both input data (to catch status changes) and requirements data
+        queryClient.invalidateQueries({ 
+          queryKey: [`/api/projects/${projectId}/input-data`]
         });
-      }
+        queryClient.invalidateQueries({ 
+          queryKey: [`/api/projects/${projectId}/requirements`] 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: [`/api/projects/${projectId}/requirements/high-priority`] 
+        });
+      }, 3000); // Poll every 3 seconds
     }
     
     // Cleanup interval when component unmounts or dependencies change
@@ -85,7 +130,7 @@ export function InputDataList({ projectId }: InputDataListProps) {
         clearInterval(processingInterval);
       }
     };
-  }, [inputDataList, projectId, queryClient, toast]);
+  }, [inputDataList, projectId, queryClient, toast, processingItems]);
 
   const getFileTypeIcon = (type: string) => {
     switch (type.toLowerCase()) {

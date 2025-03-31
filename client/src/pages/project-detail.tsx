@@ -47,42 +47,66 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
     }
   }, [error, toast]);
 
-  // Check for processing requirements and set up automatic tracking
+  // Track processing status and maintain state for auto-navigation
+  const [previousProcessingCount, setPreviousProcessingCount] = useState(0);
+  const [hasNewRequirements, setHasNewRequirements] = useState(false);
+  
+  // Using an effect to handle processing status changes and tab management
   useEffect(() => {
-    // If the user is on requirements tab or dashboard, we need to auto-update when requirements finish
-    const shouldAutoUpdate = activeTab === "requirements" || activeTab === "dashboard";
+    if (!inputDataList) return;
     
-    if (inputDataList) {
-      const processingItems = inputDataList.filter(item => item.status === "processing");
+    const processingItems = inputDataList.filter(item => item.status === "processing");
+    const processingCount = processingItems.length;
+    
+    // Detect when processing starts (for fresh uploads)
+    if (processingCount > previousProcessingCount) {
+      // Store current active tab if we just started processing
+      setPreviousProcessingCount(processingCount);
       
-      // Notify user if they switch away from the input data tab and there are processing items
-      if (previousTab === "inputData" && activeTab !== "inputData" && processingItems.length > 0) {
+      // If user is uploading new data, inform them about processing
+      if (activeTab === "inputData") {
         toast({
-          title: "Requirements being generated",
-          description: `${processingItems.length} ${processingItems.length === 1 ? 'file is' : 'files are'} being processed. Requirements will appear automatically when ready.`,
+          title: "Processing started",
+          description: `${processingCount} ${processingCount === 1 ? 'file is' : 'files are'} being processed. Requirements will appear automatically when ready.`,
           duration: 5000,
         });
       }
-      
-      // If we were previously processing but now finished, notify user and auto-switch to requirements
-      if (processingItems.length === 0 && shouldAutoUpdate) {
-        // Check if we have requirements and they were likely just generated
-        const recentlyCompleted = inputDataList.some((item: InputData) => 
-          item.processed && Date.now() - new Date(item.updatedAt || item.createdAt).getTime() < 10000
-        );
-        
-        if (recentlyCompleted) {
-          toast({
-            title: "Requirements generated",
-            description: "New requirements have been generated successfully.",
-            variant: "default",
-          });
-        }
-      }
     }
     
+    // Detect when processing finishes
+    if (previousProcessingCount > 0 && processingCount === 0) {
+      // Mark that we have new requirements (will trigger tab switch below)
+      setHasNewRequirements(true);
+      
+      // Auto-switch to requirements tab after delay (if not already there)
+      if (activeTab !== "requirements") {
+        // Inform the user about the new requirements and planned tab switch
+        toast({
+          title: "Requirements ready",
+          description: "New requirements have been generated. Switching to requirements tab.",
+          duration: 3000,
+        });
+        
+        // Auto-switch to requirements tab after a short delay
+        const switchTimer = setTimeout(() => {
+          setActiveTab("requirements");
+        }, 1000);
+        
+        return () => clearTimeout(switchTimer);
+      }
+      
+      // Reset the counter
+      setPreviousProcessingCount(0);
+    }
+    
+    // Clear the new requirements flag when user sees the requirements tab
+    if (hasNewRequirements && activeTab === "requirements") {
+      setHasNewRequirements(false);
+    }
+    
+    // Store previous tab for context
     setPreviousTab(activeTab);
-  }, [activeTab, previousTab, inputDataList, toast]);
+  }, [activeTab, inputDataList, previousProcessingCount, hasNewRequirements, toast]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -150,8 +174,14 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
             <TabsTrigger value="inputData" className="py-2">
               Input Data
             </TabsTrigger>
-            <TabsTrigger value="requirements" className="py-2">
+            <TabsTrigger value="requirements" className="py-2 relative">
               Requirements
+              {hasNewRequirements && (
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="tasks" className="py-2">
               Implementation Tasks
