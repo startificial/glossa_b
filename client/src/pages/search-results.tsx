@@ -163,7 +163,7 @@ export function SearchResults() {
   };
   
   return (
-    <div className="container py-6 space-y-6">
+    <div className="container py-6 space-y-6 pl-8">
       <PageHeader title="Search Results" description="Find projects, requirements, input data, and tasks" />
       
       <div className="grid gap-10 md:grid-cols-[300px_1fr]">
