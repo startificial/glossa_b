@@ -16,7 +16,7 @@ import fs from "fs";
 import os from "os";
 import nlp from "compromise";
 import { processTextFile, generateRequirementsForFile } from "./gemini";
-import { processPdfFile, validatePdf } from "./pdf-processor";
+import { processPdfFile, validatePdf, extractTextFromPdf } from "./pdf-processor";
 import crypto from "crypto";
 import VideoProcessor from "./video-processor";
 import { z } from "zod";
@@ -466,9 +466,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Medium files (1-5 MB): 3 analyses with 5 reqs each (15 total)
             // Large files (> 5 MB): 4 analyses with 5 reqs each (20 total)
             const numAnalyses = fileSizeInMB < 1 ? 2 : (fileSizeInMB < 5 ? 3 : 4);
-            const reqPerAnalysis = 5; // Keeping this constant for now
+            const minRequirements = 5; // Minimum number of requirements to extract per chunk
+            const reqPerAnalysis = minRequirements; // Keep for backward compatibility
             
-            console.log(`File size: ${fileSizeInMB.toFixed(2)} MB - Using ${numAnalyses} analyses with ${reqPerAnalysis} requirements each`);
+            console.log(`File size: ${fileSizeInMB.toFixed(2)} MB - Using ${numAnalyses} analyses with minimum ${minRequirements} requirements each (will extract more if content supports it)`);
             
             // Process different file types with Gemini based on both file type and content type
             if (type === 'text' || type === 'document') {
@@ -478,8 +479,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 project.name, 
                 req.file!.originalname,
                 contentType, // Pass content type for specialized processing
-                reqPerAnalysis // Number of requirements per chunk
+                minRequirements // Minimum number of requirements to extract
               );
+              console.log(`Text file processing complete: ${requirements.length} requirements extracted`);
             } else if (type === 'pdf') {
               // For PDF files, use specialized PDF processor with memory-efficient strategies
               console.log(`Processing PDF file: ${req.file!.originalname} with enhanced PDF processor`);
@@ -499,15 +501,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 throw new Error(`PDF validation failed: ${pdfValidation.message}`);
               }
               
-              // Process the PDF with our enhanced processor, allowing large files if needed
-              requirements = await processPdfFile(
-                req.file!.path,
-                project.name,
-                req.file!.originalname,
-                contentType,
-                reqPerAnalysis,
-                isLargeFile // Pass whether this is a large file to allow bypassing size limits
-              );
+              console.log(`PDF validation successful, proceeding with enhanced PDF processing`);
+              
+              try {
+                // Process the PDF with our enhanced processor, allowing large files if needed
+                requirements = await processPdfFile(
+                  req.file!.path,
+                  project.name,
+                  req.file!.originalname,
+                  contentType,
+                  minRequirements,
+                  isLargeFile // Pass whether this is a large file to allow bypassing size limits
+                );
+                
+                console.log(`PDF processing successful, extracted ${requirements.length} requirements`);
+                if (requirements.length === 0) {
+                  console.warn("Warning: No requirements were extracted from the PDF, checking for issues...");
+                  // Check if extracted text is empty or very small
+                  try {
+                    const extractedText = await extractTextFromPdf(req.file!.path);
+                    console.log(`Extracted text length: ${extractedText.length} characters`);
+                    if (extractedText.length < 100) {
+                      console.warn("Extracted text is very short, PDF may be empty, scanned, or password-protected");
+                    }
+                  } catch (textError) {
+                    console.error("Error checking PDF text:", textError);
+                  }
+                }
+              } catch (pdfError) {
+                console.error("PDF processing error:", pdfError);
+                throw pdfError;
+              }
             } else if (type === 'video') {
               // For video files, use enhanced multi-perspective video processing
               console.log(`Processing video file: ${req.file!.originalname} with specialized ${contentType} analysis`);
