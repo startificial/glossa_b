@@ -6,7 +6,7 @@ import { downloadJSON } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportData, Project } from "@/lib/types";
-import { Plus, Download, MoreHorizontal } from "lucide-react";
+import { Plus, Download, MoreHorizontal, ArrowRightIcon } from "lucide-react";
 import { ProjectEditDialog } from "./project-edit-dialog";
 import {
   DropdownMenu,
@@ -67,6 +67,11 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
           <div className="space-y-2">
             <Skeleton className="h-7 w-64" />
             <Skeleton className="h-4 w-96" />
+            <div className="mt-2 flex items-center gap-2">
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-6 w-3" />
+              <Skeleton className="h-6 w-24" />
+            </div>
           </div>
           <div className="flex space-x-3">
             <Skeleton className="h-9 w-28" />
@@ -99,6 +104,33 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {project.description || "No description provided."}
             </p>
+            
+            {/* Systems information */}
+            {(project.sourceSystem || project.targetSystem) && (
+              <div className="mt-2 flex items-center gap-2">
+                {project.sourceSystem && (
+                  <div className="flex items-center">
+                    <span className="text-xs font-medium mr-1 text-gray-600 dark:text-gray-400">From:</span> 
+                    <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                      {project.sourceSystem}
+                    </span>
+                  </div>
+                )}
+                
+                {project.sourceSystem && project.targetSystem && (
+                  <ArrowRightIcon className="h-3 w-3 text-gray-400" />
+                )}
+                
+                {project.targetSystem && (
+                  <div className="flex items-center">
+                    <span className="text-xs font-medium mr-1 text-gray-600 dark:text-gray-400">To:</span>
+                    <span className="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                      {project.targetSystem}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex space-x-3">
             <Button
