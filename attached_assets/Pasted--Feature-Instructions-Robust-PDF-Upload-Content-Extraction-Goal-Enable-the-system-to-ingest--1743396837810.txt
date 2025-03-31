@@ -1,0 +1,76 @@
+📄 Feature Instructions: Robust PDF Upload & Content Extraction
+🧠 Goal
+Enable the system to ingest PDFs efficiently, extract clean content, and avoid memory issues. This includes:
+
+Handling large PDFs without crashing or OOM (Out Of Memory) errors.
+
+Chunking or paginating content for processing.
+
+Stripping structural artifacts (e.g., tags, layout, headers/footers) and focusing on true informational content.
+
+Preparing content for downstream tasks like indexing, semantic search, summarization, or rule extraction.
+
+✅ Functional Requirements
+1. File Upload Handling
+Accept .pdf MIME types via upload or remote fetch (e.g., S3 link or HTTP URL).
+
+Validate file size and reject PDFs over a predefined limit unless special large-file mode is enabled (e.g., 100MB soft cap).
+
+Allow stream-based processing (not full load into memory).
+
+2. Memory-Efficient Loading
+Use lazy loading or streamed parsing via a PDF parsing library that supports page-wise or chunked access.
+
+✅ Libraries to consider:
+
+PyMuPDF (fitz) – Fast, memory-efficient, easy page access.
+
+pdfplumber – Great for precise content extraction, including table handling.
+
+pdfminer.six – Fine-grained control over structure, though slower.
+
+pypdf – Good for manipulation but weaker on semantic extraction.
+
+🧪 Recommendation: Start with PyMuPDF and fall back to pdfplumber when higher fidelity is needed.
+
+3. Chunking Strategy
+Default: Per-page chunking (1 page = 1 chunk).
+
+For dense or short pages, group multiple pages into a chunk if under a target token/character size (e.g., 1000–1500 words per chunk).
+
+Support overlap windows for context preservation across chunks (e.g., sliding window of 100 words).
+
+✳️ Optional: Let the system auto-adjust chunk sizes based on content density and tokenization metrics.
+
+4. Content Cleaning and Extraction
+Strip away the following unless explicitly requested:
+
+Page numbers, headers/footers (use regex or layout-based heuristics).
+
+Formatting tags (e.g., <b>, <i>, annotations).
+
+Marginalia, watermark text, artifacts from OCR (e.g., scanned by, footer metadata).
+
+Ensure:
+
+Text is clean, linear, and semantic — avoid layout-oriented parsing unless explicitly extracting tables or figures.
+
+Detect and merge paragraphs that are split across lines due to PDF line breaks.
+
+Normalize whitespace, remove duplicate lines and blank lines.
+
+🔍 Optional Advanced Parsing:
+Detect headings and section breaks via font size or styles (available in PyMuPDF).
+
+Recognize tables and output them as structured JSON, not plain text (requires pdfplumber).
+
+5. Error Handling
+Fail gracefully with structured error messages if:
+
+PDF is corrupted.
+
+Password-protected/encrypted.
+
+Page count is zero.
+
+Log and skip pages that cause parse errors instead of halting the entire process.
