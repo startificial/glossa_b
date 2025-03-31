@@ -62,6 +62,9 @@ export function InputDataList({ projectId }: InputDataListProps) {
     // Create a set of processing IDs for current items
     const currentProcessingIds = new Set(currentProcessingItems.map(item => item.id));
     
+    // Create a deep copy of current processing items to avoid infinite update issue
+    const currentProcessingItemsCopy = [...currentProcessingItems];
+    
     // Track which previously processing items are now completed
     if (processingItems.length > 0) {
       // Check each previously processing item to see if it's no longer processing
@@ -103,8 +106,17 @@ export function InputDataList({ projectId }: InputDataListProps) {
       });
     }
     
-    // Update track of current processing items for next comparison
-    setProcessingItems(currentProcessingItems);
+    // Only update processing items state if there's an actual change
+    const hasChanged = processingItems.length !== currentProcessingItems.length ||
+      processingItems.some(item => !currentProcessingIds.has(item.id)) ||
+      currentProcessingItems.some(item => !processingIdsRef.current.has(item.id));
+    
+    if (hasChanged) {
+      // Update tracking refs
+      processingIdsRef.current = currentProcessingIds;
+      // Update state (only if changed to prevent infinite loop)
+      setProcessingItems(currentProcessingItemsCopy);
+    }
     
     // Setup ongoing polling if items are still processing
     let processingInterval: NodeJS.Timeout | null = null;
