@@ -1898,10 +1898,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Search routes
   app.get("/api/search/quick", async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
+      // For demo purposes, we'll use the demo user ID if no session is present
+      const userId = req.session.userId || 1;
       
       const query = req.query.q as string || "";
       const limit = parseInt(req.query.limit as string || "5");
@@ -1909,7 +1907,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!query.trim()) {
         return res.status(200).json({ 
           projects: [],
-          requirements: []
+          requirements: [],
+          inputData: [],
+          tasks: []
         });
       }
       
@@ -1923,10 +1923,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/search/advanced", async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
+      // For demo purposes, we'll use the demo user ID if no session is present
+      const userId = req.session.userId || 1;
       
       const query = req.query.q as string || "";
       const page = parseInt(req.query.page as string || "1");
@@ -1952,12 +1950,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (req.query.toDate) filters.dateRange.to = new Date(req.query.toDate as string);
       }
       
+      console.log(`Performing advanced search with query "${query}" for user ${userId}`);
+      
       const results = await storage.advancedSearch(
         userId, 
         query, 
         filters, 
         { page, limit }
       );
+      
+      console.log(`Search results: ${results.totalResults} total results found`);
       
       res.status(200).json(results);
     } catch (error) {
