@@ -172,19 +172,19 @@ export async function processTextFile(filePath: string, projectName: string, fil
         Extract as many requirements as necessary to comprehensively cover the content provided. Do not limit yourself to a specific number - extract all valid requirements from the text. You should aim to extract at least ${minRequirements} requirements if the content supports it, but extract more if necessary.
         
         Format your response as a JSON array of requirements, where each requirement has:
-        1. 'text' (string): A detailed description of at least 75 words that thoroughly explains what needs to be implemented
+        1. 'text' (string): A detailed description of at least 150 words that thoroughly explains what needs to be implemented
         2. 'category' (string): One of 'functional', 'non-functional', 'security', 'performance'
         3. 'priority' (string): One of 'high', 'medium', 'low'
         
         Example format (but with much more detailed text for each requirement):
         [
           {
-            "text": "The system must implement a comprehensive case management workflow that allows customer service representatives to...[detailed 75+ word description]",
+            "text": "The system must implement a comprehensive case management workflow that allows customer service representatives to...[detailed 150+ word description]",
             "category": "functional", 
             "priority": "high"
           },
           {
-            "text": "The Salesforce implementation must support a knowledge base integration that...[detailed 75+ word description]",
+            "text": "The Salesforce implementation must support a knowledge base integration that...[detailed 150+ word description]",
             "category": "functional",
             "priority": "medium"
           }
@@ -427,12 +427,12 @@ export async function processVideoFile(
         }
 
         For each requirement:
-        1. Provide a detailed, domain-specific requirement text that focuses on ${perspective.focus} within ${inferredDomain} functionality
+        1. Provide a detailed, domain-specific requirement text of at least 150 words that focuses on ${perspective.focus} within ${inferredDomain} functionality
         2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
         3. Assign a priority level: 'high', 'medium', or 'low'
         
         Format your response as a JSON array with exactly ${reqPerChunk} requirements, each with the properties 'text', 'category', and 'priority'.
-        Example: [{"text": "The target system must implement the service call center queue management workflow with priority-based routing, skill-based assignment, and SLA tracking identical to the source system", "category": "functional", "priority": "high"}, ...]
+        Example: [{"text": "The target system must implement the service call center queue management workflow with priority-based routing, skill-based assignment, and SLA tracking identical to the source system... [detailed 150+ word description that thoroughly explains the requirement]", "category": "functional", "priority": "high"}, ...]
         
         Only output valid JSON with no additional text or explanations.
       `;
@@ -726,12 +726,12 @@ export async function generateRequirementsForFile(
         }
         
         For each requirement:
-        1. Provide a detailed, domain-specific requirement text related to ${perspective.focus} within ${inferredDomain} functionality
+        1. Provide a detailed, domain-specific requirement text of at least 150 words related to ${perspective.focus} within ${inferredDomain} functionality
         2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
         3. Assign a priority level: 'high', 'medium', or 'low'
         
         Format your response as a JSON array with exactly ${reqPerAnalysis} requirements, each with the properties 'text', 'category', and 'priority'.
-        Example: [{"text": "The target system must maintain the current call center queuing logic that routes cases based on SLA priority and agent skill matching", "category": "functional", "priority": "high"}, ...]
+        Example: [{"text": "The target system must maintain the current call center queuing logic that routes cases based on SLA priority and agent skill matching... [detailed 150+ word description that thoroughly explains the requirement]", "category": "functional", "priority": "high"}, ...]
         
         Only output valid JSON with no additional text or explanations.
       `;
