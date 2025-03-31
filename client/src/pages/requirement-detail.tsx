@@ -409,7 +409,12 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
           <span>Back to Project</span>
         </Button>
         
-        <h1 className="text-2xl font-bold ml-2">{requirement.codeId}</h1>
+        <div className="flex items-center ml-2">
+          <h1 className="text-2xl font-bold">{requirement.codeId}</h1>
+          {requirement.name && (
+            <h2 className="text-xl text-muted-foreground ml-2">- {requirement.name}</h2>
+          )}
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-16">

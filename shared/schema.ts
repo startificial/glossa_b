@@ -97,6 +97,7 @@ export const insertInputDataSchema = createInsertSchema(inputData).pick({
 // Requirements schema
 export const requirements = pgTable("requirements", {
   id: serial("id").primaryKey(),
+  name: text("name").notNull(), // The name field for the requirement
   text: text("text").notNull(),
   category: text("category").notNull(), // functional, non-functional, etc.
   priority: text("priority").notNull().default("medium"), // high, medium, low
@@ -113,6 +114,7 @@ export const requirements = pgTable("requirements", {
 });
 
 export const insertRequirementSchema = createInsertSchema(requirements).pick({
+  name: true,
   text: true,
   category: true,
   priority: true,
