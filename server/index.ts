@@ -6,6 +6,9 @@ import { storage } from "./storage";
 import createMemoryStore from "memorystore";
 import { initializeDatabase, runMigrations } from "./database";
 import connectPgSimple from "connect-pg-simple";
+import path from "path";
+import os from "os";
+import fs from "fs";
 
 // Set USE_POSTGRES environment variable if it's not already set
 if (process.env.DATABASE_URL && process.env.USE_POSTGRES === undefined) {
@@ -26,6 +29,13 @@ const PgStore = connectPgSimple(session);
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Create and serve the video scenes directory
+const videoScenesDir = path.join(os.tmpdir(), 'video-scenes');
+if (!fs.existsSync(videoScenesDir)) {
+  fs.mkdirSync(videoScenesDir, { recursive: true });
+}
+app.use('/media/video-scenes', express.static(videoScenesDir));
 
 // Determine which session store to use
 const usePostgres = process.env.DATABASE_URL && process.env.USE_POSTGRES === 'true';

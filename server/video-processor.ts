@@ -171,17 +171,22 @@ export class VideoProcessor {
   async generateThumbnail(scene: VideoScene): Promise<string> {
     // Capture frame at 1/3 into the scene for better representation
     const captureTime = scene.startTime + (scene.endTime - scene.startTime) / 3;
-    const thumbnailPath = path.join(this._outputDir, `scene_${scene.id}_thumbnail.jpg`);
+    const thumbnailFilename = `scene_${scene.id}_thumbnail.jpg`;
+    const thumbnailPath = path.join(this._outputDir, thumbnailFilename);
     
     return new Promise<string>((resolve, reject) => {
       ffmpeg(this._inputPath)
         .screenshots({
           timestamps: [captureTime],
-          filename: path.basename(thumbnailPath),
-          folder: path.dirname(thumbnailPath),
+          filename: thumbnailFilename,
+          folder: this._outputDir,
           size: '320x180'
         })
-        .on('end', () => resolve(thumbnailPath))
+        .on('end', () => {
+          // Return the web-accessible URL path rather than the filesystem path
+          const webPath = `/media/video-scenes/${thumbnailFilename}`;
+          resolve(webPath);
+        })
         .on('error', (err) => reject(err));
     });
   }
@@ -191,7 +196,8 @@ export class VideoProcessor {
    * @param scene The video scene to extract a clip for
    */
   async extractClip(scene: VideoScene): Promise<string> {
-    const clipPath = path.join(this._outputDir, `scene_${scene.id}_clip.mp4`);
+    const clipFilename = `scene_${scene.id}_clip.mp4`;
+    const clipPath = path.join(this._outputDir, clipFilename);
     const duration = scene.endTime - scene.startTime;
     
     return new Promise<string>((resolve, reject) => {
@@ -206,7 +212,11 @@ export class VideoProcessor {
           '-c:a aac',
           '-b:a 128k'
         ])
-        .on('end', () => resolve(clipPath))
+        .on('end', () => {
+          // Return the web-accessible URL path rather than the filesystem path
+          const webPath = `/media/video-scenes/${clipFilename}`;
+          resolve(webPath);
+        })
         .on('error', (err) => reject(err))
         .run();
     });
