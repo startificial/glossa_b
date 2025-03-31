@@ -7,12 +7,12 @@ import os from 'os';
 const apiKey = process.env.GOOGLE_API_KEY || '';
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Gemini 2.5 model configuration
+// Gemini 2.5 model configuration with reduced token limit to prevent memory issues
 const generationConfig = {
   temperature: 0.7,
   topK: 32,
   topP: 0.95,
-  maxOutputTokens: 8192,
+  maxOutputTokens: 4096, // Reduced from 8192 to prevent memory issues
 };
 
 // Safety settings
@@ -42,7 +42,7 @@ const safetySettings = [
  * @param overlapSize The number of characters to overlap between chunks
  * @returns Array of text chunks
  */
-function chunkTextContent(fileContent: string, chunkSize: number = 6000, overlapSize: number = 1000): string[] {
+function chunkTextContent(fileContent: string, chunkSize: number = 4000, overlapSize: number = 500): string[] {
   const chunks: string[] = [];
   
   // If file is smaller than chunk size, return it as a single chunk

@@ -2,6 +2,7 @@ import fs from 'fs';
 import util from 'util';
 import pdfParse from 'pdf-parse';
 import { processTextFile } from './gemini';
+import os from 'os';
 
 // Use promisified versions of fs functions
 const readFile = util.promisify(fs.readFile);
@@ -558,7 +559,28 @@ export async function processPdfFile(
     // to avoid excessive memory usage
     
     let allRequirements: any[] = [];
-    const BATCH_SIZE = 3; // Process 3 sections at a time to manage memory
+    
+    // Track memory usage to avoid memory leaks
+    const getMemoryUsageMB = () => {
+      const memUsage = process.memoryUsage();
+      return {
+        rss: Math.round(memUsage.rss / 1024 / 1024),
+        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+        external: Math.round(memUsage.external / 1024 / 1024),
+      };
+    };
+    
+    console.log(`Memory before processing: ${JSON.stringify(getMemoryUsageMB())} MB`);
+    
+    // Set batch size based on available system memory and section count
+    const totalSystemMemoryMB = Math.round(os.totalmem() / 1024 / 1024);
+    const freeSystemMemoryMB = Math.round(os.freemem() / 1024 / 1024);
+    console.log(`System memory: ${freeSystemMemoryMB}MB free of ${totalSystemMemoryMB}MB total`);
+    
+    // Adjust batch size based on available memory and content size
+    const BATCH_SIZE = freeSystemMemoryMB < 2048 ? 1 : 
+                      freeSystemMemoryMB < 4096 ? 2 : 3; // Process fewer sections at a time if memory is limited
     
     for (let batchStart = 0; batchStart < sections.length; batchStart += BATCH_SIZE) {
       const batchEnd = Math.min(batchStart + BATCH_SIZE, sections.length);
@@ -615,10 +637,20 @@ export async function processPdfFile(
         // Continue with other batches even if one fails
       }
       
+      // Log memory usage after each batch
+      console.log(`Memory after batch processing: ${JSON.stringify(getMemoryUsageMB())} MB`);
+      
+      // Run garbage collection if supported
+      if (global.gc) {
+        console.log("Running garbage collection...");
+        global.gc();
+        console.log(`Memory after garbage collection: ${JSON.stringify(getMemoryUsageMB())} MB`);
+      }
+      
       // Pause between batches to avoid overwhelming the system
       if (batchEnd < sections.length) {
         console.log(`Pausing between batches...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Increased pause time
       }
     }
     
@@ -632,6 +664,9 @@ export async function processPdfFile(
     const sortedRequirements = uniqueRequirements.sort((a, b) => {
       return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
     });
+    
+    // Log memory usage after all processing
+    console.log(`Memory after full PDF processing: ${JSON.stringify(getMemoryUsageMB())} MB`);
     
     console.log(`PDF processing complete: ${sortedRequirements.length} unique requirements extracted`);
     return sortedRequirements;
