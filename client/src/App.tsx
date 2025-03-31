@@ -16,6 +16,7 @@ import TaskDetail from "@/pages/task-detail";
 import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
+import { SearchResults } from "@/pages/search-results";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -131,6 +132,12 @@ function Router() {
       <ProtectedRoute path="/settings" component={() => (
         <ProtectedLayout>
           <Settings />
+        </ProtectedLayout>
+      )} />
+      
+      <ProtectedRoute path="/search" component={() => (
+        <ProtectedLayout>
+          <SearchResults />
         </ProtectedLayout>
       )} />
       

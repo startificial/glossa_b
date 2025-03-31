@@ -1895,6 +1895,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Search routes
+  app.get("/api/search/quick", async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const query = req.query.q as string || "";
+      const limit = parseInt(req.query.limit as string || "5");
+      
+      if (!query.trim()) {
+        return res.status(200).json({ 
+          projects: [],
+          requirements: []
+        });
+      }
+      
+      const results = await storage.quickSearch(userId, query, limit);
+      res.status(200).json(results);
+    } catch (error) {
+      console.error("Error during quick search:", error);
+      res.status(500).json({ message: "Error performing search", error: (error as Error).message });
+    }
+  });
+  
+  app.get("/api/search/advanced", async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const query = req.query.q as string || "";
+      const page = parseInt(req.query.page as string || "1");
+      const limit = parseInt(req.query.limit as string || "10");
+      
+      // Parse entity types filter
+      let entityTypes: string[] | undefined;
+      if (req.query.entityTypes) {
+        entityTypes = (req.query.entityTypes as string).split(',');
+      }
+      
+      // Parse other filters
+      const filters: any = {};
+      if (entityTypes) filters.entityTypes = entityTypes;
+      if (req.query.projectId) filters.projectId = parseInt(req.query.projectId as string);
+      if (req.query.category) filters.category = req.query.category as string;
+      if (req.query.priority) filters.priority = req.query.priority as string;
+      
+      // Parse date range if provided
+      if (req.query.fromDate || req.query.toDate) {
+        filters.dateRange = {};
+        if (req.query.fromDate) filters.dateRange.from = new Date(req.query.fromDate as string);
+        if (req.query.toDate) filters.dateRange.to = new Date(req.query.toDate as string);
+      }
+      
+      const results = await storage.advancedSearch(
+        userId, 
+        query, 
+        filters, 
+        { page, limit }
+      );
+      
+      res.status(200).json(results);
+    } catch (error) {
+      console.error("Error during advanced search:", error);
+      res.status(500).json({ message: "Error performing search", error: (error as Error).message });
+    }
+  });
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Unhandled error:", err);
     res.status(500).json({ message: "An unexpected error occurred", error: err.message });
