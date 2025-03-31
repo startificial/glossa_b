@@ -17,6 +17,7 @@ import os from "os";
 import nlp from "compromise";
 import { processTextFile, generateRequirementsForFile } from "./gemini";
 import { processPdfFile, validatePdf, extractTextFromPdf } from "./pdf-processor";
+import { analyzePdf } from "./pdf-analyzer";
 import crypto from "crypto";
 import VideoProcessor from "./video-processor";
 import { z } from "zod";
@@ -483,8 +484,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               );
               console.log(`Text file processing complete: ${requirements.length} requirements extracted`);
             } else if (type === 'pdf') {
-              // For PDF files, use specialized PDF processor with memory-efficient strategies
-              console.log(`Processing PDF file: ${req.file!.originalname} with enhanced PDF processor`);
+              // For PDF files, use specialized PDF processor with enhanced analysis
+              console.log(`Processing PDF file: ${req.file!.originalname} with advanced PDF analyzer`);
               
               // Check if this is a large file that requires special handling
               const fileSizeInMB = req.file!.size / (1024 * 1024);
@@ -504,57 +505,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`PDF validation successful, proceeding with enhanced PDF processing`);
               
               try {
-                // Process the PDF with our enhanced processor, allowing large files if needed
-                requirements = await processPdfFile(
-                  req.file!.path,
-                  project.name,
-                  req.file!.originalname,
-                  contentType,
-                  minRequirements,
-                  isLargeFile // Pass whether this is a large file to allow bypassing size limits
-                );
+                // First analyze the PDF to get better context and determine if it's a scanned document
+                const pdfAnalysis = await analyzePdf(req.file!.path);
+                console.log(`PDF analysis complete: ${pdfAnalysis.text.length} chars, ${pdfAnalysis.pageCount} pages`);
+                console.log(`PDF context: domain=${pdfAnalysis.context.domain}, type=${pdfAnalysis.context.docType}, keywords=${pdfAnalysis.context.keywords.join(', ')}`);
                 
-                console.log(`PDF processing successful, extracted ${requirements.length} requirements`);
-                if (requirements.length === 0) {
-                  console.warn("Warning: No requirements were extracted from the PDF, checking for issues...");
-                  // Check if extracted text is empty or very small
-                  try {
-                    const extractedText = await extractTextFromPdf(req.file!.path);
-                    console.log(`Extracted text length: ${extractedText.length} characters`);
-                    if (extractedText.length < 100) {
-                      console.warn("Extracted text is very short, PDF may be empty, scanned, or password-protected");
+                // Track if this is a scanned or image-based PDF with limited text
+                if (pdfAnalysis.isScanOrImage) {
+                  console.log(`PDF detected as scanned/image-based document with limited extractable text`);
+                  
+                  // If we have some text (even if limited), try using it to build better context
+                  let contextText = pdfAnalysis.text;
+                  // Add metadata if available
+                  if (pdfAnalysis.metadata) {
+                    contextText += "\n\n" + pdfAnalysis.metadata;
+                  }
+                  
+                  // If we have absolutely minimal text, use filename-based approach with document type
+                  if (contextText.length < 100) {
+                    console.log(`Extremely limited text content (${contextText.length} chars). Using filename and document type for requirements generation.`);
+                    
+                    // Create context-aware requirements based on filename and document type
+                    const domain = pdfAnalysis.context.domain || 'software';
+                    const docType = pdfAnalysis.context.docType || 'requirements document';
+                    const keywords = pdfAnalysis.context.keywords || [];
+                    
+                    // Pass this minimal but relevant context to the Gemini API
+                    // This gives the API something to work with even though OCR failed
+                    let contextPrompt = `The document "${req.file!.originalname}" appears to be a ${docType} related to ${domain} systems`;
+                    if (keywords.length > 0) {
+                      contextPrompt += ` with focus on ${keywords.join(', ')}`;
+                    }
+                    
+                    // Try to generate requirements based on filename and document type context
+                    try {
+                      // Create a temporary text file with the context prompt for Gemini
+                      const contextFilePath = path.join(path.dirname(req.file!.path), 'context_' + path.basename(req.file!.path, '.pdf') + '.txt');
+                      fs.writeFileSync(contextFilePath, contextPrompt, 'utf8');
+                      
+                      console.log(`Created context file with ${contextPrompt.length} chars of derived context`);
+                      
+                      // Process with Gemini
+                      requirements = await processTextFile(
+                        contextFilePath,
+                        project.name,
+                        req.file!.originalname,
+                        contentType,
+                        minRequirements
+                      );
+                      
+                      // Clean up the temporary file
+                      try {
+                        fs.unlinkSync(contextFilePath);
+                      } catch (err) {
+                        console.error('Error removing temp file:', err);
+                      }
+                      
+                      if (requirements.length === 0) {
+                        throw new Error('Context-based generation returned no requirements');
+                      }
+                    } catch (genError) {
+                      console.error("Context-based generation failed:", genError);
+                      
+                      // If context-based generation fails, fall back to domain-specific templates
+                      console.log(`Falling back to domain-specific templates for ${domain} ${docType}`);
+                      
                       // Generate detailed fallback requirements for scanned/image PDFs with minimum 200 words per requirement
+                      // These are tailored to the document context we've extracted
                       requirements = [
                         { 
-                          text: `The Salesforce implementation must support document scanning and OCR functionality to process the information found in the document "${req.file!.originalname}". The system should include comprehensive optical character recognition (OCR) capabilities that can extract text from scanned documents, PDFs, and images. This functionality is essential for migrating the existing workflow where users currently need to manually transcribe or enter information from physical or scanned documents. The OCR system should be able to recognize various document layouts, forms, and handwriting with high accuracy. The extracted text must be automatically categorized and mapped to appropriate Salesforce objects and fields based on the document context and content. The system should maintain an audit trail of all scanned documents, including original images, extracted text, and any manual corrections made. This requirement is critical because the current legacy system workflow involves processing numerous scanned documents and forms, and the new Salesforce implementation must provide the same or better capability to maintain business continuity. The OCR capability should also include validation rules to verify the accuracy of extracted information against existing data in the system. Users should have the ability to review OCR results and make corrections if needed before data is committed to the system of record. Performance metrics should be established for OCR accuracy, with continuous improvement processes to enhance recognition rates over time. The system should be capable of handling various document formats, resolutions, and quality levels, with appropriate error handling for documents that cannot be accurately processed.`, 
+                          text: `The system must implement robust document scanning and OCR functionality to process the information contained in documents like "${req.file!.originalname}". This capability is essential for extracting valuable data from ${docType} documents that are in image or scanned format. The system should detect document type, orientation, and quality automatically to optimize the scanning and recognition process. Multiple OCR engines should be supported to ensure the highest possible accuracy for different document types and quality levels. The extracted text must be automatically categorized and mapped to appropriate data structures and fields based on the document context and content patterns identified. The system should maintain an audit trail of all processed documents, including original images, extracted text, and any manual corrections made during verification. This requirement is critical for ensuring that information locked in image-based documents can be efficiently converted to structured data. The OCR capability should include confidence scoring for each extracted data element, with configurable thresholds for automated processing versus manual review. Integration with machine learning models is necessary to improve extraction accuracy over time based on user corrections and feedback. The system must handle various document formats, resolutions, and quality levels, with appropriate error handling and fallback mechanisms for documents that cannot be accurately processed automatically. Performance metrics must be established for measuring OCR accuracy, with continuous improvement processes to enhance recognition rates over time.`, 
                           category: 'functional', 
                           priority: 'high' 
                         },
                         { 
-                          text: `The system must include a comprehensive document management solution that supports the storage, retrieval, and management of PDF documents like "${req.file!.originalname}" within Salesforce. This solution should enable users to maintain a centralized repository of all business-critical documents that were previously stored in the legacy system. The document management solution must provide robust version control capabilities, allowing users to track changes, view revision history, and restore previous versions of documents when necessary. Access controls must be implemented to ensure that documents are only accessible to authorized users based on their roles and permissions within the system. The solution should support document classification with metadata tagging to facilitate easy searching and filtering of documents based on various attributes such as document type, date, department, and other business-relevant criteria. Integration with Salesforce objects is essential, allowing documents to be linked to relevant accounts, contacts, opportunities, cases, or custom objects to maintain business context. The system should also provide preview capabilities for common document formats including PDFs, without requiring users to download files or use external applications. The document management solution should support bulk operations for uploading, categorizing, and managing large numbers of documents during the migration process from the legacy system. It should also provide analytics and reporting on document usage, access patterns, and storage utilization. Mobile access to documents should be supported, with appropriate security controls and user experience optimizations for different device types. This requirement is essential for maintaining the document-centric workflows that exist in the current legacy system while enhancing the user experience and security.`, 
+                          text: `The system must include a comprehensive document management solution for ${domain}-related documents similar to "${req.file!.originalname}". This solution should enable users to maintain a centralized repository of all business-critical ${docType} documents with appropriate organization, categorization, and searching capabilities. The document management functionality must provide robust version control capabilities, allowing users to track changes, view revision history, and restore previous versions of documents when necessary. Access controls must be implemented to ensure that documents are only accessible to authorized users based on their roles and permissions within the system. The solution should support document classification with metadata tagging to facilitate easy searching and filtering of documents based on various attributes such as document type, date, department, project phase, and other domain-specific criteria. Integration with existing business objects and data structures is essential, allowing documents to be linked to relevant entities to maintain business context and traceability. The system should provide preview capabilities for all supported document formats without requiring users to download files or use external applications. The document management solution should support bulk operations for uploading, categorizing, and processing large numbers of documents during migration or batch processing scenarios. Analytics and reporting on document usage, access patterns, and storage utilization must be provided to support optimization and compliance requirements. Mobile access to documents should be supported, with appropriate security controls and user experience optimizations for different device types. This requirement is essential for maintaining organized and accessible documentation throughout the system lifecycle.`, 
                           category: 'functional', 
                           priority: 'medium' 
                         },
                         { 
-                          text: `The Salesforce implementation must include robust data extraction and transformation capabilities to process information from documents like "${req.file!.originalname}" during the migration from the legacy system. The system should be able to extract structured and unstructured data from various document formats, including scanned PDFs, using intelligent data capture technologies. Once extracted, the data must be transformed and normalized according to the Salesforce data model, with appropriate validation rules applied to ensure data integrity. The system should provide configurable mapping templates that allow administrators to define how data from different document types should be mapped to Salesforce objects and fields. These mapping templates should support conditional logic and transformations to handle complex business rules. The extraction and transformation process must include error handling mechanisms that identify issues such as missing required fields, invalid data formats, or potential duplicates, with clear notifications to users. The system should maintain detailed logs of all data extraction and transformation activities for audit and troubleshooting purposes. A user interface must be provided for business users to review and approve the extracted data before it is committed to Salesforce, with the ability to make manual corrections when necessary. The data extraction system should support batch processing for handling large volumes of documents during the initial migration phase and ongoing operations. It should also include learning capabilities to improve extraction accuracy over time based on user corrections and feedback. Integration with Salesforce's validation rules and duplicate detection mechanisms is essential to maintain data quality standards. This capability is critical for ensuring that valuable business data currently stored in documents within the legacy system is accurately migrated to and accessible within the new Salesforce implementation.`, 
+                          text: `The system must include robust data extraction and transformation capabilities to process information from ${domain} documents like "${req.file!.originalname}". The solution should be able to extract both structured and unstructured data from various document formats, including scanned PDFs, using intelligent data capture technologies appropriate for the domain. Once extracted, the data must be transformed and normalized according to the system's data model, with appropriate validation rules applied to ensure data integrity and conformance to business rules. The system should provide configurable mapping templates that allow administrators to define how data from different document types should be mapped to system entities and fields. These mapping templates should support conditional logic and transformations to handle complex business rules and exceptions typical in ${domain} documentation. The extraction and transformation process must include comprehensive error handling mechanisms that identify issues such as missing required fields, invalid data formats, or potential duplicates, with clear notifications to users. The system should maintain detailed logs of all data extraction and transformation activities for audit, troubleshooting, and compliance purposes. A user interface must be provided for business users to review and approve the extracted data before it is committed to the system of record, with the ability to make manual corrections when necessary. The data extraction system should support batch processing for handling large volumes of documents during the initial migration phase and ongoing operations. It should also include learning capabilities to improve extraction accuracy over time based on corrections and feedback from users working with ${domain} documentation. Integration with existing data validation rules and duplicate detection mechanisms is essential to maintain data quality standards across the integrated systems.`, 
                           category: 'functional', 
                           priority: 'high' 
                         },
                         { 
-                          text: `The system must implement a comprehensive workflow automation solution in Salesforce that replicates and enhances the document processing workflows from the legacy system, particularly for handling documents similar to "${req.file!.originalname}". The workflow automation should support multi-step approval processes, conditional routing based on document content or metadata, and automatic task assignment to appropriate users or groups. Notifications should be configurable at each step of the workflow to keep relevant stakeholders informed of document status and required actions. The workflows must support parallel processing, allowing multiple users to work on different aspects of a document simultaneously when appropriate. Exception handling should be built into the workflows, with clear escalation paths and SLA tracking for documents that require special handling or are at risk of missing deadlines. The system should provide a visual workflow designer that allows business administrators to create and modify workflows without coding, including the ability to define entry conditions, steps, approval rules, and exit actions. Real-time visibility into workflow status is essential, with dashboards and reports that show document volume, processing times, bottlenecks, and completion rates. The workflow automation should integrate with Salesforce's standard automation tools like Process Builder, Flow, and Apex when more complex logic is required. The system should support conditional branching in workflows based on document content, metadata, or user inputs, allowing for complex business processes to be automated effectively. Integration with external systems may be required to maintain end-to-end process integrity across system boundaries. Tools for workflow optimization should be provided, with analytics that identify opportunities to improve efficiency and reduce processing times. This requirement is crucial for maintaining business continuity during the migration from the legacy system while providing opportunities for process optimization and increased efficiency.`, 
+                          text: `The system must implement a comprehensive workflow automation solution for processing ${domain} documentation like "${req.file!.originalname}". The workflow automation should support multi-step approval processes, conditional routing based on document content or metadata, and automatic task assignment to appropriate users or groups based on document type, content, and organizational roles. Notifications should be configurable at each step of the workflow to keep relevant stakeholders informed of document status and required actions, with support for multiple communication channels including email, in-app notifications, and mobile alerts. The workflows must support parallel processing, allowing multiple users to work on different aspects of a document simultaneously when appropriate for the business process. Exception handling should be built into the workflows, with clear escalation paths and SLA tracking for documents that require special handling or are at risk of missing deadlines. The system should provide a visual workflow designer that allows business administrators to create and modify workflows without coding, including the ability to define entry conditions, steps, approval rules, and exit actions appropriate for ${domain} processes. Real-time visibility into workflow status is essential, with dashboards and reports that show document volume, processing times, bottlenecks, and completion rates to support continuous process improvement. The workflow automation should integrate with standard automation tools and allow for custom integrations when more complex logic is required for specialized ${domain} processing. The system should support conditional branching in workflows based on document content, metadata, or user inputs, allowing for complex business processes to be automated effectively. Integration with external systems may be required to maintain end-to-end process integrity across system boundaries. Tools for workflow optimization should be provided, with analytics that identify opportunities to improve efficiency and reduce processing times.`, 
                           category: 'functional', 
                           priority: 'medium' 
                         },
                         { 
-                          text: `The Salesforce implementation must include comprehensive security controls for document handling and processing that meet or exceed the protections in the legacy system. All documents uploaded to the system, including those similar to "${req.file!.originalname}", must be scanned for malware and potentially harmful content before being stored in the system. The security framework must implement proper encryption for documents both at rest and in transit, with key management systems that comply with industry best practices. Access controls should be granular, allowing permissions to be set at the document level when necessary, and should integrate with Salesforce's role hierarchy and sharing rules. The system must maintain detailed audit logs for all document-related operations, including viewing, downloading, modifying, and sharing, with user information, timestamps, and IP addresses recorded for compliance purposes. Data loss prevention (DLP) measures should be implemented to identify and protect sensitive information within documents, such as personal identifiable information (PII), financial data, or proprietary business information. The security controls must support compliance with relevant regulations such as GDPR, HIPAA, or SOX, depending on the industry and geographical scope of operations. Regular security assessments, including vulnerability scanning and penetration testing, should be conducted to ensure the document handling system remains secure against evolving threats. The security model should support the concept of least privilege, ensuring users only have access to the documents and data they need to perform their job functions. Integration with Salesforce Shield should be considered for enhanced security capabilities, including platform encryption, event monitoring, and field audit trail. Security policies and procedures should be documented and communicated to all system users, with regular training provided on secure document handling practices. This requirement is essential for maintaining data security and regulatory compliance when migrating document-centric processes from the legacy system to Salesforce.`, 
+                          text: `The system must include comprehensive security controls for document handling and processing that are appropriate for ${domain} applications. All documents uploaded to the system, including those similar to "${req.file!.originalname}", must be scanned for malware and potentially harmful content before being stored in the system. The security framework must implement proper encryption for documents both at rest and in transit, with key management systems that comply with industry best practices and relevant standards for ${domain} systems. Access controls should be granular, allowing permissions to be set at the document level when necessary, and should integrate with the system's role-based security model. The system must maintain detailed audit logs for all document-related operations, including viewing, downloading, modifying, and sharing, with user information, timestamps, and IP addresses recorded for compliance purposes. Data loss prevention (DLP) measures should be implemented to identify and protect sensitive information within documents, such as personal identifiable information (PII), financial data, or proprietary business information that may be contained in ${docType} documents. The security controls must support compliance with relevant regulations such as GDPR, HIPAA, SOX, or industry-specific requirements, depending on the organization's regulatory environment. Regular security assessments, including vulnerability scanning and penetration testing, should be conducted to ensure the document handling system remains secure against evolving threats. The security model should support the concept of least privilege, ensuring users only have access to the documents and data they need to perform their job functions. Enhanced security capabilities should be considered, including content encryption, comprehensive event monitoring, and field-level audit trails for sensitive document metadata. Security policies and procedures should be documented and communicated to all system users, with regular training provided on secure document handling practices appropriate for the sensitivity level of ${domain} documentation.`, 
                           category: 'security', 
                           priority: 'high' 
                         }
                       ];
-                      console.log(`Generated ${requirements.length} fallback requirements for scanned/image PDF with limited text content (${extractedText.length} characters)`);
+                      console.log(`Generated ${requirements.length} domain-specific fallback requirements for ${domain} ${docType} with minimal extractable text`);
                     }
-                  } catch (textError) {
-                    console.error("Error checking PDF text:", textError);
+                  } else {
+                    // We have limited but usable text content - process using standard method with the limited text
+                    console.log(`Limited text content available (${contextText.length} chars). Proceeding with direct Gemini processing.`);
+                    
+                    // Create a temporary file with the context text
+                    const textFilePath = path.join(path.dirname(req.file!.path), 'extracted_' + path.basename(req.file!.path, '.pdf') + '.txt');
+                    fs.writeFileSync(textFilePath, contextText, 'utf8');
+                    
+                    // Process with Gemini
+                    requirements = await processTextFile(
+                      textFilePath,
+                      project.name,
+                      req.file!.originalname,
+                      contentType,
+                      minRequirements
+                    );
+                    
+                    // Clean up the temporary file
+                    try {
+                      fs.unlinkSync(textFilePath);
+                    } catch (err) {
+                      console.error('Error removing temp file:', err);
+                    }
+                    
+                    if (requirements.length === 0) {
+                      console.warn(`Gemini processing produced no requirements despite having ${contextText.length} chars of text`);
+                      throw new Error('Limited-text processing returned no requirements');
+                    }
+                  }
+                } else {
+                  // This is a normal PDF with sufficient text content - process normally
+                  console.log(`PDF contains ${pdfAnalysis.text.length} chars of extractable text. Processing with standard method.`);
+                  
+                  // Process the PDF with our enhanced processor, allowing large files if needed
+                  requirements = await processPdfFile(
+                    req.file!.path,
+                    project.name,
+                    req.file!.originalname,
+                    contentType,
+                    minRequirements,
+                    isLargeFile // Pass whether this is a large file to allow bypassing size limits
+                  );
+                  
+                  console.log(`PDF processing successful, extracted ${requirements.length} requirements`);
+                  
+                  // If we still got no requirements despite having text, something went wrong with the processing
+                  if (requirements.length === 0) {
+                    console.warn("Warning: No requirements were extracted despite having text content. Falling back to direct text processing.");
+                    
+                    try {
+                      // Create a temporary file with the extracted text
+                      const textFilePath = path.join(path.dirname(req.file!.path), 'extracted_' + path.basename(req.file!.path, '.pdf') + '.txt');
+                      fs.writeFileSync(textFilePath, pdfAnalysis.text, 'utf8');
+                      
+                      // Process with Gemini directly
+                      requirements = await processTextFile(
+                        textFilePath,
+                        project.name,
+                        req.file!.originalname,
+                        contentType,
+                        minRequirements
+                      );
+                      
+                      // Clean up the temporary file
+                      try {
+                        fs.unlinkSync(textFilePath);
+                      } catch (err) {
+                        console.error('Error removing temp file:', err);
+                      }
+                    } catch (directError) {
+                      console.error("Error in direct text processing fallback:", directError);
+                    }
                   }
                 }
               } catch (pdfError) {
