@@ -161,7 +161,7 @@ export async function streamProcessPdfText(
     
     // Remove duplicates from requirements
     const uniqueRequirements = allRequirements.filter((req, index, self) =>
-      index === self.findIndex((r) => r.text === req.text)
+      index === self.findIndex((r) => r.description === req.description)
     );
     
     console.log(`Stream processing complete: ${uniqueRequirements.length} unique requirements from ${chunkIndex} chunks`);

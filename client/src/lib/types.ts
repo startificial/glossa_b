@@ -79,6 +79,8 @@ export interface AudioTimestamp {
 
 export interface Requirement {
   id: number;
+  title?: string;
+  description?: string;
   text: string;
   category: string;
   priority: 'high' | 'medium' | 'low';

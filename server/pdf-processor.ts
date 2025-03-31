@@ -657,9 +657,9 @@ export async function processPdfFile(
       }
     }
     
-    // Remove any duplicate requirements by comparing text content
+    // Remove any duplicate requirements by comparing description content
     const uniqueRequirements = allRequirements.filter((req, index, self) =>
-      index === self.findIndex((r) => r.text === req.text)
+      index === self.findIndex((r) => r.description === req.description)
     );
     
     // Sort requirements by priority (high, medium, low)
