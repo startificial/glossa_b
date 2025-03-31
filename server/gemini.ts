@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 // Initialize the Gemini API with the API key
 const apiKey = process.env.GOOGLE_API_KEY || '';
@@ -213,6 +214,8 @@ export async function processTextFile(filePath: string, projectName: string, fil
   }
 }
 
+import VideoProcessor, { VideoScene } from './video-processor';
+
 /**
  * Generate requirements specifically for video files using Gemini
  * @param filePath Path to the video file
@@ -229,7 +232,8 @@ export async function processVideoFile(
   projectName: string, 
   contentType: string = 'workflow',
   numChunks: number = 3,
-  reqPerChunk: number = 5
+  reqPerChunk: number = 5,
+  inputDataId?: number
 ): Promise<any[]> {
   try {
     // Get file info (size, creation date, etc.)
@@ -240,6 +244,20 @@ export async function processVideoFile(
       created: stats.birthtime.toISOString(),
       modified: stats.mtime.toISOString(),
     };
+    
+    // Detect scenes from the video if inputDataId is provided
+    let videoScenes: VideoScene[] = [];
+    if (inputDataId) {
+      try {
+        console.log('Detecting scenes in video...');
+        const processor = new VideoProcessor(filePath, path.join(os.tmpdir(), 'video-scenes'), inputDataId);
+        videoScenes = await processor.detectScenes();
+        console.log(`Detected ${videoScenes.length} scenes in the video`);
+      } catch (sceneError) {
+        console.error('Error detecting scenes:', sceneError);
+        // Continue with requirement generation even if scene detection fails
+      }
+    }
 
     // Log processing start
     console.log(`Processing video file: ${fileName} (${(fileInfo.size / (1024 * 1024)).toFixed(2)} MB)`);
@@ -421,6 +439,36 @@ export async function processVideoFile(
     );
     
     console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${selectedPerspectives.length} perspectives`);
+    
+    // Match video scenes to requirements if scenes are available
+    if (videoScenes.length > 0) {
+      console.log('Matching video scenes to requirements...');
+      
+      // Process each requirement to find relevant scenes
+      const requirementsWithScenes = await Promise.all(
+        uniqueRequirements.map(async (req) => {
+          try {
+            // Find relevant scenes for this requirement
+            // Use the same processor instance
+            const processor = new VideoProcessor(filePath, path.join(os.tmpdir(), 'video-scenes'), videoScenes[0].inputDataId);
+            const matchedScenes = await processor.processScenes(videoScenes, req.text);
+            
+            // Add the scenes to the requirement
+            return {
+              ...req,
+              videoScenes: matchedScenes.length > 0 ? matchedScenes : undefined
+            };
+          } catch (error) {
+            console.error(`Error matching scenes for requirement: ${req.text.substring(0, 50)}...`, error);
+            return req; // Return the original requirement without scenes
+          }
+        })
+      );
+      
+      console.log(`Matched scenes for ${requirementsWithScenes.filter(r => r.videoScenes).length} requirements`);
+      return requirementsWithScenes;
+    }
+    
     return uniqueRequirements;
   } catch (error) {
     console.error("Error processing video file with Gemini:", error);

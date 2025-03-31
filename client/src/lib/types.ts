@@ -45,6 +45,17 @@ export interface AcceptanceCriterion {
   notes?: string;
 }
 
+export interface VideoScene {
+  id: string;
+  inputDataId: number;
+  startTime: number;
+  endTime: number;
+  thumbnailPath?: string;
+  clipPath?: string;
+  relevance?: number;
+  label?: string;
+}
+
 export interface Requirement {
   id: number;
   text: string;
@@ -57,6 +68,7 @@ export interface Requirement {
   updatedAt: string;
   codeId: string;
   source: string | null;
+  videoScenes?: VideoScene[];
 }
 
 export interface Activity {

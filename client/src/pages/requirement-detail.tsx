@@ -17,8 +17,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getCategoryColor, getPriorityInfo, formatDateTime } from '@/lib/utils';
-import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles, Wrench } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles, Wrench, Video } from 'lucide-react';
 import { TasksTable } from '@/components/implementation-tasks/tasks-table';
+import { VideoScenes } from '@/components/requirements/video-scenes';
 
 interface RequirementDetailProps {
   projectId: number;
@@ -554,6 +555,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   <TabsTrigger value="metadata">Metadata</TabsTrigger>
                   <TabsTrigger value="acceptance">Acceptance Criteria</TabsTrigger>
                   <TabsTrigger value="tasks">Implementation Tasks</TabsTrigger>
+                  <TabsTrigger value="videos">Video Scenes</TabsTrigger>
                   <TabsTrigger value="history">History</TabsTrigger>
                 </TabsList>
                 
@@ -756,6 +758,18 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   </div>
                 </TabsContent>
                 
+                <TabsContent value="videos">
+                  {requirement.videoScenes && requirement.videoScenes.length > 0 ? (
+                    <VideoScenes scenes={requirement.videoScenes} />
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Video className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No video scenes available for this requirement</p>
+                      <p className="text-sm mt-2">Video scenes are automatically detected when a requirement is generated from video input data.</p>
+                    </div>
+                  )}
+                </TabsContent>
+                
                 <TabsContent value="history">
                   {relatedActivities.length > 0 ? (
                     <div className="space-y-4">
@@ -785,6 +799,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
         </div>
         
         <div className="space-y-6">
+          
           <Card>
             <CardHeader>
               <CardTitle>Related Information</CardTitle>

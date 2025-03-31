@@ -18,6 +18,7 @@ import nlp from "compromise";
 import { processTextFile, generateRequirementsForFile } from "./gemini";
 import { processPdfFile } from "./pdf-processor";
 import crypto from "crypto";
+import VideoProcessor from "./video-processor";
 import { z } from "zod";
 
 // Authentication middleware
@@ -492,15 +493,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } else if (type === 'video') {
               // For video files, use enhanced multi-perspective video processing
               console.log(`Processing video file: ${req.file!.originalname} with specialized ${contentType} analysis`);
-              requirements = await generateRequirementsForFile(
-                type, 
-                req.file!.originalname, 
-                project.name,
-                req.file!.path, // Pass the file path for content-based analysis
-                contentType, // Pass content type for tailored processing
-                numAnalyses, // Number of different analysis perspectives
-                reqPerAnalysis // Number of requirements per perspective
-              );
+              // Pass the inputDataId to enable scene cutting
+              const processVideoFileWithScenes = async () => {
+                // Import here to avoid circular dependency
+                const { processVideoFile } = require('./gemini');
+                return processVideoFile(
+                  req.file!.path,
+                  req.file!.originalname,
+                  project.name,
+                  contentType,
+                  numAnalyses,
+                  reqPerAnalysis,
+                  inputDataRecord.id // Pass the input data ID for scene detection
+                );
+              };
+              
+              requirements = await processVideoFileWithScenes();
             } else {
               // For other non-text files, generate requirements with multiple perspectives
               requirements = await generateRequirementsForFile(
@@ -652,7 +660,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               projectId,
               inputDataId: inputDataRecord.id,
               codeId,
-              source: inputDataRecord.name
+              source: inputDataRecord.name,
+              videoScenes: requirement.videoScenes || []
             });
           }
           

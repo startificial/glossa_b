@@ -341,6 +341,7 @@ export class MemStorage implements IStorage {
       inputDataId: requirement.inputDataId || null,
       source: requirement.source || null,
       acceptanceCriteria: requirement.acceptanceCriteria || [],
+      videoScenes: requirement.videoScenes || [],
       createdAt: now, 
       updatedAt: now 
     };
