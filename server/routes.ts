@@ -651,25 +651,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     console.warn("Warning: No requirements were extracted despite having text content. Falling back to direct text processing.");
                     
                     try {
-                      // Create a temporary file with the extracted text
-                      const textFilePath = path.join(path.dirname(req.file!.path), 'extracted_' + path.basename(req.file!.path, '.pdf') + '.txt');
-                      fs.writeFileSync(textFilePath, pdfAnalysis.text, 'utf8');
+                      // Apply manual chunking for memory efficiency in fallback mode
+                      console.log(`Applying memory-efficient fallback processing for ${pdfAnalysis.text.length} characters of text`);
                       
-                      // Process with Gemini directly
-                      requirements = await processTextFile(
-                        textFilePath,
-                        project.name,
-                        req.file!.originalname,
-                        contentType,
-                        minRequirements
-                      );
+                      // Split text into chunks of max 3000 characters with 300 character overlap
+                      const MAX_CHUNK_SIZE = 3000;
+                      const OVERLAP_SIZE = 300;
+                      const chunks: string[] = [];
                       
-                      // Clean up the temporary file
-                      try {
-                        fs.unlinkSync(textFilePath);
-                      } catch (err) {
-                        console.error('Error removing temp file:', err);
+                      // Simple chunking algorithm
+                      let startPos = 0;
+                      while (startPos < pdfAnalysis.text.length) {
+                        const endPos = Math.min(startPos + MAX_CHUNK_SIZE, pdfAnalysis.text.length);
+                        chunks.push(pdfAnalysis.text.substring(startPos, endPos));
+                        startPos = endPos - OVERLAP_SIZE;
+                        
+                        // Break if we've reached the end
+                        if (startPos >= pdfAnalysis.text.length) break;
                       }
+                      
+                      console.log(`Split text into ${chunks.length} chunks for fallback processing`);
+                      
+                      // Process each chunk separately and combine requirements
+                      let allRequirements: any[] = [];
+                      for (let i = 0; i < chunks.length; i++) {
+                        const chunkText = chunks[i];
+                        const chunkFilePath = path.join(
+                          path.dirname(req.file!.path), 
+                          `chunk_${i+1}_${path.basename(req.file!.path, '.pdf')}.txt`
+                        );
+                        
+                        // Write chunk to temporary file
+                        fs.writeFileSync(chunkFilePath, chunkText, 'utf8');
+                        
+                        console.log(`Processing fallback chunk ${i+1}/${chunks.length} (${chunkText.length} chars)`);
+                        
+                        try {
+                          // Process this chunk
+                          const chunkRequirements = await processTextFile(
+                            chunkFilePath,
+                            project.name,
+                            `${req.file!.originalname} (Chunk ${i+1}/${chunks.length})`,
+                            contentType,
+                            Math.max(1, Math.floor(minRequirements / chunks.length)) // Distribute min requirements
+                          );
+                          
+                          allRequirements = [...allRequirements, ...chunkRequirements];
+                          
+                          // Clean up the temporary chunk file
+                          try {
+                            fs.unlinkSync(chunkFilePath);
+                          } catch (err) {
+                            console.warn(`Could not delete temporary chunk file ${chunkFilePath}:`, err);
+                          }
+                          
+                          // Pause between chunks for memory recovery
+                          if (i < chunks.length - 1) {
+                            console.log("Pausing between chunk processing...");
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                          }
+                        } catch (chunkError) {
+                          console.error(`Error processing fallback chunk ${i+1}:`, chunkError);
+                          // Continue with other chunks
+                        }
+                      }
+                      
+                      // Remove duplicates
+                      requirements = allRequirements.filter((req, index, self) =>
+                        index === self.findIndex((r) => r.text === req.text)
+                      );
                     } catch (directError) {
                       console.error("Error in direct text processing fallback:", directError);
                     }
@@ -744,8 +794,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 content = content.replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // Control chars
                 
                 // If content is too long, take a reasonable chunk
-                if (content.length > 5000) {
-                  content = content.substring(0, 5000);
+                // Use a much smaller limit to prevent memory issues
+                if (content.length > 2000) {
+                  console.log(`Truncating content from ${content.length} to 2000 chars to prevent memory issues`);
+                  content = content.substring(0, 2000);
                 }
               } catch (err) {
                 console.error("Error reading PDF file:", err);
