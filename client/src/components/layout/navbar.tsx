@@ -114,7 +114,7 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
               </button>
               <Link href="/" className="flex items-center gap-2">
                 <img src={glossaLogo} alt="Glossa Logo" className="w-8 h-8" />
-                <span className="text-primary text-2xl font-medium logo-text">Glossa</span>
+                <span className="text-primary text-2xl font-bold logo-text">Glossa</span>
               </Link>
             </div>
 
