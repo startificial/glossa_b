@@ -297,6 +297,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+      
+      console.log('Creating project with data:', req.body);
 
       const validatedData = insertProjectSchema.parse({
         ...req.body,
@@ -339,8 +341,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // We don't need to validate the entire schema since it's a partial update
-      const updatedProject = await storage.updateProject(projectId, req.body);
+      // Validate partial update fields
+      const { name, description, type, sourceSystem, targetSystem } = req.body;
+      const updateData = {
+        name,
+        description,
+        type,
+        sourceSystem,
+        targetSystem
+      };
+      
+      console.log('Updating project with data:', updateData);
+      
+      const updatedProject = await storage.updateProject(projectId, updateData);
       
       // Add activity for project update
       await storage.createActivity({
