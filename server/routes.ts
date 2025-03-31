@@ -651,77 +651,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     console.warn("Warning: No requirements were extracted despite having text content. Falling back to direct text processing.");
                     
                     try {
-                      // Apply manual chunking for memory efficiency in fallback mode
-                      console.log(`Applying memory-efficient fallback processing for ${pdfAnalysis.text.length} characters of text`);
+                      console.log(`Falling back to memory-efficient stream processor for PDF text`);
                       
-                      // Split text into chunks of max 3000 characters with 300 character overlap
-                      const MAX_CHUNK_SIZE = 3000;
-                      const OVERLAP_SIZE = 300;
-                      const chunks: string[] = [];
+                      // Import the stream processor
+                      const { streamProcessPdfText } = await import('./stream-pdf-processor.js');
                       
-                      // Simple chunking algorithm
-                      let startPos = 0;
-                      while (startPos < pdfAnalysis.text.length) {
-                        const endPos = Math.min(startPos + MAX_CHUNK_SIZE, pdfAnalysis.text.length);
-                        chunks.push(pdfAnalysis.text.substring(startPos, endPos));
-                        startPos = endPos - OVERLAP_SIZE;
-                        
-                        // Break if we've reached the end
-                        if (startPos >= pdfAnalysis.text.length) break;
-                      }
-                      
-                      console.log(`Split text into ${chunks.length} chunks for fallback processing`);
-                      
-                      // Process each chunk separately and combine requirements
-                      let allRequirements: any[] = [];
-                      for (let i = 0; i < chunks.length; i++) {
-                        const chunkText = chunks[i];
-                        const chunkFilePath = path.join(
-                          path.dirname(req.file!.path), 
-                          `chunk_${i+1}_${path.basename(req.file!.path, '.pdf')}.txt`
-                        );
-                        
-                        // Write chunk to temporary file
-                        fs.writeFileSync(chunkFilePath, chunkText, 'utf8');
-                        
-                        console.log(`Processing fallback chunk ${i+1}/${chunks.length} (${chunkText.length} chars)`);
-                        
-                        try {
-                          // Process this chunk
-                          const chunkRequirements = await processTextFile(
-                            chunkFilePath,
-                            project.name,
-                            `${req.file!.originalname} (Chunk ${i+1}/${chunks.length})`,
-                            contentType,
-                            Math.max(1, Math.floor(minRequirements / chunks.length)) // Distribute min requirements
-                          );
-                          
-                          allRequirements = [...allRequirements, ...chunkRequirements];
-                          
-                          // Clean up the temporary chunk file
-                          try {
-                            fs.unlinkSync(chunkFilePath);
-                          } catch (err) {
-                            console.warn(`Could not delete temporary chunk file ${chunkFilePath}:`, err);
-                          }
-                          
-                          // Pause between chunks for memory recovery
-                          if (i < chunks.length - 1) {
-                            console.log("Pausing between chunk processing...");
-                            await new Promise(resolve => setTimeout(resolve, 2000));
-                          }
-                        } catch (chunkError) {
-                          console.error(`Error processing fallback chunk ${i+1}:`, chunkError);
-                          // Continue with other chunks
-                        }
-                      }
-                      
-                      // Remove duplicates
-                      requirements = allRequirements.filter((req, index, self) =>
-                        index === self.findIndex((r) => r.text === req.text)
+                      // Use our dedicated stream processor
+                      const projectName = project?.name || 'Unknown Project';
+                      requirements = await streamProcessPdfText(
+                        pdfAnalysis.text,
+                        req.file!.path,
+                        projectName,
+                        req.file!.originalname,
+                        contentType,
+                        minRequirements
                       );
-                    } catch (directError) {
-                      console.error("Error in direct text processing fallback:", directError);
+                      
+                      console.log(`Stream processor returned ${requirements.length} requirements`);
+                    } catch (streamError) {
+                      console.error("Error in stream processing:", streamError);
                     }
                   }
                 }
@@ -733,13 +681,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // For video files, use enhanced multi-perspective video processing
               console.log(`Processing video file: ${req.file!.originalname} with specialized ${contentType} analysis`);
               // Pass the inputDataId to enable scene cutting
+              // Define the project name safely
+              const projectName = project?.name || 'Unknown Project';
+              
+              // Use function expression to avoid strict mode issues
               const processVideoFileWithScenes = async () => {
                 // Import here to avoid circular dependency
                 const geminiModule = await import('./gemini.js');
                 return geminiModule.processVideoFile(
                   req.file!.path,
                   req.file!.originalname,
-                  project.name,
+                  projectName,
                   contentType,
                   numAnalyses,
                   reqPerAnalysis,
