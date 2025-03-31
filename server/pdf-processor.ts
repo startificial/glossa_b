@@ -521,6 +521,7 @@ function splitPdfIntoSections(text: string, chunkStrategy?: {
  * @param contentType Type of content in the file
  * @param reqPerChunk Number of requirements to extract per chunk
  * @param allowLargeFiles Whether to bypass the size limit for large files
+ * @param inputDataId The ID of the input data (for text references)
  * @returns Array of requirements
  */
 export async function processPdfFile(
@@ -529,7 +530,8 @@ export async function processPdfFile(
   fileName: string,
   contentType: string = 'documentation',
   reqPerChunk: number = 5,
-  allowLargeFiles: boolean = false
+  allowLargeFiles: boolean = false,
+  inputDataId?: number
 ): Promise<any[]> {
   try {
     console.log(`Processing PDF file: ${fileName}`);
@@ -606,7 +608,8 @@ export async function processPdfFile(
           projectName,
           `${fileName} (Section ${i+1}/${sections.length})`,
           contentType,
-          reqPerChunk
+          reqPerChunk,
+          inputDataId // Pass input data ID for text references
         ).catch(error => {
           console.error(`Error processing section ${i+1}:`, error);
           return []; // Return empty array if processing fails

@@ -480,7 +480,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 project.name, 
                 req.file!.originalname,
                 contentType, // Pass content type for specialized processing
-                minRequirements // Minimum number of requirements to extract
+                minRequirements, // Minimum number of requirements to extract
+                inputDataRecord.id // Pass input data ID for text references
               );
               console.log(`Text file processing complete: ${requirements.length} requirements extracted`);
             } else if (type === 'pdf') {
@@ -551,7 +552,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         project.name,
                         req.file!.originalname,
                         contentType,
-                        minRequirements
+                        minRequirements,
+                        inputDataRecord.id // Pass input data ID for text references
                       );
                       
                       // Clean up the temporary file
@@ -615,7 +617,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       project.name,
                       req.file!.originalname,
                       contentType,
-                      minRequirements
+                      minRequirements,
+                      inputDataRecord.id // Pass input data ID for text references
                     );
                     
                     // Clean up the temporary file
@@ -641,7 +644,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     req.file!.originalname,
                     contentType,
                     minRequirements,
-                    isLargeFile // Pass whether this is a large file to allow bypassing size limits
+                    isLargeFile, // Pass whether this is a large file to allow bypassing size limits
+                    inputDataRecord.id // Pass input data ID for text references
                   );
                   
                   console.log(`PDF processing successful, extracted ${requirements.length} requirements`);
@@ -664,7 +668,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         projectName,
                         req.file!.originalname,
                         contentType,
-                        minRequirements
+                        minRequirements,
+                        inputDataRecord.id // Pass input data ID for text references
                       );
                       
                       console.log(`Stream processor returned ${requirements.length} requirements`);
@@ -854,7 +859,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               inputDataId: inputDataRecord.id,
               codeId,
               source: inputDataRecord.name,
-              videoScenes: requirement.videoScenes || []
+              videoScenes: requirement.videoScenes || [],
+              textReferences: requirement.textReferences || [],
+              audioTimestamps: requirement.audioTimestamps || []
             });
           }
           
@@ -1028,7 +1035,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projectId,
         inputDataId: req.body.inputDataId || null,
         codeId,
-        source: req.body.source || null
+        source: req.body.source || null,
+        textReferences: req.body.textReferences || [],
+        audioTimestamps: req.body.audioTimestamps || [],
+        videoScenes: req.body.videoScenes || []
       };
 
       const validatedData = insertRequirementSchema.parse(requestData);
@@ -1087,7 +1097,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestData = {
         ...req.body,
         inputDataId: req.body.inputDataId === "" ? null : req.body.inputDataId,
-        source: req.body.source === "" ? null : req.body.source
+        source: req.body.source === "" ? null : req.body.source,
+        textReferences: req.body.textReferences || [],
+        audioTimestamps: req.body.audioTimestamps || [],
+        videoScenes: req.body.videoScenes || []
       };
 
       const updatedRequirement = await storage.updateRequirement(requirementId, requestData);
@@ -1291,7 +1304,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           text: r.text,
           category: r.category,
           priority: r.priority,
-          source: r.source
+          source: r.source,
+          textReferences: r.textReferences || [],
+          audioTimestamps: r.audioTimestamps || [],
+          videoScenes: r.videoScenes || []
         }))
       };
       

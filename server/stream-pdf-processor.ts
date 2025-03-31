@@ -13,6 +13,7 @@ import { processTextFile } from './gemini.js';
  * @param fileName Name of the original file
  * @param contentType Type of content being processed
  * @param minRequirements Minimum number of requirements to extract
+ * @param inputDataId The ID of the input data (for text references)
  * @returns Array of requirements
  */
 export async function streamProcessPdfText(
@@ -21,7 +22,8 @@ export async function streamProcessPdfText(
   projectName: string, 
   fileName: string,
   contentType: string = 'general',
-  minRequirements: number = 5
+  minRequirements: number = 5,
+  inputDataId?: number
 ): Promise<any[]> {
   console.log(`Starting ultra memory-efficient stream processing for ${extractedText.length} characters of text`);
   
@@ -78,7 +80,8 @@ export async function streamProcessPdfText(
             projectName,
             `${fileName} (Part ${index})`,
             contentType,
-            Math.max(1, Math.round(minRequirements / estimatedChunks)) // Distribute min requirements
+            Math.max(1, Math.round(minRequirements / estimatedChunks)), // Distribute min requirements
+            inputDataId // Pass input data ID for text references
           );
           
           // Add to our collection

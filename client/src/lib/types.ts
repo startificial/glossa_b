@@ -56,6 +56,27 @@ export interface VideoScene {
   label?: string;
 }
 
+export interface TextReference {
+  id: string;
+  inputDataId: number;
+  startPosition: number;
+  endPosition: number;
+  text: string;
+  contextBefore?: string;
+  contextAfter?: string;
+  relevance?: number;
+}
+
+export interface AudioTimestamp {
+  id: string;
+  inputDataId: number;
+  startTime: number;
+  endTime: number;
+  transcript?: string;
+  audioClipPath?: string;
+  relevance?: number;
+}
+
 export interface Requirement {
   id: number;
   text: string;
@@ -69,6 +90,8 @@ export interface Requirement {
   codeId: string;
   source: string | null;
   videoScenes?: VideoScene[];
+  textReferences?: TextReference[];
+  audioTimestamps?: AudioTimestamp[];
 }
 
 export interface Activity {
@@ -124,6 +147,9 @@ export interface ExportData {
     category: string;
     priority: string;
     source: string | null;
+    textReferences?: TextReference[];
+    audioTimestamps?: AudioTimestamp[];
+    videoScenes?: VideoScene[];
   }[];
 }
 

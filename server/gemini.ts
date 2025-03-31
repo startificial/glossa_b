@@ -2,6 +2,9 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import VideoProcessor, { VideoScene } from './video-processor';
+import { processTextFileForRequirement, TextReference } from './text-processor';
+import { processAudioFileForRequirement, AudioTimestamp } from './audio-processor';
 
 // Initialize the Gemini API with the API key
 const apiKey = process.env.GOOGLE_API_KEY || '';
@@ -99,7 +102,7 @@ function chunkTextContent(fileContent: string, chunkSize: number = 4000, overlap
  * @param numRequirements Number of requirements to extract per chunk (default 5)
  * @returns Array of requirements with categories and priorities
  */
-export async function processTextFile(filePath: string, projectName: string, fileName: string, contentType: string = 'general', minRequirements: number = 5): Promise<any[]> {
+export async function processTextFile(filePath: string, projectName: string, fileName: string, contentType: string = 'general', minRequirements: number = 5, inputDataId?: number): Promise<any[]> {
   // No upper limit on requirements - extract as many as needed from the content
   try {
     // Read the file content
@@ -231,14 +234,44 @@ export async function processTextFile(filePath: string, projectName: string, fil
     );
     
     console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${chunks.length} chunks`);
+    
+    // If inputDataId is provided, find text references for each requirement
+    if (inputDataId) {
+      console.log('Finding text references for requirements...');
+      
+      // Process each requirement to find relevant text references
+      const requirementsWithReferences = await Promise.all(
+        uniqueRequirements.map(async (req) => {
+          try {
+            // Find relevant text passages for this requirement
+            const textReferences = await processTextFileForRequirement(
+              filePath,
+              req.text,
+              inputDataId
+            );
+            
+            // Add the text references to the requirement if any were found
+            return {
+              ...req,
+              textReferences: textReferences.length > 0 ? textReferences : undefined
+            };
+          } catch (error) {
+            console.error(`Error finding text references for requirement: ${req.text.substring(0, 50)}...`, error);
+            return req; // Return the original requirement without references
+          }
+        })
+      );
+      
+      console.log(`Found text references for ${requirementsWithReferences.filter(r => r.textReferences).length} requirements`);
+      return requirementsWithReferences;
+    }
+    
     return uniqueRequirements;
   } catch (error) {
     console.error("Error processing file with Gemini:", error);
     throw error;
   }
 }
-
-import VideoProcessor, { VideoScene } from './video-processor';
 
 /**
  * Generate requirements specifically for video files using Gemini
@@ -464,33 +497,98 @@ export async function processVideoFile(
     
     console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${selectedPerspectives.length} perspectives`);
     
-    // Match video scenes to requirements if scenes are available
-    if (videoScenes.length > 0) {
-      console.log('Matching video scenes to requirements...');
-      
-      // Process each requirement to find relevant scenes
-      const requirementsWithScenes = await Promise.all(
-        uniqueRequirements.map(async (req) => {
-          try {
-            // Find relevant scenes for this requirement
-            // Use the same processor instance
-            const processor = new VideoProcessor(filePath, path.join(os.tmpdir(), 'video-scenes'), videoScenes[0].inputDataId);
-            const matchedScenes = await processor.processScenes(videoScenes, req.text);
-            
-            // Add the scenes to the requirement
-            return {
-              ...req,
-              videoScenes: matchedScenes.length > 0 ? matchedScenes : undefined
-            };
-          } catch (error) {
-            console.error(`Error matching scenes for requirement: ${req.text.substring(0, 50)}...`, error);
-            return req; // Return the original requirement without scenes
-          }
-        })
-      );
-      
-      console.log(`Matched scenes for ${requirementsWithScenes.filter(r => r.videoScenes).length} requirements`);
-      return requirementsWithScenes;
+    // Process references based on input type
+    if (inputDataId) {
+      // Match video scenes to requirements if scenes are available
+      if (videoScenes.length > 0) {
+        console.log('Matching video scenes to requirements...');
+        
+        // Process each requirement to find relevant scenes
+        const requirementsWithScenes = await Promise.all(
+          uniqueRequirements.map(async (req) => {
+            try {
+              // Find relevant scenes for this requirement
+              // Use the same processor instance
+              const processor = new VideoProcessor(filePath, path.join(os.tmpdir(), 'video-scenes'), videoScenes[0].inputDataId);
+              const matchedScenes = await processor.processScenes(videoScenes, req.text);
+              
+              // Add the scenes to the requirement
+              return {
+                ...req,
+                videoScenes: matchedScenes.length > 0 ? matchedScenes : undefined
+              };
+            } catch (error) {
+              console.error(`Error matching scenes for requirement: ${req.text.substring(0, 50)}...`, error);
+              return req; // Return the original requirement without scenes
+            }
+          })
+        );
+        
+        console.log(`Matched scenes for ${requirementsWithScenes.filter(r => r.videoScenes).length} requirements`);
+        
+        // Also try to extract audio timestamps if possible
+        try {
+          console.log('Extracting audio timestamps from video...');
+          
+          // Process each requirement to find relevant audio timestamps
+          const requirementsWithTimestamps = await Promise.all(
+            requirementsWithScenes.map(async (req) => {
+              try {
+                // Find relevant audio timestamps for this requirement
+                const audioTimestamps = await processAudioFileForRequirement(
+                  filePath,
+                  req.text,
+                  inputDataId
+                );
+                
+                // Add the audio timestamps to the requirement if any were found
+                return {
+                  ...req,
+                  audioTimestamps: audioTimestamps.length > 0 ? audioTimestamps : undefined
+                };
+              } catch (error) {
+                console.error(`Error finding audio timestamps for requirement: ${req.text.substring(0, 50)}...`, error);
+                return req; // Return the original requirement without timestamps
+              }
+            })
+          );
+          
+          console.log(`Found audio timestamps for ${requirementsWithTimestamps.filter(r => r.audioTimestamps).length} requirements`);
+          return requirementsWithTimestamps;
+        } catch (audioError) {
+          console.error('Error processing audio from video:', audioError);
+          return requirementsWithScenes;
+        }
+      } else if (fileInfo.name.toLowerCase().endsWith('.mp3') || fileInfo.name.toLowerCase().endsWith('.wav') || fileInfo.name.toLowerCase().endsWith('.m4a')) {
+        // This is an audio file, try to extract audio timestamps
+        console.log('Extracting audio timestamps...');
+        
+        // Process each requirement to find relevant audio timestamps
+        const requirementsWithTimestamps = await Promise.all(
+          uniqueRequirements.map(async (req) => {
+            try {
+              // Find relevant audio timestamps for this requirement
+              const audioTimestamps = await processAudioFileForRequirement(
+                filePath,
+                req.text,
+                inputDataId
+              );
+              
+              // Add the audio timestamps to the requirement if any were found
+              return {
+                ...req,
+                audioTimestamps: audioTimestamps.length > 0 ? audioTimestamps : undefined
+              };
+            } catch (error) {
+              console.error(`Error finding audio timestamps for requirement: ${req.text.substring(0, 50)}...`, error);
+              return req; // Return the original requirement without timestamps
+            }
+          })
+        );
+        
+        console.log(`Found audio timestamps for ${requirementsWithTimestamps.filter(r => r.audioTimestamps).length} requirements`);
+        return requirementsWithTimestamps;
+      }
     }
     
     return uniqueRequirements;

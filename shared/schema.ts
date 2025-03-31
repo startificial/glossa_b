@@ -108,6 +108,8 @@ export const requirements = pgTable("requirements", {
   codeId: text("code_id").notNull(), // REQ-001, REQ-002, etc.
   source: text("source"), // Source of the requirement
   videoScenes: jsonb("video_scenes").default([]), // Array of video scene references (timestamps, etc.)
+  textReferences: jsonb("text_references").default([]), // Array of text passage references
+  audioTimestamps: jsonb("audio_timestamps").default([]), // Array of audio timestamp references
 });
 
 export const insertRequirementSchema = createInsertSchema(requirements).pick({
@@ -120,6 +122,8 @@ export const insertRequirementSchema = createInsertSchema(requirements).pick({
   codeId: true,
   source: true,
   videoScenes: true,
+  textReferences: true,
+  audioTimestamps: true,
 });
 
 // Activity schema

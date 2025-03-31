@@ -17,9 +17,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getCategoryColor, getPriorityInfo, formatDateTime } from '@/lib/utils';
-import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles, Wrench, Video } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles, Wrench, Video, FileText, AudioWaveform } from 'lucide-react';
 import { TasksTable } from '@/components/implementation-tasks/tasks-table';
-import { VideoScenes } from '@/components/requirements/video-scenes';
+import { ReferenceData } from '@/components/requirements/reference-data';
 
 interface RequirementDetailProps {
   projectId: number;
@@ -69,6 +69,16 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
     queryFn: async () => {
       return apiRequest("GET", `/api/requirements/${requirementId}/tasks`);
     }
+  });
+  
+  // Get input data if requirement has inputDataId
+  const { data: inputData } = useQuery({
+    queryKey: ['/api/projects', projectId, 'input-data', requirement?.inputDataId],
+    queryFn: async () => {
+      if (!requirement || !requirement.inputDataId) return null;
+      return apiRequest("GET", `/api/projects/${projectId}/input-data/${requirement.inputDataId}`);
+    },
+    enabled: !!requirement && !!requirement.inputDataId
   });
   
   // Filter activities related to this requirement
@@ -555,7 +565,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   <TabsTrigger value="metadata">Metadata</TabsTrigger>
                   <TabsTrigger value="acceptance">Acceptance Criteria</TabsTrigger>
                   <TabsTrigger value="tasks">Implementation Tasks</TabsTrigger>
-                  <TabsTrigger value="videos">Video Scenes</TabsTrigger>
+                  <TabsTrigger value="references">Reference Data</TabsTrigger>
                   <TabsTrigger value="history">History</TabsTrigger>
                 </TabsList>
                 
@@ -758,16 +768,8 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="videos">
-                  {requirement.videoScenes && requirement.videoScenes.length > 0 ? (
-                    <VideoScenes scenes={requirement.videoScenes} />
-                  ) : (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <Video className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No video scenes available for this requirement</p>
-                      <p className="text-sm mt-2">Video scenes are automatically detected when a requirement is generated from video input data.</p>
-                    </div>
-                  )}
+                <TabsContent value="references">
+                  <ReferenceData requirement={requirement} inputData={inputData} />
                 </TabsContent>
                 
                 <TabsContent value="history">
