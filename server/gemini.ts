@@ -137,7 +137,7 @@ export async function processTextFile(filePath: string, projectName: string, fil
 
         The source file contains customer-specific context about their business processes, data structures, workflows, or other specifications. Your job is to generate detailed, thorough requirements from the source file that will be used by a system implementor to migrate the customer from their legacy system to Salesforce.
         
-        The requirements should be clear, comprehensive, and detailed. They should thoroughly describe the key workflows, processes, or structures that need to be solved for in the new system. Each requirement should contain a Name, which summarizes the requirement, and a Description, which details what's needed to fulfill the requirement. Each requirement description should be at least 200 words to ensure sufficient detail.
+        The requirements should be clear, comprehensive, and detailed. They should thoroughly describe the key workflows, processes, or structures that need to be solved for in the new system. Each requirement should contain a Name, which summarizes the requirement, and a Description, which details what's needed to fulfill the requirement. Each requirement description should be at least 75 words to ensure sufficient detail.
         
         Each requirement should also be labeled with a single category. Most requirements will be Functional.
         Functional: these requirements are related to business processes, workflows, data structures, and system capabilities
@@ -169,19 +169,19 @@ export async function processTextFile(filePath: string, projectName: string, fil
         Extract as many requirements as necessary to comprehensively cover the content provided. Do not limit yourself to a specific number - extract all valid requirements from the text. You should aim to extract at least ${minRequirements} requirements if the content supports it, but extract more if necessary.
         
         Format your response as a JSON array of requirements, where each requirement has:
-        1. 'text' (string): A detailed description of at least 200 words that thoroughly explains what needs to be implemented
+        1. 'text' (string): A detailed description of at least 75 words that thoroughly explains what needs to be implemented
         2. 'category' (string): One of 'functional', 'non-functional', 'security', 'performance'
         3. 'priority' (string): One of 'high', 'medium', 'low'
         
         Example format (but with much more detailed text for each requirement):
         [
           {
-            "text": "The system must implement a comprehensive case management workflow that allows customer service representatives to...[detailed 200+ word description]",
+            "text": "The system must implement a comprehensive case management workflow that allows customer service representatives to...[detailed 75+ word description]",
             "category": "functional", 
             "priority": "high"
           },
           {
-            "text": "The Salesforce implementation must support a knowledge base integration that...[detailed 200+ word description]",
+            "text": "The Salesforce implementation must support a knowledge base integration that...[detailed 75+ word description]",
             "category": "functional",
             "priority": "medium"
           }
