@@ -97,8 +97,7 @@ export const insertInputDataSchema = createInsertSchema(inputData).pick({
 // Requirements schema
 export const requirements = pgTable("requirements", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
+  text: text("text").notNull(),
   category: text("category").notNull(), // functional, non-functional, etc.
   priority: text("priority").notNull().default("medium"), // high, medium, low
   projectId: integer("project_id").notNull(),
@@ -106,7 +105,7 @@ export const requirements = pgTable("requirements", {
   acceptanceCriteria: jsonb("acceptance_criteria").default([]), // Array of acceptance criteria items
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  codeId: text("code_id"), // REQ-001, REQ-002, etc.
+  codeId: text("code_id").notNull(), // REQ-001, REQ-002, etc.
   source: text("source"), // Source of the requirement
   videoScenes: jsonb("video_scenes").default([]), // Array of video scene references (timestamps, etc.)
   textReferences: jsonb("text_references").default([]), // Array of text passage references
@@ -114,8 +113,7 @@ export const requirements = pgTable("requirements", {
 });
 
 export const insertRequirementSchema = createInsertSchema(requirements).pick({
-  title: true,
-  description: true,
+  text: true,
   category: true,
   priority: true,
   projectId: true,

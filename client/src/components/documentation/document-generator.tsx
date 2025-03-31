@@ -207,7 +207,7 @@ This Statement of Work (SOW) outlines the software implementation work to be per
 Total Requirements: ${requirements.length}
 
 ${requirements.map(req => 
-  `### ${req.category.toUpperCase()}: ${req.title || req.description || req.text}
+  `### ${req.category.toUpperCase()}: ${req.text}
    - Priority: ${req.priority}
    - Source: ${req.source || "Not specified"}
    ${req.acceptanceCriteria && req.acceptanceCriteria.length > 0 ? 
@@ -340,7 +340,7 @@ ${project.description || "No description provided."}
 
 ## Functional Requirements
 ${requirements.filter(req => req.category.toLowerCase() === 'functional').map(req => 
-  `### FR-${req.id}: ${req.title || req.description || req.text}
+  `### FR-${req.id}: ${req.text}
    - Priority: ${req.priority}
    - Source: ${req.source || "Not specified"}
    ${req.acceptanceCriteria && req.acceptanceCriteria.length > 0 ? 
@@ -350,7 +350,7 @@ ${requirements.filter(req => req.category.toLowerCase() === 'functional').map(re
 
 ## Non-Functional Requirements
 ${requirements.filter(req => req.category.toLowerCase() !== 'functional').map(req => 
-  `### NFR-${req.id}: ${req.title || req.description || req.text}
+  `### NFR-${req.id}: ${req.text}
    - Category: ${req.category}
    - Priority: ${req.priority}
    - Source: ${req.source || "Not specified"}
@@ -403,8 +403,8 @@ ${project.description || "This system provides a comprehensive solution for mana
 
 ## Main Features
 ${functionalReqs.map((req, index) => 
-  `### ${index + 1}. ${req.title || req.description || req.text.split('.')[0] || req.title || req.description || req.text}
-${req.title || req.description || req.text}
+  `### ${index + 1}. ${req.text.split('.')[0] || req.text}
+${req.text}
 
 **How to use this feature:**
 1. Navigate to the appropriate section in the menu
@@ -461,9 +461,9 @@ ${tasks.slice(0, 5).map(task =>
 
 ## Training Modules
 ${requirements.filter(req => req.category.toLowerCase() === 'functional').map((req, index) => 
-  `### Module ${index + 1}: ${req.title || req.description || req.text.split('.')[0] || req.title || req.description || req.text}
+  `### Module ${index + 1}: ${req.text.split('.')[0] || req.text}
 **Duration**: 30 minutes
-**Objective**: Learn how to ${req.title || req.description || req.text.toLowerCase().startsWith('ability to') ? req.title || req.description || req.text.substring(11) : req.title || req.description || req.text.split('.')[0].toLowerCase()}
+**Objective**: Learn how to ${req.text.toLowerCase().startsWith('ability to') ? req.text.substring(11) : req.text.split('.')[0].toLowerCase()}
 
 **Topics Covered**:
 1. Overview of the feature
@@ -516,8 +516,8 @@ ${project.targetSystem || "[Target System]"} provides a robust platform for ${pr
 
 ## Key Features
 ${functionalReqs.map((req, index) => 
-  `### Feature ${index + 1}: ${req.title || req.description || req.text.split('.')[0] || req.title || req.description || req.text}
-**Description**: ${req.title || req.description || req.text}
+  `### Feature ${index + 1}: ${req.text.split('.')[0] || req.text}
+**Description**: ${req.text}
 
 **Business Value**:
 - Increases efficiency in daily operations
@@ -540,13 +540,13 @@ ${req.acceptanceCriteria && req.acceptanceCriteria.length > 0 ?
 | Feature | Basic | Premium | Enterprise |
 |---------|-------|---------|------------|
 ${functionalReqs.slice(0, 5).map(req => 
-  `| ${req.title || req.description || req.text.split('.')[0] || req.title || req.description || req.text} | ✓ | ✓ | ✓ |`
+  `| ${req.text.split('.')[0] || req.text} | ✓ | ✓ | ✓ |`
 ).join('\n')}
 ${functionalReqs.slice(5, 10).map(req => 
-  `| ${req.title || req.description || req.text.split('.')[0] || req.title || req.description || req.text} | - | ✓ | ✓ |`
+  `| ${req.text.split('.')[0] || req.text} | - | ✓ | ✓ |`
 ).join('\n')}
 ${functionalReqs.slice(10).map(req => 
-  `| ${req.title || req.description || req.text.split('.')[0] || req.title || req.description || req.text} | - | - | ✓ |`
+  `| ${req.text.split('.')[0] || req.text} | - | - | ✓ |`
 ).join('\n')}
 
 ## Feature Roadmap

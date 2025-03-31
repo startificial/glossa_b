@@ -852,8 +852,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const codeId = `REQ-${(requirementsCount + i + 1).toString().padStart(3, '0')}`;
             
             await storage.createRequirement({
-              title: requirement.title || "Requirement",
-              description: requirement.description || requirement.title,
+              text: requirement.text,
               category: requirement.category || 'functional',
               priority: requirement.priority || 'medium',
               projectId,
@@ -861,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               codeId,
               source: inputDataRecord.name,
               videoScenes: requirement.videoScenes || [],
-              textReferences: requirement.titleReferences || [],
+              textReferences: requirement.textReferences || [],
               audioTimestamps: requirement.audioTimestamps || []
             });
           }
@@ -995,8 +994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.search) {
         const searchTerm = (req.query.search as string).toLowerCase();
         filteredRequirements = filteredRequirements.filter(
-          r => r.title.toLowerCase().includes(searchTerm) || 
-               r.description.toLowerCase().includes(searchTerm) || 
+          r => r.text.toLowerCase().includes(searchTerm) || 
                r.category.toLowerCase().includes(searchTerm) ||
                (r.source && r.source.toLowerCase().includes(searchTerm))
         );
@@ -1303,8 +1301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         requirements: requirements.map(r => ({
           id: r.codeId,
-          title: r.title,
-          description: r.description,
+          text: r.text,
           category: r.category,
           priority: r.priority,
           source: r.source,
@@ -1565,8 +1562,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Extract key phrases from requirement description to create more specific tasks
-      const reqText = requirement.description.toLowerCase();
+      // Extract key phrases from requirement text to create more specific tasks
+      const reqText = requirement.text.toLowerCase();
       
       // Analyze requirement category and text to determine specific tasks
       const isUserInterface = reqText.includes('ui') || reqText.includes('interface') || 
@@ -1607,7 +1604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isCustomerData) {
         sourceTasks.push({
           title: `Map customer data fields in ${project.sourceSystem}`,
-          description: `Identify and document customer profile attributes, history records, and relationships in ${project.sourceSystem} needed for migration of: ${requirement.title}`,
+          description: `Identify and document customer profile attributes, history records, and relationships in ${project.sourceSystem} needed for migration of: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
@@ -1621,7 +1618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isWorkflow) {
         sourceTasks.push({
           title: `Document ${project.sourceSystem} workflow states and transitions`,
-          description: `Create detailed flow diagrams of the existing workflows in ${project.sourceSystem}, capturing triggers, conditions, actions, and state transitions for: ${requirement.title}`,
+          description: `Create detailed flow diagrams of the existing workflows in ${project.sourceSystem}, capturing triggers, conditions, actions, and state transitions for: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
@@ -1635,7 +1632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isCaseManagement) {
         sourceTasks.push({
           title: `Document case routing and assignment rules in ${project.sourceSystem}`,
-          description: `Extract and document the rules that govern case assignment, prioritization, queueing, and routing in ${project.sourceSystem} for: ${requirement.title}`,
+          description: `Extract and document the rules that govern case assignment, prioritization, queueing, and routing in ${project.sourceSystem} for: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
@@ -1649,7 +1646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isIntegration) {
         sourceTasks.push({
           title: `Map integration touchpoints in ${project.sourceSystem}`,
-          description: `Identify all external systems, API endpoints, data formats, and integration patterns currently used in ${project.sourceSystem} for: ${requirement.title}`,
+          description: `Identify all external systems, API endpoints, data formats, and integration patterns currently used in ${project.sourceSystem} for: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
@@ -1663,7 +1660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isReporting) {
         sourceTasks.push({
           title: `Extract report definitions and data sources from ${project.sourceSystem}`,
-          description: `Document existing reports, dashboards, metrics calculations, and data sources in ${project.sourceSystem} to support: ${requirement.title}`,
+          description: `Document existing reports, dashboards, metrics calculations, and data sources in ${project.sourceSystem} to support: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
@@ -1677,7 +1674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isSLA) {
         sourceTasks.push({
           title: `Document SLA configuration in ${project.sourceSystem}`,
-          description: `Extract SLA definitions, calculation rules, escalation paths, and notification triggers from ${project.sourceSystem} for: ${requirement.title}`,
+          description: `Extract SLA definitions, calculation rules, escalation paths, and notification triggers from ${project.sourceSystem} for: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
@@ -1692,7 +1689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (sourceTasks.length === 0) {
         sourceTasks.push({
           title: `Extract key data structures from ${project.sourceSystem}`,
-          description: `Identify and document the primary data objects, fields, relationships, and business rules in ${project.sourceSystem} needed to implement: ${requirement.title}`,
+          description: `Identify and document the primary data objects, fields, relationships, and business rules in ${project.sourceSystem} needed to implement: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "source",
@@ -1706,7 +1703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Always add a test data extraction task
       sourceTasks.push({
         title: `Create migration test dataset from ${project.sourceSystem}`,
-        description: `Extract representative data samples from ${project.sourceSystem} that cover edge cases and common scenarios for testing: ${requirement.title}`,
+        description: `Extract representative data samples from ${project.sourceSystem} that cover edge cases and common scenarios for testing: ${requirement.text}`,
         status: "pending",
         priority: requirement.priority,
         system: "source",
@@ -1723,7 +1720,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isUserInterface) {
         targetTasks.push({
           title: `Design user interface components in ${project.targetSystem}`,
-          description: `Create UI mockups, screen flows, and interactive prototypes for the interface requirements specified in: ${requirement.title}`,
+          description: `Create UI mockups, screen flows, and interactive prototypes for the interface requirements specified in: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
@@ -1737,7 +1734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isWorkflow) {
         targetTasks.push({
           title: `Configure workflow states and transitions in ${project.targetSystem}`,
-          description: `Implement the workflow engine configuration, stages, transitions, conditions, and triggers in ${project.targetSystem} to match: ${requirement.title}`,
+          description: `Implement the workflow engine configuration, stages, transitions, conditions, and triggers in ${project.targetSystem} to match: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
@@ -1751,7 +1748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isCaseManagement) {
         targetTasks.push({
           title: `Implement case routing and assignment logic in ${project.targetSystem}`,
-          description: `Develop the case management component in ${project.targetSystem} with the routing, assignment, and escalation logic required for: ${requirement.title}`,
+          description: `Develop the case management component in ${project.targetSystem} with the routing, assignment, and escalation logic required for: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
@@ -1765,7 +1762,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isIntegration) {
         targetTasks.push({
           title: `Develop integration interfaces in ${project.targetSystem}`,
-          description: `Build the API endpoints, listeners, transformers, and connectors in ${project.targetSystem} to integrate with external systems for: ${requirement.title}`,
+          description: `Build the API endpoints, listeners, transformers, and connectors in ${project.targetSystem} to integrate with external systems for: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
@@ -1779,7 +1776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isReporting) {
         targetTasks.push({
           title: `Implement reporting and analytics in ${project.targetSystem}`,
-          description: `Create reports, dashboards, and analytics capabilities in ${project.targetSystem} to satisfy the reporting needs specified in: ${requirement.title}`,
+          description: `Create reports, dashboards, and analytics capabilities in ${project.targetSystem} to satisfy the reporting needs specified in: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
@@ -1793,7 +1790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isSecurityRelated) {
         targetTasks.push({
           title: `Implement security controls in ${project.targetSystem}`,
-          description: `Develop the authentication, authorization, and role-based access control mechanisms in ${project.targetSystem} to meet the security requirements in: ${requirement.title}`,
+          description: `Develop the authentication, authorization, and role-based access control mechanisms in ${project.targetSystem} to meet the security requirements in: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
@@ -1807,7 +1804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isPerformanceRelated) {
         targetTasks.push({
           title: `Implement performance optimizations in ${project.targetSystem}`,
-          description: `Design and implement caching, indexing, and other performance tuning strategies in ${project.targetSystem} to meet the performance needs in: ${requirement.title}`,
+          description: `Design and implement caching, indexing, and other performance tuning strategies in ${project.targetSystem} to meet the performance needs in: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
@@ -1821,7 +1818,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isSLA) {
         targetTasks.push({
           title: `Configure SLA tracking in ${project.targetSystem}`,
-          description: `Implement service level agreement definitions, tracking, escalation rules, and notifications in ${project.targetSystem} for: ${requirement.title}`,
+          description: `Implement service level agreement definitions, tracking, escalation rules, and notifications in ${project.targetSystem} for: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
@@ -1836,7 +1833,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (targetTasks.length === 0) {
         targetTasks.push({
           title: `Implement core functionality in ${project.targetSystem}`,
-          description: `Design and develop the primary features and data structures in ${project.targetSystem} required to fulfill: ${requirement.title}`,
+          description: `Design and develop the primary features and data structures in ${project.targetSystem} required to fulfill: ${requirement.text}`,
           status: "pending",
           priority: requirement.priority,
           system: "target",
@@ -1850,7 +1847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Always add data migration and testing tasks
       targetTasks.push({
         title: `Develop data migration scripts for ${project.targetSystem}`,
-        description: `Create data transformation and loading procedures to migrate data from ${project.sourceSystem} to ${project.targetSystem} for: ${requirement.title}`,
+        description: `Create data transformation and loading procedures to migrate data from ${project.sourceSystem} to ${project.targetSystem} for: ${requirement.text}`,
         status: "pending",
         priority: requirement.priority,
         system: "target",
@@ -1862,7 +1859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       targetTasks.push({
         title: `Create automated tests for ${project.targetSystem}`,
-        description: `Develop comprehensive test suite including unit, integration, and acceptance tests for the implementation of: ${requirement.title}`,
+        description: `Develop comprehensive test suite including unit, integration, and acceptance tests for the implementation of: ${requirement.text}`,
         status: "pending",
         priority: requirement.priority,
         system: "target",

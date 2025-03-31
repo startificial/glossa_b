@@ -172,22 +172,19 @@ export async function processTextFile(filePath: string, projectName: string, fil
         Extract as many requirements as necessary to comprehensively cover the content provided. Do not limit yourself to a specific number - extract all valid requirements from the text. You should aim to extract at least ${minRequirements} requirements if the content supports it, but extract more if necessary.
         
         Format your response as a JSON array of requirements, where each requirement has:
-        1. 'title' (string): A concise title summarizing the requirement (5-10 words)
-        2. 'description' (string): A detailed description of at least 75 words that thoroughly explains what needs to be implemented
-        3. 'category' (string): One of 'functional', 'non-functional', 'security', 'performance'
-        4. 'priority' (string): One of 'high', 'medium', 'low'
+        1. 'text' (string): A detailed description of at least 75 words that thoroughly explains what needs to be implemented
+        2. 'category' (string): One of 'functional', 'non-functional', 'security', 'performance'
+        3. 'priority' (string): One of 'high', 'medium', 'low'
         
         Example format (but with much more detailed text for each requirement):
         [
           {
-            "title": "Comprehensive Case Management Workflow",
-            "description": "The system must implement a comprehensive case management workflow that allows customer service representatives to...[detailed 75+ word description]",
+            "text": "The system must implement a comprehensive case management workflow that allows customer service representatives to...[detailed 75+ word description]",
             "category": "functional", 
             "priority": "high"
           },
           {
-            "title": "Knowledge Base Integration",
-            "description": "The Salesforce implementation must support a knowledge base integration that...[detailed 75+ word description]",
+            "text": "The Salesforce implementation must support a knowledge base integration that...[detailed 75+ word description]",
             "category": "functional",
             "priority": "medium"
           }
@@ -233,7 +230,7 @@ export async function processTextFile(filePath: string, projectName: string, fil
     
     // Remove any duplicate requirements (comparing by text)
     const uniqueRequirements = allRequirements.filter((req, index, self) =>
-      index === self.findIndex((r) => r.description === req.description)
+      index === self.findIndex((r) => r.text === req.text)
     );
     
     console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${chunks.length} chunks`);
@@ -249,7 +246,7 @@ export async function processTextFile(filePath: string, projectName: string, fil
             // Find relevant text passages for this requirement
             const textReferences = await processTextFileForRequirement(
               filePath,
-              req.description,
+              req.text,
               inputDataId
             );
             
@@ -259,7 +256,7 @@ export async function processTextFile(filePath: string, projectName: string, fil
               textReferences: textReferences.length > 0 ? textReferences : undefined
             };
           } catch (error) {
-            console.error(`Error finding text references for requirement: ${req.description.substring(0, 50)}...`, error);
+            console.error(`Error finding text references for requirement: ${req.text.substring(0, 50)}...`, error);
             return req; // Return the original requirement without references
           }
         })
@@ -434,8 +431,8 @@ export async function processVideoFile(
         2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
         3. Assign a priority level: 'high', 'medium', or 'low'
         
-        Format your response as a JSON array with exactly ${reqPerChunk} requirements, each with the properties 'title', 'description', 'category', and 'priority'.
-        Example: [{"title": "Service Call Center Queue Management", "description": "The target system must implement the service call center queue management workflow with priority-based routing, skill-based assignment, and SLA tracking identical to the source system...", "category": "functional", "priority": "high"}, ...]
+        Format your response as a JSON array with exactly ${reqPerChunk} requirements, each with the properties 'text', 'category', and 'priority'.
+        Example: [{"text": "The target system must implement the service call center queue management workflow with priority-based routing, skill-based assignment, and SLA tracking identical to the source system", "category": "functional", "priority": "high"}, ...]
         
         Only output valid JSON with no additional text or explanations.
       `;
@@ -456,8 +453,7 @@ export async function processVideoFile(
             
             // Transform the response to match the expected format and add to collection
             const chunkRequirements = parsedResponse.map((item: any) => ({
-              title: item.title || "Untitled Requirement",
-              description: item.description || item.text || "",
+              text: item.text,
               category: item.category,
               priority: item.priority
             }));
@@ -470,8 +466,7 @@ export async function processVideoFile(
             
             // Transform the response to match the expected format and add to collection
             const chunkRequirements = parsedResponse.map((item: any) => ({
-              title: item.title || "Untitled Requirement",
-              description: item.description || item.text || "",
+              text: item.text,
               category: item.category,
               priority: item.priority
             }));
@@ -497,7 +492,7 @@ export async function processVideoFile(
     
     // Remove any duplicate requirements (comparing by text)
     const uniqueRequirements = allRequirements.filter((req, index, self) =>
-      index === self.findIndex((r) => r.description === req.description)
+      index === self.findIndex((r) => r.text === req.text)
     );
     
     console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${selectedPerspectives.length} perspectives`);
@@ -515,7 +510,7 @@ export async function processVideoFile(
               // Find relevant scenes for this requirement
               // Use the same processor instance
               const processor = new VideoProcessor(filePath, path.join(os.tmpdir(), 'video-scenes'), videoScenes[0].inputDataId);
-              const matchedScenes = await processor.processScenes(videoScenes, req.description);
+              const matchedScenes = await processor.processScenes(videoScenes, req.text);
               
               // Add the scenes to the requirement
               return {
@@ -523,7 +518,7 @@ export async function processVideoFile(
                 videoScenes: matchedScenes.length > 0 ? matchedScenes : undefined
               };
             } catch (error) {
-              console.error(`Error matching scenes for requirement: ${req.description.substring(0, 50)}...`, error);
+              console.error(`Error matching scenes for requirement: ${req.text.substring(0, 50)}...`, error);
               return req; // Return the original requirement without scenes
             }
           })
@@ -542,7 +537,7 @@ export async function processVideoFile(
                 // Find relevant audio timestamps for this requirement
                 const audioTimestamps = await processAudioFileForRequirement(
                   filePath,
-                  req.description,
+                  req.text,
                   inputDataId
                 );
                 
@@ -552,7 +547,7 @@ export async function processVideoFile(
                   audioTimestamps: audioTimestamps.length > 0 ? audioTimestamps : undefined
                 };
               } catch (error) {
-                console.error(`Error finding audio timestamps for requirement: ${req.description.substring(0, 50)}...`, error);
+                console.error(`Error finding audio timestamps for requirement: ${req.text.substring(0, 50)}...`, error);
                 return req; // Return the original requirement without timestamps
               }
             })
@@ -575,7 +570,7 @@ export async function processVideoFile(
               // Find relevant audio timestamps for this requirement
               const audioTimestamps = await processAudioFileForRequirement(
                 filePath,
-                req.description,
+                req.text,
                 inputDataId
               );
               
@@ -585,7 +580,7 @@ export async function processVideoFile(
                 audioTimestamps: audioTimestamps.length > 0 ? audioTimestamps : undefined
               };
             } catch (error) {
-              console.error(`Error finding audio timestamps for requirement: ${req.description.substring(0, 50)}...`, error);
+              console.error(`Error finding audio timestamps for requirement: ${req.text.substring(0, 50)}...`, error);
               return req; // Return the original requirement without timestamps
             }
           })
@@ -735,8 +730,8 @@ export async function generateRequirementsForFile(
         2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
         3. Assign a priority level: 'high', 'medium', or 'low'
         
-        Format your response as a JSON array with exactly ${reqPerAnalysis} requirements, each with the properties 'title', 'description', 'category', and 'priority'.
-        Example: [{"title": "Call Center Queuing Logic", "description": "The target system must maintain the current call center queuing logic that routes cases based on SLA priority and agent skill matching...", "category": "functional", "priority": "high"}, ...]
+        Format your response as a JSON array with exactly ${reqPerAnalysis} requirements, each with the properties 'text', 'category', and 'priority'.
+        Example: [{"text": "The target system must maintain the current call center queuing logic that routes cases based on SLA priority and agent skill matching", "category": "functional", "priority": "high"}, ...]
         
         Only output valid JSON with no additional text or explanations.
       `;
@@ -780,7 +775,7 @@ export async function generateRequirementsForFile(
     
     // Remove any duplicate requirements (comparing by text)
     const uniqueRequirements = allRequirements.filter((req, index, self) =>
-      index === self.findIndex((r) => r.description === req.description)
+      index === self.findIndex((r) => r.text === req.text)
     );
     
     console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${selectedPerspectives.length} analysis perspectives`);

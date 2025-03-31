@@ -22,7 +22,7 @@ interface PriorityRequirementsProps {
 }
 
 export function PriorityRequirements({ projectId }: PriorityRequirementsProps) {
-  const { data: requirements, isLoading } = useQuery<Requirement[]>({
+  const { data: requirements, isLoading } = useQuery({
     queryKey: [`/api/projects/${projectId}/requirements/high-priority`],
   });
 
@@ -52,45 +52,41 @@ export function PriorityRequirements({ projectId }: PriorityRequirementsProps) {
           </ul>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {!requirements || requirements.length === 0 ? (
-              <li className="py-4 text-center text-gray-500">No high priority requirements found</li>
-            ) : (
-              requirements.map((req: Requirement) => (
-                <li key={req.id} className="px-0 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-red-100 dark:bg-red-800">
-                        <span className="text-sm font-medium leading-none text-red-800 dark:text-red-300">HP</span>
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {req.title || req.text}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {req.codeId} • {req.category.charAt(0).toUpperCase() + req.category.slice(1)} • From: {req.source || "Manual"}
-                      </p>
-                    </div>
+            {requirements?.map((req: Requirement) => (
+              <li key={req.id} className="px-0 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-red-100 dark:bg-red-800">
+                      <span className="text-sm font-medium leading-none text-red-800 dark:text-red-300">HP</span>
+                    </span>
                   </div>
-                  <div className="ml-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
-                          <MoreHorizontal className="h-5 w-5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => window.location.href = `/projects/${projectId}`}>
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>Edit Requirement</DropdownMenuItem>
-                        <DropdownMenuItem>Change Priority</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {req.text}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {req.codeId} • {req.category.charAt(0).toUpperCase() + req.category.slice(1)} • From: {req.source || "Manual"}
+                    </p>
                   </div>
-                </li>
-              ))
-            )}
+                </div>
+                <div className="ml-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                        <MoreHorizontal className="h-5 w-5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => window.location.href = `/projects/${projectId}`}>
+                        View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>Edit Requirement</DropdownMenuItem>
+                      <DropdownMenuItem>Change Priority</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </li>
+            ))}
           </ul>
         )}
       </CardContent>
