@@ -7,7 +7,7 @@ import {
   activities, type Activity, type InsertActivity,
   implementationTasks, type ImplementationTask, type InsertImplementationTask
 } from "@shared/schema";
-import { and, desc, eq, or } from 'drizzle-orm';
+import { and, desc, eq, or, like, sql as drizzleSql } from 'drizzle-orm';
 import { db, sql } from './db';
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -70,6 +70,30 @@ export interface IStorage {
   createImplementationTask(task: InsertImplementationTask): Promise<ImplementationTask>;
   updateImplementationTask(id: number, task: Partial<InsertImplementationTask>): Promise<ImplementationTask | undefined>;
   deleteImplementationTask(id: number): Promise<boolean>;
+  
+  // Search methods
+  quickSearch(userId: number, query: string, limit?: number): Promise<{
+    projects: Project[];
+    requirements: Requirement[];
+  }>;
+  
+  advancedSearch(userId: number, query: string, filters?: {
+    entityTypes?: string[];
+    projectId?: number;
+    category?: string;
+    priority?: string;
+    dateRange?: { from?: Date; to?: Date };
+  }, pagination?: {
+    page: number;
+    limit: number;
+  }): Promise<{
+    projects: Project[];
+    requirements: Requirement[];
+    inputData: InputData[];
+    tasks: ImplementationTask[];
+    totalResults: number;
+    totalPages: number;
+  }>;
 }
 
 // In-memory storage implementation
@@ -342,6 +366,8 @@ export class MemStorage implements IStorage {
       source: requirement.source || null,
       acceptanceCriteria: requirement.acceptanceCriteria || [],
       videoScenes: requirement.videoScenes || [],
+      textReferences: requirement.textReferences || [],
+      audioTimestamps: requirement.audioTimestamps || [],
       createdAt: now, 
       updatedAt: now 
     };
@@ -352,6 +378,15 @@ export class MemStorage implements IStorage {
   async updateRequirement(id: number, requirement: Partial<InsertRequirement>): Promise<Requirement | undefined> {
     const existingRequirement = this.requirements.get(id);
     if (!existingRequirement) return undefined;
+    
+    // Initialize optional references if they don't exist in the update
+    if (requirement.textReferences === undefined && !existingRequirement.textReferences) {
+      requirement.textReferences = [];
+    }
+    
+    if (requirement.audioTimestamps === undefined && !existingRequirement.audioTimestamps) {
+      requirement.audioTimestamps = [];
+    }
     
     const updatedRequirement: Requirement = { 
       ...existingRequirement, 
@@ -444,6 +479,235 @@ export class MemStorage implements IStorage {
 
   async deleteImplementationTask(id: number): Promise<boolean> {
     return this.implementationTasks.delete(id);
+  }
+
+  // Search methods
+  async quickSearch(userId: number, query: string, limit: number = 5): Promise<{
+    projects: Project[];
+    requirements: Requirement[];
+  }> {
+    // Skip search if query is empty
+    if (!query || query.trim().length === 0) {
+      return { projects: [], requirements: [] };
+    }
+
+    const searchTerm = query.toLowerCase().trim();
+    const exactMatch = (text: string) => text.toLowerCase() === searchTerm;
+    const fuzzyMatch = (text: string) => text.toLowerCase().includes(searchTerm);
+
+    // Get user's projects
+    const userProjects = Array.from(this.projects.values()).filter(
+      project => project.userId === userId
+    );
+    
+    // Project IDs for this user (for filtering requirements)
+    const userProjectIds = userProjects.map(p => p.id);
+
+    // Search projects with exact matches first, then fuzzy matches
+    const matchedProjects = userProjects.filter(project => 
+      exactMatch(project.name) || 
+      (project.description && exactMatch(project.description))
+    );
+
+    // If we have fewer than the limit, add fuzzy matches
+    if (matchedProjects.length < limit) {
+      const fuzzyProjects = userProjects.filter(project => 
+        !matchedProjects.includes(project) && (
+          fuzzyMatch(project.name) || 
+          (project.description && fuzzyMatch(project.description))
+        )
+      );
+      matchedProjects.push(...fuzzyProjects.slice(0, limit - matchedProjects.length));
+    }
+
+    // Search requirements - only look in user's projects
+    const matchedRequirements = Array.from(this.requirements.values())
+      .filter(req => userProjectIds.includes(req.projectId))
+      .filter(req => 
+        exactMatch(req.text) || 
+        exactMatch(req.category) || 
+        exactMatch(req.codeId)
+      );
+
+    // If we have fewer than the limit, add fuzzy matches
+    if (matchedRequirements.length < limit) {
+      const fuzzyRequirements = Array.from(this.requirements.values())
+        .filter(req => userProjectIds.includes(req.projectId))
+        .filter(req => 
+          !matchedRequirements.includes(req) && (
+            fuzzyMatch(req.text) || 
+            fuzzyMatch(req.category) || 
+            fuzzyMatch(req.codeId)
+          )
+        );
+      matchedRequirements.push(...fuzzyRequirements.slice(0, limit - matchedRequirements.length));
+    }
+
+    return {
+      projects: matchedProjects.slice(0, limit),
+      requirements: matchedRequirements.slice(0, limit)
+    };
+  }
+
+  async advancedSearch(
+    userId: number, 
+    query: string, 
+    filters: {
+      entityTypes?: string[];
+      projectId?: number;
+      category?: string;
+      priority?: string;
+      dateRange?: { from?: Date; to?: Date };
+    } = {}, 
+    pagination: {
+      page: number;
+      limit: number;
+    } = { page: 1, limit: 10 }
+  ): Promise<{
+    projects: Project[];
+    requirements: Requirement[];
+    inputData: InputData[];
+    tasks: ImplementationTask[];
+    totalResults: number;
+    totalPages: number;
+  }> {
+    const searchTerm = query.toLowerCase().trim();
+    const hasQuery = searchTerm.length > 0;
+    
+    // Determine entities to search based on filters
+    const entityTypes = filters.entityTypes || ['projects', 'requirements', 'inputData', 'tasks'];
+    const includeProjects = entityTypes.includes('projects');
+    const includeRequirements = entityTypes.includes('requirements');
+    const includeInputData = entityTypes.includes('inputData');
+    const includeTasks = entityTypes.includes('tasks');
+
+    // Get user's projects
+    const userProjects = Array.from(this.projects.values()).filter(
+      project => project.userId === userId
+    );
+    
+    // Project IDs for this user (for filtering requirements, input data, tasks)
+    const userProjectIds = userProjects.map(p => p.id);
+    
+    // Match function for strings
+    const matchText = (text: string | null) => {
+      if (!text || !hasQuery) return false;
+      return text.toLowerCase().includes(searchTerm);
+    };
+    
+    // Date filter function
+    const matchesDateRange = (date: Date) => {
+      if (!filters.dateRange) return true;
+      
+      if (filters.dateRange.from && date < filters.dateRange.from) {
+        return false;
+      }
+      
+      if (filters.dateRange.to) {
+        // Set time to end of day
+        const endDate = new Date(filters.dateRange.to);
+        endDate.setHours(23, 59, 59, 999);
+        if (date > endDate) {
+          return false;
+        }
+      }
+      
+      return true;
+    };
+
+    // Search projects
+    let matchedProjects: Project[] = [];
+    if (includeProjects) {
+      matchedProjects = userProjects.filter(project => 
+        (!hasQuery || matchText(project.name) || matchText(project.description) || 
+         matchText(project.sourceSystem) || matchText(project.targetSystem)) &&
+        matchesDateRange(project.createdAt)
+      );
+    }
+
+    // Search requirements
+    let matchedRequirements: Requirement[] = [];
+    if (includeRequirements) {
+      const projectFilter = filters.projectId ? [filters.projectId] : userProjectIds;
+      
+      matchedRequirements = Array.from(this.requirements.values())
+        .filter(req => 
+          projectFilter.includes(req.projectId) &&
+          (!hasQuery || matchText(req.text) || matchText(req.codeId) || matchText(req.source)) &&
+          (!filters.category || req.category === filters.category) &&
+          (!filters.priority || req.priority === filters.priority) &&
+          matchesDateRange(req.createdAt)
+        );
+    }
+
+    // Search input data
+    let matchedInputData: InputData[] = [];
+    if (includeInputData) {
+      const projectFilter = filters.projectId ? [filters.projectId] : userProjectIds;
+      
+      matchedInputData = Array.from(this.inputDataItems.values())
+        .filter(data => 
+          projectFilter.includes(data.projectId) &&
+          (!hasQuery || matchText(data.name) || matchText(data.type) || matchText(data.contentType)) &&
+          matchesDateRange(data.createdAt)
+        );
+    }
+
+    // Search implementation tasks
+    let matchedTasks: ImplementationTask[] = [];
+    if (includeTasks) {
+      // Get all requirements for the user's projects
+      const userRequirementIds = Array.from(this.requirements.values())
+        .filter(req => userProjectIds.includes(req.projectId))
+        .map(req => req.id);
+        
+      if (filters.projectId) {
+        // Filter requirement IDs to only those in the selected project
+        const projectRequirementIds = Array.from(this.requirements.values())
+          .filter(req => req.projectId === filters.projectId)
+          .map(req => req.id);
+          
+        matchedTasks = Array.from(this.implementationTasks.values())
+          .filter(task => 
+            projectRequirementIds.includes(task.requirementId) &&
+            (!hasQuery || matchText(task.title) || matchText(task.description) || matchText(task.assignee)) &&
+            (!filters.priority || task.priority === filters.priority) &&
+            matchesDateRange(task.createdAt)
+          );
+      } else {
+        matchedTasks = Array.from(this.implementationTasks.values())
+          .filter(task => 
+            userRequirementIds.includes(task.requirementId) &&
+            (!hasQuery || matchText(task.title) || matchText(task.description) || matchText(task.assignee)) &&
+            (!filters.priority || task.priority === filters.priority) &&
+            matchesDateRange(task.createdAt)
+          );
+      }
+    }
+
+    // Calculate pagination
+    const { page, limit } = pagination;
+    const offset = (page - 1) * limit;
+    
+    // Calculate total results
+    const totalResults = matchedProjects.length + matchedRequirements.length + 
+                        matchedInputData.length + matchedTasks.length;
+    
+    // Calculate total pages
+    const totalPages = Math.max(1, Math.ceil(totalResults / limit));
+
+    // Apply pagination to each result set
+    // This is a simplified approach - in a more advanced implementation,
+    // we would need to interleave the results from different entities
+    // based on relevance score and apply pagination to the combined results
+    return {
+      projects: matchedProjects.slice(0, limit),
+      requirements: matchedRequirements.slice(0, limit),
+      inputData: matchedInputData.slice(0, limit),
+      tasks: matchedTasks.slice(0, limit),
+      totalResults,
+      totalPages
+    };
   }
 }
 
@@ -687,6 +951,313 @@ export class DatabaseStorage implements IStorage {
   async deleteImplementationTask(id: number): Promise<boolean> {
     const result = await db.delete(implementationTasks).where(eq(implementationTasks.id, id));
     return !!result;
+  }
+  
+  // Search methods - Uses a simpler approach to avoid SQL syntax complexities
+  async quickSearch(userId: number, query: string, limit: number = 5): Promise<{
+    projects: Project[];
+    requirements: Requirement[];
+  }> {
+    // Skip search if query is empty
+    if (!query || query.trim().length === 0) {
+      return { projects: [], requirements: [] };
+    }
+
+    const searchTerm = query.toLowerCase().trim();
+    
+    // Get user's projects
+    const userProjects = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.userId, userId));
+    
+    // Filter projects matching search term
+    const matchedProjects = userProjects.filter(project => 
+      project.name.toLowerCase().includes(searchTerm) || 
+      (project.description && project.description.toLowerCase().includes(searchTerm))
+    ).slice(0, limit);
+    
+    // Get requirements for user's projects
+    const projectIds = userProjects.map(p => p.id);
+    // Since inArray is not available, we'll get all requirements and filter in memory
+    const allRequirements = await db
+      .select()
+      .from(requirements);
+    
+    // Filter to only requirements in the user's projects
+    const filteredRequirements = allRequirements.filter(req => 
+      projectIds.includes(req.projectId)
+    );
+    
+    // Filter requirements matching search term
+    const matchedRequirements = filteredRequirements.filter(req => 
+      req.text.toLowerCase().includes(searchTerm) || 
+      req.category.toLowerCase().includes(searchTerm) || 
+      req.codeId.toLowerCase().includes(searchTerm)
+    ).slice(0, limit);
+
+    return {
+      projects: matchedProjects,
+      requirements: matchedRequirements
+    };
+  }
+
+  async advancedSearch(
+    userId: number, 
+    query: string, 
+    filters: {
+      entityTypes?: string[];
+      projectId?: number;
+      category?: string;
+      priority?: string;
+      dateRange?: { from?: Date; to?: Date };
+    } = {}, 
+    pagination: {
+      page: number;
+      limit: number;
+    } = { page: 1, limit: 10 }
+  ): Promise<{
+    projects: Project[];
+    requirements: Requirement[];
+    inputData: InputData[];
+    tasks: ImplementationTask[];
+    totalResults: number;
+    totalPages: number;
+  }> {
+    // This is a simplified implementation with in-memory filtering
+    // to avoid SQL syntax complexities with the current adapter
+    
+    const searchTerm = query.toLowerCase().trim();
+    const hasQuery = searchTerm.length > 0;
+    
+    // Determine entities to search based on filters
+    const entityTypes = filters.entityTypes || ['projects', 'requirements', 'inputData', 'tasks'];
+    const includeProjects = entityTypes.includes('projects');
+    const includeRequirements = entityTypes.includes('requirements');
+    const includeInputData = entityTypes.includes('inputData');
+    const includeTasks = entityTypes.includes('tasks');
+
+    // Get user's projects
+    const userProjects = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.userId, userId));
+    
+    const projectIdList = userProjects.map(p => p.id);
+    const { page, limit } = pagination;
+    const offset = (page - 1) * limit;
+    
+    // Search projects
+    let matchedProjects: Project[] = [];
+    let projectsCount = 0;
+    if (includeProjects) {
+      let filtered = [...userProjects];
+      
+      // Apply text search filter
+      if (hasQuery) {
+        filtered = filtered.filter(p => 
+          p.name.toLowerCase().includes(searchTerm) ||
+          (p.description && p.description.toLowerCase().includes(searchTerm)) ||
+          (p.sourceSystem && p.sourceSystem.toLowerCase().includes(searchTerm)) ||
+          (p.targetSystem && p.targetSystem.toLowerCase().includes(searchTerm))
+        );
+      }
+      
+      // Apply date range filter
+      if (filters.dateRange) {
+        filtered = filtered.filter(p => {
+          if (filters.dateRange?.from && p.createdAt < filters.dateRange.from) {
+            return false;
+          }
+          if (filters.dateRange?.to) {
+            const endDate = new Date(filters.dateRange.to);
+            endDate.setHours(23, 59, 59, 999);
+            if (p.createdAt > endDate) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+      
+      projectsCount = filtered.length;
+      matchedProjects = filtered.slice(offset, offset + limit);
+    }
+    
+    // Search requirements
+    let matchedRequirements: Requirement[] = [];
+    let requirementsCount = 0;
+    if (includeRequirements) {
+      // Get all requirements
+      const allRequirements = await db
+        .select()
+        .from(requirements);
+      
+      // Filter for user's projects or specific project
+      let filtered = filters.projectId
+        ? allRequirements.filter(r => r.projectId === filters.projectId)
+        : allRequirements.filter(r => projectIdList.includes(r.projectId));
+      
+      // Apply text search filter
+      if (hasQuery) {
+        filtered = filtered.filter(r => 
+          r.text.toLowerCase().includes(searchTerm) ||
+          r.category.toLowerCase().includes(searchTerm) ||
+          r.codeId.toLowerCase().includes(searchTerm) ||
+          (r.source && r.source.toLowerCase().includes(searchTerm))
+        );
+      }
+      
+      // Apply category filter
+      if (filters.category) {
+        filtered = filtered.filter(r => r.category === filters.category);
+      }
+      
+      // Apply priority filter
+      if (filters.priority) {
+        filtered = filtered.filter(r => r.priority === filters.priority);
+      }
+      
+      // Apply date range filter
+      if (filters.dateRange) {
+        filtered = filtered.filter(r => {
+          if (filters.dateRange?.from && r.createdAt < filters.dateRange.from) {
+            return false;
+          }
+          if (filters.dateRange?.to) {
+            const endDate = new Date(filters.dateRange.to);
+            endDate.setHours(23, 59, 59, 999);
+            if (r.createdAt > endDate) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+      
+      requirementsCount = filtered.length;
+      matchedRequirements = filtered.slice(offset, offset + limit);
+    }
+    
+    // Search input data
+    let matchedInputData: InputData[] = [];
+    let inputDataCount = 0;
+    if (includeInputData) {
+      // Get all input data for the user's projects
+      const allInputData = await db
+        .select()
+        .from(inputData);
+        
+      // Filter to user's projects or specific project
+      let filtered = filters.projectId
+        ? allInputData.filter(d => d.projectId === filters.projectId)
+        : allInputData.filter(d => projectIdList.includes(d.projectId));
+      
+      // Apply text search filter
+      if (hasQuery) {
+        filtered = filtered.filter(d => 
+          d.name.toLowerCase().includes(searchTerm) ||
+          d.type.toLowerCase().includes(searchTerm) ||
+          (d.contentType && d.contentType.toLowerCase().includes(searchTerm))
+        );
+      }
+      
+      // Apply date range filter
+      if (filters.dateRange) {
+        filtered = filtered.filter(d => {
+          if (filters.dateRange?.from && d.createdAt < filters.dateRange.from) {
+            return false;
+          }
+          if (filters.dateRange?.to) {
+            const endDate = new Date(filters.dateRange.to);
+            endDate.setHours(23, 59, 59, 999);
+            if (d.createdAt > endDate) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+      
+      inputDataCount = filtered.length;
+      matchedInputData = filtered.slice(offset, offset + limit);
+    }
+    
+    // Search implementation tasks
+    let matchedTasks: ImplementationTask[] = [];
+    let tasksCount = 0;
+    if (includeTasks) {
+      // Get all requirements
+      const allRequirements = await db
+        .select()
+        .from(requirements);
+        
+      // Filter to user's projects or specific project
+      const projectRequirements = filters.projectId
+        ? allRequirements.filter(r => r.projectId === filters.projectId)
+        : allRequirements.filter(r => projectIdList.includes(r.projectId));
+      
+      const requirementIds = projectRequirements.map(r => r.id);
+      
+      // Get all tasks
+      const allTasks = await db
+        .select()
+        .from(implementationTasks);
+        
+      // Filter to tasks for the matching requirements
+      const filteredTasks = allTasks.filter(task => 
+        requirementIds.includes(task.requirementId)
+      );
+      
+      let filtered = [...filteredTasks];
+      
+      // Apply text search filter
+      if (hasQuery) {
+        filtered = filtered.filter(t => 
+          t.title.toLowerCase().includes(searchTerm) ||
+          (t.description && t.description.toLowerCase().includes(searchTerm)) ||
+          (t.assignee && t.assignee.toLowerCase().includes(searchTerm))
+        );
+      }
+      
+      // Apply priority filter
+      if (filters.priority) {
+        filtered = filtered.filter(t => t.priority === filters.priority);
+      }
+      
+      // Apply date range filter
+      if (filters.dateRange) {
+        filtered = filtered.filter(t => {
+          if (filters.dateRange?.from && t.createdAt < filters.dateRange.from) {
+            return false;
+          }
+          if (filters.dateRange?.to) {
+            const endDate = new Date(filters.dateRange.to);
+            endDate.setHours(23, 59, 59, 999);
+            if (t.createdAt > endDate) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+      
+      tasksCount = filtered.length;
+      matchedTasks = filtered.slice(offset, offset + limit);
+    }
+    
+    // Calculate total results and pages
+    const totalResults = projectsCount + requirementsCount + inputDataCount + tasksCount;
+    const totalPages = Math.max(1, Math.ceil(totalResults / limit));
+    
+    return {
+      projects: matchedProjects,
+      requirements: matchedRequirements,
+      inputData: matchedInputData,
+      tasks: matchedTasks,
+      totalResults,
+      totalPages
+    };
   }
 }
 
