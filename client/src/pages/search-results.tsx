@@ -278,7 +278,7 @@ export function SearchResults() {
         </div>
         
         {/* Results area */}
-        <div className="space-y-4">
+        <div className="space-y-4 pl-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="all">All</TabsTrigger>
