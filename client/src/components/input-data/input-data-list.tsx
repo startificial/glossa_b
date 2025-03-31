@@ -38,7 +38,8 @@ export function InputDataList({ projectId }: InputDataListProps) {
   
   const { 
     data: inputDataList, 
-    isLoading 
+    isLoading,
+    refetch: refetchInputData
   } = useQuery<InputData[]>({
     queryKey: [`/api/projects/${projectId}/input-data`],
     refetchInterval: (data) => {
@@ -47,8 +48,22 @@ export function InputDataList({ projectId }: InputDataListProps) {
         return data.some((item: InputData) => item.status === 'processing') ? 2000 : false;
       }
       return false;
-    }
+    },
+    staleTime: 0 // Consider data always stale to ensure fresh data
   });
+  
+  // Use an effect to check for and force-refresh when tabs switch
+  useEffect(() => {
+    // Force a refresh when component mounts or becomes visible
+    refetchInputData();
+    
+    // Set up a periodic refresh to ensure we have fresh data
+    const refreshTimer = setInterval(() => {
+      refetchInputData();
+    }, 5000);
+    
+    return () => clearInterval(refreshTimer);
+  }, [refetchInputData]);
   
   // Track and handle status transitions
   useEffect(() => {

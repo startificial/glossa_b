@@ -78,6 +78,12 @@ export function RequirementsList({ projectId }: RequirementsListProps) {
       } else if (requirements && requirements.length > 0) {
         // Reset checking flag once we have requirements
         setCheckingForNew(false);
+        
+        // Also refresh input data when requirements are found
+        // This ensures the Input Data list gets updated with completed status
+        queryClient.invalidateQueries({ 
+          queryKey: [`/api/projects/${projectId}/input-data`]
+        });
       }
       
       // Refresh the data
