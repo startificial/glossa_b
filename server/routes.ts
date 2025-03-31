@@ -16,7 +16,7 @@ import fs from "fs";
 import os from "os";
 import nlp from "compromise";
 import { processTextFile, generateRequirementsForFile } from "./gemini";
-import { processPdfFile } from "./pdf-processor";
+import { processPdfFile, validatePdf } from "./pdf-processor";
 import crypto from "crypto";
 import VideoProcessor from "./video-processor";
 import { z } from "zod";
@@ -481,14 +481,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 reqPerAnalysis // Number of requirements per chunk
               );
             } else if (type === 'pdf') {
-              // For PDF files, use specialized PDF processor
-              console.log(`Processing PDF file: ${req.file!.originalname} with specialized processor`);
+              // For PDF files, use specialized PDF processor with memory-efficient strategies
+              console.log(`Processing PDF file: ${req.file!.originalname} with enhanced PDF processor`);
+              
+              // Check if this is a large file that requires special handling
+              const fileSizeInMB = req.file!.size / (1024 * 1024);
+              const isLargeFile = fileSizeInMB > 10; // Consider files over 10MB as large
+              
+              if (isLargeFile) {
+                console.log(`Large PDF detected (${fileSizeInMB.toFixed(2)}MB), using memory-efficient processing`);
+              }
+              
+              // Validate PDF before processing
+              const pdfValidation = await validatePdf(req.file!.path, isLargeFile);
+              if (!pdfValidation.valid) {
+                console.warn(`PDF validation failed: ${pdfValidation.message}`);
+                throw new Error(`PDF validation failed: ${pdfValidation.message}`);
+              }
+              
+              // Process the PDF with our enhanced processor, allowing large files if needed
               requirements = await processPdfFile(
                 req.file!.path,
                 project.name,
                 req.file!.originalname,
                 contentType,
-                reqPerAnalysis
+                reqPerAnalysis,
+                isLargeFile // Pass whether this is a large file to allow bypassing size limits
               );
             } else if (type === 'video') {
               // For video files, use enhanced multi-perspective video processing
