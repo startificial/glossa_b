@@ -80,7 +80,6 @@ export interface AudioTimestamp {
 export interface Requirement {
   id: number;
   text: string;
-  name?: string;
   category: string;
   priority: 'high' | 'medium' | 'low';
   projectId: number;
@@ -129,7 +128,6 @@ export interface CreateProjectFormData {
 
 export interface CreateRequirementFormData {
   text: string;
-  name?: string;
   category: string;
   priority: string;
   source: string;
@@ -145,7 +143,6 @@ export interface ExportData {
   };
   requirements: {
     id: string;
-    name?: string;
     text: string;
     category: string;
     priority: string;

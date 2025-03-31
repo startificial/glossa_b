@@ -864,30 +864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Generate a sequential code ID
             const codeId = `REQ-${(requirementsCount + i + 1).toString().padStart(3, '0')}`;
             
-            // Extract or generate a requirement name
-            // Check if the requirement already has a name
-            let name = requirement.name;
-            
-            // If no name is present, generate one from text
-            if (!name) {
-              // Try to extract a concise name from the text (first 5-15 words)
-              const words = requirement.text.split(' ');
-              const nameWords = words.slice(0, Math.min(words.length, 10));
-              name = nameWords.join(' ');
-              
-              // Ensure name is not too long (max 100 chars)
-              if (name.length > 100) {
-                name = name.substring(0, 97) + '...';
-              }
-              
-              // Add ellipsis if truncated
-              if (words.length > 10) {
-                name = name + '...';
-              }
-            }
-            
             await storage.createRequirement({
-              name: name, // Add the name field
               text: requirement.text,
               category: requirement.category || 'functional',
               priority: requirement.priority || 'medium',
@@ -1065,24 +1042,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requirementsCount = (await storage.getRequirementsByProject(projectId)).length;
       const codeId = `REQ-${(requirementsCount + 1).toString().padStart(3, '0')}`;
       
-      // Generate a name from the requirement text if not provided
-      let name = req.body.name;
-      if (!name && req.body.text) {
-        // Extract the first 10 words or fewer from the text for a concise name
-        const words = req.body.text.split(' ').filter((word: string) => word.trim().length > 0).slice(0, 10);
-        name = words.join(' ');
-        
-        // Truncate to max 100 chars if needed
-        if (name.length > 100) {
-          name = name.substring(0, 97) + '...';
-        }
-        
-        // Add ellipsis if truncated
-        if (words.length > 10) {
-          name = name + '...';
-        }
-      }
-
       // Handle null values for optional fields
       const requestData = {
         ...req.body,
@@ -1090,7 +1049,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         inputDataId: req.body.inputDataId || null,
         codeId,
         source: req.body.source || null,
-        name: name || `Requirement ${codeId}`, // Add name with fallback
         textReferences: req.body.textReferences || [],
         audioTimestamps: req.body.audioTimestamps || [],
         videoScenes: req.body.videoScenes || []
@@ -1356,7 +1314,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         requirements: requirements.map(r => ({
           id: r.codeId,
-          name: r.name,
           text: r.text,
           category: r.category,
           priority: r.priority,
