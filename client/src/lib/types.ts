@@ -163,6 +163,11 @@ export interface ExportData {
   }[];
 }
 
+export interface SfDocumentationLink {
+  title: string;
+  url: string;
+}
+
 export interface ImplementationTask {
   id: number;
   title: string;
@@ -174,6 +179,8 @@ export interface ImplementationTask {
   estimatedHours: number | null;
   complexity: string | null;
   assignee: string | null;
+  taskType?: string;
+  sfDocumentationLinks?: SfDocumentationLink[];
   createdAt: string;
   updatedAt: string;
 }

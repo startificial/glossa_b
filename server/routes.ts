@@ -1677,17 +1677,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Process the generated tasks and add any missing fields
       const processedTasks = generatedTasks.map(task => {
-        // Map documentation references to description if provided
-        let enhancedDescription = task.description;
+        // We no longer need to add documentation links to the description since we have a separate field for them
+        const enhancedDescription = task.description;
         
-        if (task.sfDocumentation && Array.isArray(task.sfDocumentation) && task.sfDocumentation.length > 0) {
-          enhancedDescription += "\n\nReferences:";
-          task.sfDocumentation.forEach((doc: { title?: string; url?: string }) => {
-            if (doc.title && doc.url) {
-              enhancedDescription += `\n- ${doc.title}: ${doc.url}`;
-            }
-          });
-        }
+        // Convert sfDocumentation to sfDocumentationLinks format
+        const sfDocumentationLinks = task.sfDocumentation && Array.isArray(task.sfDocumentation) 
+          ? task.sfDocumentation.map((doc: { title?: string; url?: string }) => {
+              return {
+                title: doc.title || 'Salesforce Documentation',
+                url: doc.url || ''
+              };
+            })
+          : [];
         
         return {
           title: task.title,
@@ -1698,6 +1699,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           requirementId: requirementId,
           estimatedHours: task.estimatedHours || 8,
           complexity: task.complexity || "medium",
+          taskType: task.taskType || "implementation",
+          sfDocumentationLinks: sfDocumentationLinks,
           assignee: null
         };
       });

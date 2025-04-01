@@ -157,6 +157,8 @@ export const implementationTasks = pgTable("implementation_tasks", {
   estimatedHours: integer("estimated_hours"), // Optional
   complexity: text("complexity").default("medium"), // low, medium, high
   assignee: text("assignee"), // Optional
+  taskType: text("task_type"), // data-mapping, workflow, ui, integration, etc.
+  sfDocumentationLinks: jsonb("sf_documentation_links").default([]), // Array of Salesforce documentation links
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -171,6 +173,8 @@ export const insertImplementationTaskSchema = createInsertSchema(implementationT
   estimatedHours: true,
   complexity: true,
   assignee: true,
+  taskType: true,
+  sfDocumentationLinks: true,
 });
 
 // Type exports

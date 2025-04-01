@@ -62,29 +62,33 @@ export async function generateImplementationTasks(
       3. Reference appropriate Salesforce documentation URLs wherever possible
       4. Include specific technical details about HOW to implement in Salesforce
       5. Accurately estimate complexity (low, medium, high) and development hours
+      6. Task descriptions should be at least 50 words and include comprehensive implementation details
+      7. Classify each task into a specific type (data-mapping, workflow, ui, integration, security, etc.)
       
       Format your response as a JSON array of implementation tasks, where each task has:
       - title: Brief, clear task title
-      - description: Detailed description including technical Salesforce implementation details
+      - description: Detailed and extensive description (minimum 50 words) including technical Salesforce implementation details
       - status: Always "pending"
       - priority: Derive from the requirement priority (high, medium, low)
       - system: Either "source" or "target" (Salesforce would be "target")
       - requirementId: ${requirementId}
       - estimatedHours: Reasonable hour estimate for the task (number)
       - complexity: "low", "medium", or "high"
+      - taskType: A specific categorization (data-mapping, workflow, ui, integration, security, testing, etc.)
       - sfDocumentation: Array of documentation reference objects with title and url
       
       Example format:
       [
         {
           "title": "Create Custom Object for Product Catalog in Salesforce",
-          "description": "Design and implement a custom object in Salesforce to store product catalog data migrated from ManufacturePro. Include fields for product code, name, description, category, pricing tiers, and inventory status. Implement field-level security and page layouts.",
+          "description": "Design and implement a custom object in Salesforce to store product catalog data migrated from ManufacturePro. The custom object should incorporate all necessary fields including product code (text), name (text), description (long text area), category (picklist), pricing tiers (multi-picklist), and inventory status (picklist). Ensure proper field-level security configuration to restrict access based on user profiles. Develop comprehensive page layouts tailored to different user roles, with sales representatives seeing pricing and availability while product managers have access to detailed inventory metrics. Implement field history tracking on critical fields like price and inventory status. Establish proper object relationships with other entities such as Opportunities and Orders using lookup and master-detail relationships.",
           "status": "pending",
           "priority": "high",
           "system": "target",
           "requirementId": ${requirementId},
           "estimatedHours": 5,
           "complexity": "medium",
+          "taskType": "data-modeling",
           "sfDocumentation": [
             {
               "title": "Custom Object Creation in Salesforce",

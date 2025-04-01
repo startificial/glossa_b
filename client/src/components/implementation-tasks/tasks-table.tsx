@@ -46,6 +46,8 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
     estimatedHours: 4,
     status: "pending",
     assignee: "",
+    taskType: "implementation",
+    sfDocumentationLinks: [],
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -97,6 +99,8 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
         estimatedHours: 4,
         status: "pending",
         assignee: "",
+        taskType: "implementation",
+        sfDocumentationLinks: [],
       });
     },
     onError: (error) => {
@@ -281,6 +285,31 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
                     </Select>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="taskType" className="text-right">
+                      Task Type
+                    </Label>
+                    <Select
+                      name="taskType"
+                      value={taskFormData.taskType}
+                      onValueChange={(value) =>
+                        setTaskFormData((prev) => ({ ...prev, taskType: value }))
+                      }
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select task type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="implementation">Implementation</SelectItem>
+                        <SelectItem value="data-mapping">Data Mapping</SelectItem>
+                        <SelectItem value="workflow">Workflow</SelectItem>
+                        <SelectItem value="ui">UI Development</SelectItem>
+                        <SelectItem value="integration">Integration</SelectItem>
+                        <SelectItem value="security">Security</SelectItem>
+                        <SelectItem value="testing">Testing</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="priority" className="text-right">
                       Priority
                     </Label>
@@ -429,9 +458,10 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
                   <Table>
                     <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
-                        <TableHead className="w-[30%]">Task</TableHead>
+                        <TableHead className="w-[25%]">Task</TableHead>
                         <TableHead>System</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Type</TableHead>
                         <TableHead>Priority</TableHead>
                         <TableHead>
                           <div className="flex items-center">
@@ -473,6 +503,15 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
                             </Badge>
                           </TableCell>
                           <TableCell>{getStatusBadge(task.status)}</TableCell>
+                          <TableCell>
+                            {task.taskType ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-800 hover:bg-blue-100">
+                                {task.taskType.replace(/-/g, ' ')}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">Implementation</span>
+                            )}
+                          </TableCell>
                           <TableCell>{getPriorityBadge(task.priority)}</TableCell>
                           <TableCell>{getComplexityBadge(task.complexity)}</TableCell>
                           <TableCell>{task.estimatedHours} hrs</TableCell>

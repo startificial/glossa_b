@@ -33,6 +33,8 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
     estimatedHours: 0,
     complexity: '',
     assignee: '',
+    taskType: '',
+    sfDocumentationLinks: [],
   });
 
   // Get task data
@@ -128,6 +130,8 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
         estimatedHours: task.estimatedHours || 0,
         complexity: task.complexity || '',
         assignee: task.assignee || '',
+        taskType: task.taskType || 'implementation',
+        sfDocumentationLinks: task.sfDocumentationLinks || [],
       });
     }
   }, [task]);
@@ -335,7 +339,48 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                       </div>
                       <div className="font-medium">{task.assignee || 'Unassigned'}</div>
                     </div>
+                    
+                    <div className="border rounded-md p-3">
+                      <div className="text-sm text-muted-foreground mb-1 flex items-center">
+                        <Target className="h-3 w-3 mr-1" />
+                        Task Type
+                      </div>
+                      <div className="font-medium">
+                        {task.taskType ? (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-800 hover:bg-blue-100 font-normal">
+                            {task.taskType.replace(/-/g, ' ')}
+                          </Badge>
+                        ) : 'Implementation'}
+                      </div>
+                    </div>
                   </div>
+                  
+                  {task.sfDocumentationLinks && task.sfDocumentationLinks.length > 0 && (
+                    <div className="border rounded-md p-4">
+                      <div className="text-sm font-medium mb-2">Salesforce Documentation</div>
+                      <div className="space-y-2">
+                        {task.sfDocumentationLinks.map((doc: { title: string; url: string }, index: number) => (
+                          <div key={index} className="flex items-start">
+                            <a 
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-sm flex items-center"
+                            >
+                              <div className="w-4 h-4 mr-2 flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                  <polyline points="15 3 21 3 21 9"></polyline>
+                                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                              </div>
+                              {doc.title}
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -448,6 +493,27 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                         onChange={handleInputChange}
                         placeholder="Enter assignee name"
                       />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="taskType">Task Type</Label>
+                      <Select 
+                        value={formData.taskType} 
+                        onValueChange={(value) => handleSelectChange('taskType', value)}
+                      >
+                        <SelectTrigger id="taskType">
+                          <SelectValue placeholder="Select task type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="implementation">Implementation</SelectItem>
+                          <SelectItem value="data-mapping">Data Mapping</SelectItem>
+                          <SelectItem value="workflow">Workflow</SelectItem>
+                          <SelectItem value="ui">UI Development</SelectItem>
+                          <SelectItem value="integration">Integration</SelectItem>
+                          <SelectItem value="security">Security</SelectItem>
+                          <SelectItem value="testing">Testing</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>
