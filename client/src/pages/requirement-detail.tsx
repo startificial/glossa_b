@@ -19,7 +19,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { getCategoryColor, getPriorityInfo, formatDateTime } from '@/lib/utils';
 import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles, Wrench, Video, FileText, AudioWaveform } from 'lucide-react';
 import { TasksTable } from '@/components/implementation-tasks/tasks-table';
-import { ReferenceData } from '@/components/requirements/reference-data';
+import { ReferenceDataTab } from '@/components/reference-data/reference-data-tab';
 
 interface RequirementDetailProps {
   projectId: number;
@@ -769,7 +769,10 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                 </TabsContent>
                 
                 <TabsContent value="references">
-                  <ReferenceData requirement={requirement} inputData={inputData} />
+                  <ReferenceDataTab 
+                    requirementId={requirementId} 
+                    projectId={projectId} 
+                  />
                 </TabsContent>
                 
                 <TabsContent value="history">

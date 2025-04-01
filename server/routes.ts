@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
@@ -60,6 +60,13 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+  
+  // Serve uploaded files
+  const uploadsDir = path.join(os.tmpdir(), 'glossa-uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use("/api/uploads", express.static(uploadsDir));
 
   // Authentication routes
   app.post("/api/register", async (req: Request, res: Response) => {
@@ -1981,6 +1988,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get reference data for a requirement
+  app.get("/api/requirements/:requirementId/references", async (req: Request, res: Response) => {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      const inputDataId = req.query.inputDataId ? parseInt(req.query.inputDataId as string) : undefined;
+      
+      if (!inputDataId) {
+        return res.status(400).json({ message: "Input data ID is required" });
+      }
+      
+      // Get the requirement
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+      
+      // Get the input data
+      const inputData = await storage.getInputData(inputDataId);
+      if (!inputData) {
+        return res.status(404).json({ message: "Input data not found" });
+      }
+      
+      // Mocked references for now, in a real implementation these would be stored in the database
+      // and retrieved based on the requirement and input data
+      const references = [];
+      
+      if (inputData.type === 'pdf' || inputData.type === 'document') {
+        // PDF reference
+        references.push({
+          type: 'pdf',
+          url: `/api/uploads/${(inputData.metadata as any)?.path?.split('/').pop() || 'file.pdf'}`, // Extract filename from metadata
+          highlights: [
+            {
+              pageNumber: 1,
+              text: requirement.text.substring(0, Math.min(200, requirement.text.length)),
+              color: 'rgba(255, 255, 0, 0.4)'
+            },
+            {
+              pageNumber: 2,
+              text: requirement.text.substring(
+                Math.min(200, requirement.text.length), 
+                Math.min(400, requirement.text.length)
+              ),
+              color: 'rgba(0, 255, 255, 0.3)'
+            }
+          ]
+        });
+        
+        // Also add some text references
+        const sentences = requirement.text.split('.').filter((s: string) => s.trim().length > 0);
+        
+        if (sentences.length > 1) {
+          references.push({
+            type: 'text',
+            content: sentences[0] + '.',
+            metadata: {
+              location: 'Introduction',
+              page: 1,
+              context: 'Key requirement statement'
+            }
+          });
+          
+          if (sentences.length > 2) {
+            references.push({
+              type: 'text',
+              content: sentences[1] + '.',
+              metadata: {
+                location: 'Details section',
+                page: 1,
+                context: 'Implementation details'
+              }
+            });
+          }
+        }
+      } else if (inputData.type === 'text') {
+        // Text references for text files
+        const sentences = requirement.text.split('.').filter((s: string) => s.trim().length > 0);
+        
+        sentences.forEach((sentence: string, index: number) => {
+          if (index < 3) { // Limit to first 3 sentences for demo
+            references.push({
+              type: 'text',
+              content: sentence + '.',
+              metadata: {
+                location: index === 0 ? 'Introduction' : 'Details section',
+                context: index === 0 ? 'Key statement' : 'Supporting information'
+              }
+            });
+          }
+        });
+      }
+      
+      return res.status(200).json(references);
+    } catch (error: any) {
+      console.error("Error getting requirement references:", error);
+      return res.status(500).json({ message: error.message || "Error getting requirement references" });
+    }
+  });
+  
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Unhandled error:", err);
     res.status(500).json({ message: "An unexpected error occurred", error: err.message });
