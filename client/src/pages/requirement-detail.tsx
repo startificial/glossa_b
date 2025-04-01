@@ -718,7 +718,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                                     <div className="w-8 text-center">{index + 1}</div>
                                   </TableCell>
                                   <TableCell>
-                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2 hover:underline cursor-pointer"
+                                    <div className="w-[150px] whitespace-normal break-words hover:underline cursor-pointer"
                                          onClick={() => {
                                            setSelectedCriterion(criterion);
                                            setDialogOpen(true);
@@ -727,16 +727,16 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                                     </div>
                                   </TableCell>
                                   <TableCell>
-                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{given}</div>
+                                    <div className="w-[150px] whitespace-normal break-words">{given}</div>
                                   </TableCell>
                                   <TableCell>
-                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{when}</div>
+                                    <div className="w-[150px] whitespace-normal break-words">{when}</div>
                                   </TableCell>
                                   <TableCell>
-                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{and}</div>
+                                    <div className="w-[150px] whitespace-normal break-words">{and}</div>
                                   </TableCell>
                                   <TableCell>
-                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{then}</div>
+                                    <div className="w-[150px] whitespace-normal break-words">{then}</div>
                                   </TableCell>
                                   <TableCell>
                                     <Badge 
@@ -807,8 +807,59 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                                 {selectedCriterion.status.charAt(0).toUpperCase() + selectedCriterion.status.slice(1)}
                               </Badge>
                             </div>
-                            <div className="p-4 border rounded-lg bg-muted/20 whitespace-pre-line">
-                              {selectedCriterion.description}
+                            <div className="p-4 border rounded-lg bg-muted/20 space-y-2">
+                              {/* Parse the description to display in ordered Gherkin format */}
+                              {(() => {
+                                const description = selectedCriterion.description || '';
+                                let scenario = '';
+                                let given = '';
+                                let when = '';
+                                let and = '';
+                                let then = '';
+                                
+                                // Split by lines for better parsing
+                                const lines = description.split('\n');
+                                for (const line of lines) {
+                                  const trimmedLine = line.trim();
+                                  
+                                  // Check for Scenario
+                                  if (trimmedLine.match(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:/)) {
+                                    scenario = trimmedLine;
+                                  }
+                                  // Check for Given
+                                  else if (trimmedLine.match(/^[Gg][Ii][Vv][Ee][Nn]/)) {
+                                    given = trimmedLine;
+                                  }
+                                  // Check for When
+                                  else if (trimmedLine.match(/^[Ww][Hh][Ee][Nn]/)) {
+                                    when = trimmedLine;
+                                  }
+                                  // Check for And - get all And lines
+                                  else if (trimmedLine.match(/^[Aa][Nn][Dd]/)) {
+                                    and += (and ? '\n' : '') + trimmedLine;
+                                  }
+                                  // Check for Then
+                                  else if (trimmedLine.match(/^[Tt][Hh][Ee][Nn]/)) {
+                                    then = trimmedLine;
+                                  }
+                                }
+                                
+                                // If we have parsed content, display it in Gherkin order
+                                if (scenario || given || when || and || then) {
+                                  return (
+                                    <>
+                                      {scenario && <div className="font-medium">{scenario}</div>}
+                                      {given && <div>{given}</div>}
+                                      {when && <div>{when}</div>}
+                                      {and && <div className="whitespace-pre-line">{and}</div>}
+                                      {then && <div>{then}</div>}
+                                    </>
+                                  );
+                                }
+                                
+                                // Fallback to showing the raw description if parsing failed
+                                return <div className="whitespace-pre-line">{description}</div>;
+                              })()}
                             </div>
                             {selectedCriterion.notes && (
                               <div>
