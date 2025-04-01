@@ -695,7 +695,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                             ) : (
                               <>
                                 <Sparkles className="h-4 w-4" />
-                                Generate with Claude AI
+                                Generate Criteria Automatically
                               </>
                             )}
                           </Button>
