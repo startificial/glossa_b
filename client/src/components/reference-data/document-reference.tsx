@@ -106,7 +106,7 @@ export function DocumentReference({ requirementId, inputDataId }: DocumentRefere
               <TabsContent value="pdf" className="mt-0">
                 <div className="h-[600px]">
                   <PDFViewer 
-                    url={pdfReference.url} 
+                    url={pdfReference.url.startsWith('http') ? pdfReference.url : window.location.origin + pdfReference.url} 
                     highlights={pdfReference.highlights}
                   />
                 </div>
