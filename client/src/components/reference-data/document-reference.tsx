@@ -164,25 +164,37 @@ export function DocumentReference({ requirementId, inputDataId }: DocumentRefere
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue={activeTab} className="w-full">
-            <TabsList className="w-full mb-4">
+            <TabsList className="w-full mb-4 flex flex-wrap gap-1">
               {pdfReference && (
-                <TabsTrigger value="pdf" className="flex-1">
-                  <FileText className="h-4 w-4 mr-2" /> PDF Document
+                <TabsTrigger value="pdf" className="flex-1 text-xs sm:text-sm">
+                  <FileText className="h-4 w-4 mr-1 sm:mr-2" /> 
+                  <span className="hidden xs:inline">PDF</span> 
+                  <span className="sm:hidden xs:inline">Doc</span>
+                  <span className="hidden sm:inline">Document</span>
                 </TabsTrigger>
               )}
               {videoReference && (
-                <TabsTrigger value="video" className="flex-1">
-                  <Video className="h-4 w-4 mr-2" /> Video Timestamps
+                <TabsTrigger value="video" className="flex-1 text-xs sm:text-sm">
+                  <Video className="h-4 w-4 mr-1 sm:mr-2" /> 
+                  <span className="hidden xs:inline">Video</span>
+                  <span className="sm:hidden xs:inline">Vid</span>
+                  <span className="hidden sm:inline">Timestamps</span>
                 </TabsTrigger>
               )}
               {audioReference && (
-                <TabsTrigger value="audio" className="flex-1">
-                  <Music className="h-4 w-4 mr-2" /> Audio Timestamps
+                <TabsTrigger value="audio" className="flex-1 text-xs sm:text-sm">
+                  <Music className="h-4 w-4 mr-1 sm:mr-2" /> 
+                  <span className="hidden xs:inline">Audio</span>
+                  <span className="sm:hidden xs:inline">Audio</span>
+                  <span className="hidden sm:inline">Timestamps</span>
                 </TabsTrigger>
               )}
               {textReferences && textReferences.length > 0 && (
-                <TabsTrigger value="text" className="flex-1">
-                  <FileText className="h-4 w-4 mr-2" /> Text Passages
+                <TabsTrigger value="text" className="flex-1 text-xs sm:text-sm">
+                  <FileText className="h-4 w-4 mr-1 sm:mr-2" /> 
+                  <span className="hidden xs:inline">Text</span>
+                  <span className="sm:hidden xs:inline">Text</span>
+                  <span className="hidden sm:inline">Passages</span>
                 </TabsTrigger>
               )}
             </TabsList>

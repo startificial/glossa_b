@@ -452,14 +452,14 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-16">
         <div className="md:col-span-2 space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <CardTitle className="text-xl flex items-center">
+                <CardTitle className="text-xl flex flex-wrap items-center gap-2">
                   Requirement Details
-                  <Badge className="ml-3" variant="outline">
+                  <Badge className="ml-0 sm:ml-3" variant="outline">
                     {requirement.category.charAt(0).toUpperCase() + requirement.category.slice(1)}
                   </Badge>
-                  <Badge className="ml-2" variant="outline">
+                  <Badge className="ml-0 sm:ml-2" variant="outline">
                     <PriorityIcon className="h-3 w-3 mr-1" />
                     {requirement.priority}
                   </Badge>
@@ -470,7 +470,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
               </div>
               
               {!isEditing ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-start sm:self-center">
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -598,12 +598,12 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="metadata">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="metadata">Metadata</TabsTrigger>
-                  <TabsTrigger value="acceptance">Acceptance Criteria</TabsTrigger>
-                  <TabsTrigger value="tasks">Implementation Tasks</TabsTrigger>
-                  <TabsTrigger value="references">Reference Data</TabsTrigger>
-                  <TabsTrigger value="history">History</TabsTrigger>
+                <TabsList className="mb-4 flex flex-wrap gap-1">
+                  <TabsTrigger className="text-xs sm:text-sm" value="metadata">Metadata</TabsTrigger>
+                  <TabsTrigger className="text-xs sm:text-sm" value="acceptance">Acceptance Criteria</TabsTrigger>
+                  <TabsTrigger className="text-xs sm:text-sm" value="tasks">Implementation Tasks</TabsTrigger>
+                  <TabsTrigger className="text-xs sm:text-sm" value="references">Reference Data</TabsTrigger>
+                  <TabsTrigger className="text-xs sm:text-sm" value="history">History</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="metadata">

@@ -72,19 +72,21 @@ export function PDFViewer({ url, highlights = [], onLoad }: PDFViewerProps) {
       ref={containerRef} 
       className={`flex flex-col ${isFullscreen ? 'fixed inset-0 bg-white z-50 p-4' : 'relative bg-gray-100 rounded-lg p-2'}`}
     >
-      <div className="flex items-center justify-between mb-2 bg-white rounded p-2 sticky top-0 z-10">
+      <div className="flex flex-wrap items-center justify-between mb-2 bg-white rounded p-2 sticky top-0 z-10 gap-2">
         <div className="flex items-center">
           <FileText className="h-5 w-5 mr-2 text-blue-500" />
-          <span className="font-medium">PDF Document</span>
+          <span className="font-medium text-sm sm:text-base">PDF Document</span>
         </div>
         
         <div className="flex items-center space-x-2">
-          <Button onClick={toggleFullscreen} variant="outline" size="sm">
+          <Button onClick={toggleFullscreen} variant="outline" size="sm" className="h-8 w-8 p-0 sm:h-9 sm:w-9 sm:p-2">
             <Maximize className="h-4 w-4" />
+            <span className="sr-only">Fullscreen</span>
           </Button>
           
-          <Button onClick={downloadPDF} variant="outline" size="sm">
+          <Button onClick={downloadPDF} variant="outline" size="sm" className="h-8 w-8 p-0 sm:h-9 sm:w-9 sm:p-2">
             <Download className="h-4 w-4" />
+            <span className="sr-only">Download</span>
           </Button>
         </div>
       </div>
@@ -101,7 +103,7 @@ export function PDFViewer({ url, highlights = [], onLoad }: PDFViewerProps) {
         ) : (
           <iframe 
             src={`${url}#toolbar=1&view=FitH&zoom=100${searchParam}`}
-            className="w-full h-[600px] border-0"
+            className="w-full h-[400px] sm:h-[500px] md:h-[600px] border-0"
             title="PDF Document Viewer"
           />
         )}
