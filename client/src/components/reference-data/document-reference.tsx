@@ -60,7 +60,7 @@ interface DocumentReferenceProps {
 
 export function DocumentReference({ requirementId, inputDataId }: DocumentReferenceProps) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('pdf');
+  const [activeTab, setActiveTab] = useState<string>('');
   
   // Fetch reference data for this requirement
   const { 
@@ -88,12 +88,42 @@ export function DocumentReference({ requirementId, inputDataId }: DocumentRefere
   // Set initial active tab based on available references
   useEffect(() => {
     if (referenceData?.length) {
-      if (pdfReference) setActiveTab('pdf');
-      else if (videoReference) setActiveTab('video');
-      else if (audioReference) setActiveTab('audio');
-      else if (textReferences?.length) setActiveTab('text');
+      // Determine which tabs are available
+      const hasTextTab = textReferences && textReferences.length > 0;
+      const hasPdfTab = pdfReference !== undefined;
+      const hasVideoTab = videoReference !== undefined;
+      const hasAudioTab = audioReference !== undefined;
+      
+      // Set active tab in priority order or based on what's available
+      if (activeTab === '') {
+        // Only set if no tab is already selected (initial load)
+        if (hasPdfTab) setActiveTab('pdf');
+        else if (hasVideoTab) setActiveTab('video');
+        else if (hasAudioTab) setActiveTab('audio');
+        else if (hasTextTab) setActiveTab('text');
+      } else if (activeTab === 'text' && !hasTextTab) {
+        // If text tab was selected but no text references exist, switch to another tab
+        if (hasPdfTab) setActiveTab('pdf');
+        else if (hasVideoTab) setActiveTab('video');
+        else if (hasAudioTab) setActiveTab('audio');
+      } else if (activeTab === 'pdf' && !hasPdfTab) {
+        // If PDF tab was selected but no PDF reference exists, switch to another tab
+        if (hasVideoTab) setActiveTab('video');
+        else if (hasAudioTab) setActiveTab('audio');
+        else if (hasTextTab) setActiveTab('text');
+      } else if (activeTab === 'video' && !hasVideoTab) {
+        // If video tab was selected but no video reference exists, switch to another tab
+        if (hasPdfTab) setActiveTab('pdf');
+        else if (hasAudioTab) setActiveTab('audio');
+        else if (hasTextTab) setActiveTab('text');
+      } else if (activeTab === 'audio' && !hasAudioTab) {
+        // If audio tab was selected but no audio reference exists, switch to another tab
+        if (hasPdfTab) setActiveTab('pdf');
+        else if (hasVideoTab) setActiveTab('video');
+        else if (hasTextTab) setActiveTab('text');
+      }
     }
-  }, [referenceData, pdfReference, videoReference, audioReference, textReferences]);
+  }, [referenceData, pdfReference, videoReference, audioReference, textReferences, activeTab]);
   
   // Handle errors
   useEffect(() => {
@@ -105,6 +135,16 @@ export function DocumentReference({ requirementId, inputDataId }: DocumentRefere
       });
     }
   }, [error, toast]);
+  
+  // Debug information
+  useEffect(() => {
+    console.log('Reference Data:', referenceData);
+    console.log('Active Tab:', activeTab);
+    console.log('Text References:', textReferences ? textReferences.length : 0);
+    console.log('PDF Reference:', pdfReference ? 'Yes' : 'No');
+    console.log('Video Reference:', videoReference ? 'Yes' : 'No');
+    console.log('Audio Reference:', audioReference ? 'Yes' : 'No');
+  }, [referenceData, activeTab, textReferences, pdfReference, videoReference, audioReference]);
   
   return (
     <Card className="shadow-md">
@@ -123,7 +163,7 @@ export function DocumentReference({ requirementId, inputDataId }: DocumentRefere
             <p>No reference data available for this requirement.</p>
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue={activeTab} className="w-full">
             <TabsList className="w-full mb-4">
               {pdfReference && (
                 <TabsTrigger value="pdf" className="flex-1">
