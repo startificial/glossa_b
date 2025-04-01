@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { ImplementationTask, Requirement } from '@/lib/types';
@@ -24,6 +24,31 @@ interface ProjectTasksProps {
   projectId: number;
 }
 
+// Custom hook to fetch tasks for multiple requirements
+function useRequirementsTasks(requirementIds: number[] = []) {
+  const queries = requirementIds.map(reqId => {
+    return useQuery<ImplementationTask[]>({
+      queryKey: [`/api/requirements/${reqId}/tasks`],
+      enabled: !!reqId,
+    });
+  });
+
+  const isLoading = queries.some(query => query.isLoading);
+  const isError = queries.some(query => query.isError);
+  
+  // Combine all task data
+  const allTasks = useMemo(() => {
+    return queries.reduce((acc: ImplementationTask[], query) => {
+      if (query.data && Array.isArray(query.data)) {
+        return [...acc, ...query.data];
+      }
+      return acc;
+    }, []);
+  }, [queries]);
+
+  return { data: allTasks, isLoading, isError };
+}
+
 export function ProjectTasks({ projectId }: ProjectTasksProps) {
   const [selectedTab, setSelectedTab] = useState("all");
   const [, setLocation] = useLocation();
@@ -33,32 +58,14 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
     queryKey: [`/api/projects/${projectId}/requirements`],
   });
 
-  // Helper function to get all tasks from all requirements
-  const getAllTasks = (): ImplementationTask[] => {
+  // Extract requirement IDs
+  const requirementIds = useMemo(() => {
     if (!requirements || !Array.isArray(requirements)) return [];
-    
-    // Collect all requirement IDs
-    const requirementIds = requirements.map((req: any) => req.id);
-    
-    // Create an array to hold all tasks
-    let allTasks: ImplementationTask[] = [];
-    
-    // For each requirement ID, fetch and store its tasks
-    requirementIds.forEach((reqId: number) => {
-      const requirementTasks = useQuery({
-        queryKey: [`/api/requirements/${reqId}/tasks`],
-        enabled: !!reqId,
-      });
-      
-      if (requirementTasks.data && Array.isArray(requirementTasks.data)) {
-        allTasks = [...allTasks, ...requirementTasks.data];
-      }
-    });
-    
-    return allTasks;
-  };
+    return requirements.map((req: any) => req.id);
+  }, [requirements]);
 
-  const tasks = getAllTasks();
+  // Use our custom hook to fetch all tasks
+  const { data: tasks = [], isLoading: tasksLoading } = useRequirementsTasks(requirementIds);
 
   const filteredTasks = tasks
     ? tasks.filter((task: ImplementationTask) => {
