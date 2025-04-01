@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SettingsPage() {
   return (
-    <div className="container py-8">
+    <div className="container py-8 px-6 md:px-8">
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
       
       <Tabs defaultValue="profile" className="w-full">
