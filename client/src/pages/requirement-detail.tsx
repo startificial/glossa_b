@@ -188,69 +188,48 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
     setFormData({ ...formData, priority: value });
   };
 
-  // Mutation for generating acceptance criteria
+  // Mutation for generating acceptance criteria using Claude API
   const generateCriteriaMutation = useMutation({
     mutationFn: async () => {
-      // In a real implementation, we would call an API endpoint
-      // For now, we'll generate them locally based on the requirement data
-      const { data: project } = await queryClient.ensureQueryData({
-        queryKey: ['/api/projects', projectId],
-        queryFn: async () => {
-          return apiRequest("GET", `/api/projects/${projectId}`);
-        }
-      });
-      
-      // Create some acceptance criteria based on the requirement and project info
-      const criteriaTypes = [
-        {
-          description: `User should be able to verify that ${requirement.text.toLowerCase()}`,
-          status: 'pending'
-        },
-        {
-          description: `The system must successfully ${requirement.category === 'functional' ? 'perform the operation' : 'meet the requirement'} under normal conditions`,
-          status: 'pending'
-        },
-        {
-          description: `All error cases must be handled appropriately when attempting to ${requirement.text.toLowerCase().split(' ').slice(0, 5).join(' ')}...`,
-          status: 'pending'
-        }
-      ];
-      
-      // Generate unique IDs for each criterion
-      const criteria = criteriaTypes.map((crit) => ({
-        id: crypto.randomUUID(),
-        description: crit.description,
-        status: crit.status as 'pending' | 'approved' | 'rejected',
-        notes: ''
-      }));
-      
-      // Update the requirement with the new acceptance criteria
+      // Call the server endpoint to generate acceptance criteria with Claude
       return apiRequest(
-        "PUT",
-        `/api/projects/${projectId}/requirements/${requirementId}`,
-        { 
-          acceptanceCriteria: criteria 
-        }
+        "POST",
+        `/api/requirements/${requirementId}/generate-acceptance-criteria`,
+        {}
       );
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ 
         queryKey: ['/api/projects', projectId, 'requirements', requirementId] 
       });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/projects', projectId, 'activities'] 
+      });
       
       toast({
-        title: "Acceptance Criteria Generated",
-        description: "Acceptance criteria have been automatically generated for this requirement.",
+        title: "Acceptance Criteria Generated with Claude",
+        description: `${data.length} acceptance criteria have been generated using Claude AI.`,
       });
       
       setIsGeneratingCriteria(false);
     },
-    onError: (error) => {
-      toast({
-        title: "Error Generating Criteria",
-        description: "There was a problem generating acceptance criteria.",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      const errorMessage = error.message || "There was a problem generating acceptance criteria.";
+      
+      // Check if it's an API key error
+      if (errorMessage.includes("API key") || errorMessage.includes("ANTHROPIC_API_KEY")) {
+        toast({
+          title: "Claude API Key Missing",
+          description: "Please add your Anthropic Claude API key in the environment variables to use this feature.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error Generating Criteria",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
       
       setIsGeneratingCriteria(false);
     }
@@ -716,7 +695,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                             ) : (
                               <>
                                 <Sparkles className="h-4 w-4" />
-                                Generate Criteria Automatically
+                                Generate with Claude AI
                               </>
                             )}
                           </Button>

@@ -20,6 +20,7 @@ import { processPdfFile, validatePdf, extractTextFromPdf } from "./pdf-processor
 import { analyzePdf } from "./pdf-analyzer";
 import crypto from "crypto";
 import VideoProcessor from "./video-processor";
+import { generateAcceptanceCriteria } from "./claude";
 import { z } from "zod";
 
 // Authentication middleware
@@ -1558,6 +1559,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting task:", error);
       res.status(400).json({ message: "Error deleting task", error });
+    }
+  });
+
+  // Endpoint to automatically generate acceptance criteria for a requirement
+  app.post("/api/requirements/:requirementId/generate-acceptance-criteria", async (req: Request, res: Response) => {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      const requirement = await storage.getRequirement(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+
+      const project = await storage.getProject(requirement.projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if API key is available
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return res.status(400).json({ 
+          message: "Claude API key is not configured. Please set the ANTHROPIC_API_KEY environment variable."
+        });
+      }
+
+      // Generate acceptance criteria using Claude
+      const acceptanceCriteria = await generateAcceptanceCriteria(
+        project.name,
+        project.description || "No project description available",
+        requirement.text
+      );
+
+      // Update the requirement with the new acceptance criteria
+      const updatedRequirement = await storage.updateRequirement(requirementId, {
+        acceptanceCriteria
+      });
+
+      // Add activity
+      await storage.createActivity({
+        type: "generated_acceptance_criteria",
+        description: `${user.username} generated acceptance criteria for requirement ${requirement.codeId}`,
+        userId: user.id,
+        projectId: requirement.projectId,
+        relatedEntityId: requirement.id
+      });
+
+      res.status(200).json(acceptanceCriteria);
+    } catch (error) {
+      console.error("Error generating acceptance criteria:", error);
+      res.status(500).json({ message: "Error generating acceptance criteria", error });
     }
   });
 
