@@ -279,10 +279,21 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       // Get current criteria
       const currentCriteria = requirement.acceptanceCriteria || [];
       
+      // Format the description in Gherkin format if it's not already
+      let formattedDescription = newCriterion.description;
+      
+      // Check if description already has Gherkin format (case-insensitive manually)
+      const hasGherkinFormat = /^\s*[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:.*[Gg][Ii][Vv][Ee][Nn].*[Ww][Hh][Ee][Nn].*[Tt][Hh][Ee][Nn]/.test(formattedDescription);
+      
+      if (!hasGherkinFormat) {
+        // Simple formatting to Gherkin if user entered plain text
+        formattedDescription = `Scenario: User scenario\nGiven ${formattedDescription}\nWhen a condition occurs\nThen expected outcome happens`;
+      }
+      
       // Create a new criterion
       const newCriterionWithId = {
         id: crypto.randomUUID(),
-        description: newCriterion.description,
+        description: formattedDescription,
         status: newCriterion.status as 'pending' | 'approved' | 'rejected',
         notes: ''
       };
@@ -651,31 +662,57 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                           <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur-sm">
                             <TableRow>
                               <TableHead className="w-[50px]">#</TableHead>
-                              <TableHead>Description</TableHead>
-                              <TableHead className="w-[150px]">Status</TableHead>
-                              <TableHead className="w-[100px] text-right">Actions</TableHead>
+                              <TableHead>Scenario</TableHead>
+                              <TableHead>Given</TableHead>
+                              <TableHead>When</TableHead>
+                              <TableHead>And</TableHead>
+                              <TableHead>Then</TableHead>
+                              <TableHead className="w-[100px]">Status</TableHead>
+                              <TableHead className="w-[80px] text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {requirement.acceptanceCriteria.map((criterion: AcceptanceCriterion, index: number) => (
-                              <TableRow key={criterion.id}>
-                                <TableCell className="font-medium">{index + 1}</TableCell>
-                                <TableCell>{criterion.description}</TableCell>
-                                <TableCell>
-                                  <Badge 
-                                    variant={criterion.status === 'approved' ? 'default' : 
-                                            criterion.status === 'rejected' ? 'destructive' : 'outline'}
-                                  >
-                                    {criterion.status.charAt(0).toUpperCase() + criterion.status.slice(1)}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button variant="ghost" size="icon">
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                            {requirement.acceptanceCriteria.map((criterion: AcceptanceCriterion, index: number) => {
+                              // Parse Gherkin components from description
+                              const description = criterion.description || '';
+                              
+                              // Extract components using regex (simpler patterns to avoid compatibility issues)
+                              const scenarioMatch = description.match(/[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:?\s*(.*)/);
+                              const givenMatch = description.match(/[Gg][Ii][Vv][Ee][Nn]\s*(.*)/);
+                              const whenMatch = description.match(/[Ww][Hh][Ee][Nn]\s*(.*)/);
+                              const andMatch = description.match(/[Aa][Nn][Dd]\s*(.*)/);
+                              const thenMatch = description.match(/[Tt][Hh][Ee][Nn]\s*(.*)/);
+                              
+                              const scenario = scenarioMatch ? scenarioMatch[1].trim() : '';
+                              const given = givenMatch ? givenMatch[1].trim() : '';
+                              const when = whenMatch ? whenMatch[1].trim() : '';
+                              const and = andMatch ? andMatch[1].trim() : '';
+                              const then = thenMatch ? thenMatch[1].trim() : '';
+                              
+                              return (
+                                <TableRow key={criterion.id}>
+                                  <TableCell className="font-medium">{index + 1}</TableCell>
+                                  <TableCell className="max-w-[150px] truncate">{scenario}</TableCell>
+                                  <TableCell className="max-w-[150px] truncate">{given}</TableCell>
+                                  <TableCell className="max-w-[150px] truncate">{when}</TableCell>
+                                  <TableCell className="max-w-[150px] truncate">{and}</TableCell>
+                                  <TableCell className="max-w-[150px] truncate">{then}</TableCell>
+                                  <TableCell>
+                                    <Badge 
+                                      variant={criterion.status === 'approved' ? 'default' : 
+                                              criterion.status === 'rejected' ? 'destructive' : 'outline'}
+                                    >
+                                      {criterion.status.charAt(0).toUpperCase() + criterion.status.slice(1)}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon">
+                                      <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       ) : (
