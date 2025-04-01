@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getCategoryColor, getPriorityInfo, formatDateTime } from '@/lib/utils';
-import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles, Wrench, Video, FileText, AudioWaveform } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles, Wrench, Video, FileText, AudioWaveform, Eye } from 'lucide-react';
 import { TasksTable } from '@/components/implementation-tasks/tasks-table';
 import { ReferenceDataTab } from '@/components/reference-data/reference-data-tab';
 
@@ -30,6 +30,8 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const [isEditing, setIsEditing] = useState(false);
   const [isGeneratingCriteria, setIsGeneratingCriteria] = useState(false);
   const [isAddingCriterion, setIsAddingCriterion] = useState(false);
+  const [selectedCriterion, setSelectedCriterion] = useState<AcceptanceCriterion | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [newCriterion, setNewCriterion] = useState<{description: string, status: string}>({
     description: '',
     status: 'pending'
@@ -692,11 +694,27 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                               return (
                                 <TableRow key={criterion.id}>
                                   <TableCell className="font-medium">{index + 1}</TableCell>
-                                  <TableCell className="max-w-[150px] truncate">{scenario}</TableCell>
-                                  <TableCell className="max-w-[150px] truncate">{given}</TableCell>
-                                  <TableCell className="max-w-[150px] truncate">{when}</TableCell>
-                                  <TableCell className="max-w-[150px] truncate">{and}</TableCell>
-                                  <TableCell className="max-w-[150px] truncate">{then}</TableCell>
+                                  <TableCell className="max-w-[150px]">
+                                    <div className="break-words line-clamp-2 whitespace-normal hover:underline cursor-pointer"
+                                         onClick={() => {
+                                           setSelectedCriterion(criterion);
+                                           setDialogOpen(true);
+                                         }}>
+                                      {scenario}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="max-w-[150px]">
+                                    <div className="break-words line-clamp-2 whitespace-normal">{given}</div>
+                                  </TableCell>
+                                  <TableCell className="max-w-[150px]">
+                                    <div className="break-words line-clamp-2 whitespace-normal">{when}</div>
+                                  </TableCell>
+                                  <TableCell className="max-w-[150px]">
+                                    <div className="break-words line-clamp-2 whitespace-normal">{and}</div>
+                                  </TableCell>
+                                  <TableCell className="max-w-[150px]">
+                                    <div className="break-words line-clamp-2 whitespace-normal">{then}</div>
+                                  </TableCell>
                                   <TableCell>
                                     <Badge 
                                       variant={criterion.status === 'approved' ? 'default' : 
@@ -706,9 +724,17 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                                     </Badge>
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon">
-                                      <Edit2 className="h-4 w-4" />
-                                    </Button>
+                                    <div className="flex gap-1 justify-end">
+                                      <Button variant="ghost" size="icon" onClick={() => {
+                                        setSelectedCriterion(criterion);
+                                        setDialogOpen(true);
+                                      }}>
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon">
+                                        <Edit2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               );
@@ -739,6 +765,43 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                         </div>
                       )}
                     </div>
+
+                    {/* Acceptance Criteria Expanded View Dialog */}
+                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                      <DialogContent className="max-w-3xl">
+                        <DialogHeader>
+                          <DialogTitle>Acceptance Criterion Details</DialogTitle>
+                        </DialogHeader>
+                        {selectedCriterion && (
+                          <div className="space-y-4 py-2">
+                            <div className="flex items-center justify-between mb-2">
+                              <Badge
+                                variant={
+                                  selectedCriterion.status === 'approved' ? 'default' :
+                                  selectedCriterion.status === 'rejected' ? 'destructive' : 'outline'
+                                }
+                              >
+                                {selectedCriterion.status.charAt(0).toUpperCase() + selectedCriterion.status.slice(1)}
+                              </Badge>
+                            </div>
+                            <div className="p-4 border rounded-lg bg-muted/20 whitespace-pre-line">
+                              {selectedCriterion.description}
+                            </div>
+                            {selectedCriterion.notes && (
+                              <div>
+                                <h4 className="text-sm font-medium mb-1">Notes:</h4>
+                                <p className="text-muted-foreground text-sm">{selectedCriterion.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                            Close
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </TabsContent>
                 
