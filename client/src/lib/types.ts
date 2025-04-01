@@ -18,6 +18,7 @@ export interface Project {
   description: string | null;
   type: string;
   userId: number;
+  customer: string | null;
   sourceSystem: string | null;
   targetSystem: string | null;
   createdAt: string;
@@ -132,6 +133,7 @@ export interface CreateProjectFormData {
   name: string;
   description: string;  // React form input needs string (we'll handle null conversion)
   type: string;
+  customer?: string;  // React form input needs string (we'll handle null conversion)
   sourceSystem?: string;  // React form input needs string (we'll handle null conversion)
   targetSystem?: string;  // React form input needs string (we'll handle null conversion)
 }

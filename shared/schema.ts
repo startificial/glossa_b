@@ -55,6 +55,7 @@ export const projects = pgTable("projects", {
   description: text("description"),
   type: text("type").notNull(),
   userId: integer("user_id").notNull(),
+  customer: text("customer"), // Customer for whom the project is intended
   sourceSystem: text("source_system"), // System being migrated from
   targetSystem: text("target_system"), // System being migrated to
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -66,6 +67,7 @@ export const insertProjectSchema = createInsertSchema(projects).pick({
   description: true,
   type: true,
   userId: true,
+  customer: true,
   sourceSystem: true,
   targetSystem: true,
 });

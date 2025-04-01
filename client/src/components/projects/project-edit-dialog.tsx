@@ -44,6 +44,7 @@ const projectEditSchema = z.object({
   name: z.string().min(3, "Project name must be at least 3 characters"),
   description: z.string().nullable().optional(),
   type: z.string(),
+  customer: z.string().nullable().optional(),
   sourceSystem: z.string().nullable().optional(),
   targetSystem: z.string().nullable().optional(),
 });
@@ -59,6 +60,7 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
       name: project.name,
       description: project.description || '',
       type: project.type,
+      customer: project.customer || '',
       sourceSystem: project.sourceSystem || '',
       targetSystem: project.targetSystem || '',
     },
@@ -70,6 +72,7 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
         name: project.name,
         description: project.description || '',
         type: project.type,
+        customer: project.customer || '',
         sourceSystem: project.sourceSystem || '',
         targetSystem: project.targetSystem || '',
       });
@@ -110,6 +113,7 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
       name: data.name,
       type: data.type,
       description: data.description?.trim() === '' ? null : data.description,
+      customer: data.customer?.trim() === '' ? null : data.customer,
       sourceSystem: data.sourceSystem?.trim() === '' ? null : data.sourceSystem,
       targetSystem: data.targetSystem?.trim() === '' ? null : data.targetSystem,
     };
@@ -181,6 +185,24 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="customer"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Customer</FormLabel>
+                  <FormControl>
+                    <Input 
+                      {...field}
+                      value={field.value || ''}
+                      placeholder="e.g., Acme Inc."
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

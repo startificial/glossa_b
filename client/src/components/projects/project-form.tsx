@@ -38,6 +38,7 @@ const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().optional(),
   type: z.string().min(1, "Project type is required"),
+  customer: z.string().optional(),
   sourceSystem: z.string().optional(),
   targetSystem: z.string().optional(),
 });
@@ -58,6 +59,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       name: "",
       description: "",
       type: "Software Migration",
+      customer: "",
       sourceSystem: "",
       targetSystem: "",
     },
@@ -95,6 +97,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       name: data.name,
       type: data.type,
       description: data.description.trim() === '' ? null : data.description,
+      customer: data.customer?.trim() === '' ? null : data.customer,
       sourceSystem: data.sourceSystem?.trim() === '' ? null : data.sourceSystem,
       targetSystem: data.targetSystem?.trim() === '' ? null : data.targetSystem,
     };
@@ -174,6 +177,24 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="customer"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Customer</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="e.g., Acme Inc." 
+                      {...field}
+                      value={field.value || ''} 
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
