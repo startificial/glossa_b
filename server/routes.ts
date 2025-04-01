@@ -61,12 +61,22 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
-  // Serve uploaded files
+  // Serve uploaded files from both tmp directory and local uploads directory
+  // First, setup the temp uploads dir for normal file uploads
   const uploadsDir = path.join(os.tmpdir(), 'glossa-uploads');
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
+  
+  // Second, setup access to our local uploads directory for test files
+  const localUploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(localUploadsDir)) {
+    fs.mkdirSync(localUploadsDir, { recursive: true });
+  }
+  
+  // Serve files from both directories
   app.use("/api/uploads", express.static(uploadsDir));
+  app.use("/api/uploads", express.static(localUploadsDir));
 
   // Authentication routes
   app.post("/api/register", async (req: Request, res: Response) => {
@@ -2078,6 +2088,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
         });
+      } else if (inputData.type === 'video') {
+        // Video references with timestamps
+        // In a real implementation, these would be stored in the database from video analysis
+        
+        // URL for the video file
+        const videoUrl = `/api/uploads/${(inputData.metadata as any)?.path?.split('/').pop() || 'video.mp4'}`;
+        
+        // Add video reference
+        references.push({
+          type: 'video',
+          url: videoUrl,
+          timestamps: [
+            {
+              startTime: 15, // 15 seconds
+              endTime: 30,
+              transcript: requirement.text.substring(0, Math.min(200, requirement.text.length)),
+              relevance: 0.95
+            },
+            {
+              startTime: 45, // 45 seconds
+              endTime: 60,
+              transcript: requirement.text.substring(
+                Math.min(200, requirement.text.length), 
+                Math.min(400, requirement.text.length)
+              ),
+              relevance: 0.87
+            }
+          ]
+        });
+        
+        // Also add text references for context
+        const sentences = requirement.text.split('.').filter((s: string) => s.trim().length > 0);
+        if (sentences.length > 1) {
+          references.push({
+            type: 'text',
+            content: sentences[0] + '.',
+            metadata: {
+              location: 'Video transcript',
+              context: 'Key statement from video'
+            }
+          });
+        }
+      } else if (inputData.type === 'audio') {
+        // Audio references with timestamps
+        // In a real implementation, these would be stored in the database from audio analysis
+        
+        // URL for the audio file
+        const audioUrl = `/api/uploads/${(inputData.metadata as any)?.path?.split('/').pop() || 'audio.mp3'}`;
+        
+        // Add audio reference
+        references.push({
+          type: 'audio',
+          url: audioUrl,
+          timestamps: [
+            {
+              startTime: 20, // 20 seconds
+              endTime: 40,
+              transcript: requirement.text.substring(0, Math.min(200, requirement.text.length)),
+              relevance: 0.92
+            },
+            {
+              startTime: 90, // 90 seconds
+              endTime: 110,
+              transcript: requirement.text.substring(
+                Math.min(200, requirement.text.length), 
+                Math.min(400, requirement.text.length)
+              ),
+              relevance: 0.85
+            }
+          ]
+        });
+        
+        // Also add text references for context
+        const sentences = requirement.text.split('.').filter((s: string) => s.trim().length > 0);
+        if (sentences.length > 1) {
+          references.push({
+            type: 'text',
+            content: sentences[0] + '.',
+            metadata: {
+              location: 'Audio transcript',
+              context: 'Key statement from audio'
+            }
+          });
+        }
       }
       
       return res.status(200).json(references);
