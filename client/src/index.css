@@ -5,9 +5,21 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Define a CSS variable for the logo font */
+/* Define CSS variables for design system */
 :root {
   --font-logo: 'Neue Montreal', 'Inter', sans-serif;
+  
+  /* Responsive spacing variables */
+  --container-padding-mobile: 1rem;
+  --container-padding-tablet: 2rem;
+  --container-padding-desktop: 3rem;
+  
+  /* Z-index layers */
+  --z-index-backdrop: 10;
+  --z-index-sidebar: 20;
+  --z-index-navbar: 30;
+  --z-index-modal: 40;
+  --z-index-tooltip: 50;
 }
 
 @layer base {
@@ -15,13 +27,88 @@
     @apply border-border;
   }
 
+  html {
+    @apply text-base scroll-smooth;
+  }
+
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased bg-background text-foreground min-h-screen;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   
+  /* Make images and media responsive by default */
+  img, video, figure {
+    @apply max-w-full h-auto;
+  }
+  
+  /* Semantic heading styles */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-medium tracking-tight;
+  }
+  
+  h1 {
+    @apply text-3xl sm:text-4xl lg:text-5xl;
+  }
+  
+  h2 {
+    @apply text-2xl sm:text-3xl lg:text-4xl;
+  }
+  
+  h3 {
+    @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+  
+  h4 {
+    @apply text-lg sm:text-xl lg:text-2xl;
+  }
+  
+  /* Focus states for accessibility */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+  
+  /* Logo text uses brand font */
   .logo-text {
     font-family: var(--font-logo);
     font-weight: 700;
     letter-spacing: -0.02em;
+  }
+}
+
+/* Responsive layout components */
+@layer components {
+  /* Container with responsive padding */
+  .container-fluid {
+    @apply w-full px-4 sm:px-6 md:px-8 lg:px-10 mx-auto;
+  }
+  
+  /* Standard card component with responsive padding */
+  .card-responsive {
+    @apply bg-card text-card-foreground rounded-lg border border-border shadow-sm overflow-hidden;
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+  
+  /* Responsive grid for cards */
+  .card-grid {
+    @apply grid gap-4 sm:gap-6;
+    @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+  
+  /* Responsive section spacing */
+  .section-spacing {
+    @apply py-6 sm:py-10 lg:py-16;
+  }
+  
+  /* Enhanced mobile navbar */
+  .navbar-mobile {
+    @apply flex items-center justify-between w-full py-2 px-4;
+    @apply md:hidden;
+  }
+  
+  /* Enhanced desktop navbar */
+  .navbar-desktop {
+    @apply hidden md:flex items-center justify-between w-full py-3 px-6;
   }
 }
