@@ -225,7 +225,7 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
               Tasks needed to implement this requirement across source and target systems
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 relative">
             <Dialog open={newTaskOpen} onOpenChange={setNewTaskOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline">Add Task</Button>
@@ -396,16 +396,25 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
             <Button
               onClick={() => generateTasksMutation.mutate()}
               disabled={generateTasksMutation.isPending || (tasks && tasks.length > 0)}
+              variant={generateTasksMutation.isPending ? "outline" : "default"}
+              className={generateTasksMutation.isPending ? "border-blue-400 bg-blue-50 text-blue-700" : ""}
             >
               {generateTasksMutation.isPending ? (
                 <>
-                  <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
+                  <Loader2Icon className="mr-2 h-4 w-4 animate-spin text-blue-700" />
+                  <span>Generating Implementation Tasks...</span>
                 </>
               ) : (
                 "Generate Tasks"
               )}
             </Button>
+            {generateTasksMutation.isPending && (
+              <div className="absolute right-0 bottom-0 mb-12 flex justify-center items-center pointer-events-none">
+                <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-md text-xs border border-blue-200 shadow-md">
+                  This may take up to 30 seconds...
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </CardHeader>
