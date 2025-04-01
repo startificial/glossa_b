@@ -678,24 +678,47 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                               // Parse Gherkin components from description
                               const description = criterion.description || '';
                               
-                              // Extract components using regex (simpler patterns to avoid compatibility issues)
-                              const scenarioMatch = description.match(/[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:?\s*(.*)/);
-                              const givenMatch = description.match(/[Gg][Ii][Vv][Ee][Nn]\s*(.*)/);
-                              const whenMatch = description.match(/[Ww][Hh][Ee][Nn]\s*(.*)/);
-                              const andMatch = description.match(/[Aa][Nn][Dd]\s*(.*)/);
-                              const thenMatch = description.match(/[Tt][Hh][Ee][Nn]\s*(.*)/);
+                              // Use a simpler approach to parse Gherkin - find the components in each line
+                              let scenario = '';
+                              let given = '';
+                              let when = '';
+                              let and = '';
+                              let then = '';
                               
-                              const scenario = scenarioMatch ? scenarioMatch[1].trim() : '';
-                              const given = givenMatch ? givenMatch[1].trim() : '';
-                              const when = whenMatch ? whenMatch[1].trim() : '';
-                              const and = andMatch ? andMatch[1].trim() : '';
-                              const then = thenMatch ? thenMatch[1].trim() : '';
+                              // Split by lines for better parsing
+                              const lines = description.split('\n');
+                              for (const line of lines) {
+                                const trimmedLine = line.trim();
+                                
+                                // Check for Scenario
+                                if (trimmedLine.match(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:/)) {
+                                  scenario = trimmedLine.replace(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:?\s*/, '').trim();
+                                }
+                                // Check for Given
+                                else if (trimmedLine.match(/^[Gg][Ii][Vv][Ee][Nn]/)) {
+                                  given = trimmedLine.replace(/^[Gg][Ii][Vv][Ee][Nn]\s+/, '').trim();
+                                }
+                                // Check for When
+                                else if (trimmedLine.match(/^[Ww][Hh][Ee][Nn]/)) {
+                                  when = trimmedLine.replace(/^[Ww][Hh][Ee][Nn]\s+/, '').trim();
+                                }
+                                // Check for And - take the first one
+                                else if (trimmedLine.match(/^[Aa][Nn][Dd]/) && !and) {
+                                  and = trimmedLine.replace(/^[Aa][Nn][Dd]\s+/, '').trim();
+                                }
+                                // Check for Then
+                                else if (trimmedLine.match(/^[Tt][Hh][Ee][Nn]/)) {
+                                  then = trimmedLine.replace(/^[Tt][Hh][Ee][Nn]\s+/, '').trim();
+                                }
+                              }
                               
                               return (
                                 <TableRow key={criterion.id}>
-                                  <TableCell className="font-medium">{index + 1}</TableCell>
-                                  <TableCell className="max-w-[150px]">
-                                    <div className="break-words line-clamp-2 whitespace-normal hover:underline cursor-pointer"
+                                  <TableCell className="font-medium">
+                                    <div className="w-8 text-center">{index + 1}</div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2 hover:underline cursor-pointer"
                                          onClick={() => {
                                            setSelectedCriterion(criterion);
                                            setDialogOpen(true);
@@ -703,17 +726,17 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                                       {scenario}
                                     </div>
                                   </TableCell>
-                                  <TableCell className="max-w-[150px]">
-                                    <div className="break-words line-clamp-2 whitespace-normal">{given}</div>
+                                  <TableCell>
+                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{given}</div>
                                   </TableCell>
-                                  <TableCell className="max-w-[150px]">
-                                    <div className="break-words line-clamp-2 whitespace-normal">{when}</div>
+                                  <TableCell>
+                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{when}</div>
                                   </TableCell>
-                                  <TableCell className="max-w-[150px]">
-                                    <div className="break-words line-clamp-2 whitespace-normal">{and}</div>
+                                  <TableCell>
+                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{and}</div>
                                   </TableCell>
-                                  <TableCell className="max-w-[150px]">
-                                    <div className="break-words line-clamp-2 whitespace-normal">{then}</div>
+                                  <TableCell>
+                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{then}</div>
                                   </TableCell>
                                   <TableCell>
                                     <Badge 
