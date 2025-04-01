@@ -38,9 +38,19 @@ export interface InputData {
   updatedAt?: string;
 }
 
+export interface GherkinStructure {
+  scenario: string;
+  given: string;
+  when: string;
+  and: string[];
+  then: string;
+  andThen: string[];
+}
+
 export interface AcceptanceCriterion {
   id: string;
   description: string;
+  gherkin?: GherkinStructure; // structured Gherkin components
   status: 'pending' | 'approved' | 'rejected';
   notes?: string;
 }

@@ -1,11 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-// Define local interface to avoid import issues
-interface AcceptanceCriterion {
-  id: string;
-  description: string;
-  status: 'pending' | 'approved' | 'rejected';
-  notes?: string;
-}
+import { AcceptanceCriterion, GherkinStructure } from '../shared/types';
 
 // Initialize the Claude API with the API key
 const apiKey = process.env.ANTHROPIC_API_KEY || '';
@@ -41,7 +35,7 @@ export async function generateAcceptanceCriteria(
       Project Description: ${projectDescription}
       Requirement: ${requirementText}
 
-      Your task is to create 3-5 comprehensive acceptance criteria for this requirement using the Gherkin format, specifically in tabular structure with Scenario, Given, When, And, Then components.
+      Your task is to create 3-5 comprehensive acceptance criteria for this requirement using the Gherkin format with properly structured Scenario, Given, When, And, Then components.
 
       Each acceptance criterion should:
       1. Have a clear Scenario title that summarizes the specific test case
@@ -52,30 +46,43 @@ export async function generateAcceptanceCriteria(
 
       Please format your response as a JSON array of acceptance criteria, where each criterion has:
       1. 'id' (string): A unique identifier (UUID)
-      2. 'description' (string): The Gherkin-formatted acceptance criterion in tabular format
-      3. 'status' (string): Always set to 'pending'
-      4. 'notes' (string): Always set to an empty string
-
-      The description should follow this exact structure:
-      """
-      Scenario: [Title of the scenario]
-      Given [Precondition]
-      When [Action]
-      [And [Additional Action]] (optional)
-      Then [Expected Result]
-      [And [Additional Expected Result]] (optional)
-      """
+      2. 'gherkin': An object containing the structured Gherkin components:
+         - 'scenario' (string): The title of the scenario
+         - 'given' (string): The precondition
+         - 'when' (string): The action
+         - 'and' (array of strings): Additional actions or conditions (can be empty)
+         - 'then' (string): The expected result
+         - 'andThen' (array of strings): Additional expected results (can be empty)
+      3. 'description' (string): The full Gherkin-formatted acceptance criterion as text
+      4. 'status' (string): Always set to 'pending'
+      5. 'notes' (string): Always set to an empty string
 
       Example format:
       [
         {
           "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+          "gherkin": {
+            "scenario": "Successful user login with valid credentials",
+            "given": "a user has a registered account",
+            "when": "the user enters valid email and password",
+            "and": ["clicks the login button"],
+            "then": "the user should be redirected to the dashboard",
+            "andThen": ["a welcome message should be displayed"]
+          },
           "description": "Scenario: Successful user login with valid credentials\\nGiven a user has a registered account\\nWhen the user enters valid email and password\\nAnd clicks the login button\\nThen the user should be redirected to the dashboard\\nAnd a welcome message should be displayed",
           "status": "pending",
           "notes": ""
         },
         {
           "id": "d8c10b57-5fd9-42c1-a6d1-ce02b2c3a482",
+          "gherkin": {
+            "scenario": "Failed login attempt with invalid credentials",
+            "given": "a user has a registered account",
+            "when": "the user enters an incorrect password",
+            "and": [],
+            "then": "an error message should be displayed",
+            "andThen": ["the user should remain on the login page"]
+          },
           "description": "Scenario: Failed login attempt with invalid credentials\\nGiven a user has a registered account\\nWhen the user enters an incorrect password\\nThen an error message should be displayed\\nAnd the user should remain on the login page",
           "status": "pending",
           "notes": ""

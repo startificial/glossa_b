@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Requirement, Activity, AcceptanceCriterion, Project } from '@/lib/types';
+import { Requirement, Activity, Project, AcceptanceCriterion, GherkinStructure } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -209,8 +209,8 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       });
       
       toast({
-        title: "Acceptance Criteria Generated with Claude",
-        description: `${data.length} acceptance criteria have been generated using Claude AI.`,
+        title: "Acceptance Criteria Generated",
+        description: `${data.length} acceptance criteria have been automatically generated for this requirement.`,
       });
       
       setIsGeneratingCriteria(false);
@@ -293,11 +293,56 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       }
       
       // Create a new criterion
+      // Parse the Gherkin formatted description to create structured data
+      const lines = formattedDescription.split('\n');
+      let gherkinData: GherkinStructure | undefined;
+      
+      let scenario = '';
+      let given = '';
+      let when = '';
+      let andClauses: string[] = [];
+      let then = '';
+      let andThenClauses: string[] = [];
+      
+      // Parse each line to extract structured Gherkin components
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        
+        if (trimmedLine.match(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:/)) {
+          scenario = trimmedLine.replace(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:?\s*/, '').trim();
+        } else if (trimmedLine.match(/^[Gg][Ii][Vv][Ee][Nn]\s/)) {
+          given = trimmedLine.replace(/^[Gg][Ii][Vv][Ee][Nn]\s/, '').trim();
+        } else if (trimmedLine.match(/^[Ww][Hh][Ee][Nn]\s/)) {
+          when = trimmedLine.replace(/^[Ww][Hh][Ee][Nn]\s/, '').trim();
+        } else if (trimmedLine.match(/^[Aa][Nn][Dd]\s/) && then === '') {
+          // If 'Then' hasn't been seen yet, this is a 'When And'
+          andClauses.push(trimmedLine.replace(/^[Aa][Nn][Dd]\s/, '').trim());
+        } else if (trimmedLine.match(/^[Tt][Hh][Ee][Nn]\s/)) {
+          then = trimmedLine.replace(/^[Tt][Hh][Ee][Nn]\s/, '').trim();
+        } else if (trimmedLine.match(/^[Aa][Nn][Dd]\s/) && then !== '') {
+          // If 'Then' has been seen, this is a 'Then And'
+          andThenClauses.push(trimmedLine.replace(/^[Aa][Nn][Dd]\s/, '').trim());
+        }
+      }
+      
+      // Create structured Gherkin data if we have the core components
+      if (scenario && given && when && then) {
+        gherkinData = {
+          scenario,
+          given,
+          when,
+          and: andClauses,
+          then,
+          andThen: andThenClauses
+        };
+      }
+      
       const newCriterionWithId = {
         id: crypto.randomUUID(),
         description: formattedDescription,
         status: newCriterion.status as 'pending' | 'approved' | 'rejected',
-        notes: ''
+        notes: '',
+        gherkin: gherkinData
       };
       
       // Update the requirement with the new acceptance criteria
@@ -678,47 +723,59 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                               // Parse Gherkin components from description
                               const description = criterion.description || '';
                               
-                              // Use a simpler approach to parse Gherkin - find the components in each line
+                              // Use the structured gherkin data if available, otherwise parse from description
                               let scenario = '';
                               let given = '';
                               let when = '';
                               let and = '';
                               let then = '';
                               
-                              // Split by lines for better parsing
-                              const lines = description.split('\n');
-                              for (const line of lines) {
-                                const trimmedLine = line.trim();
-                                
-                                // Check for Scenario
-                                if (trimmedLine.match(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:/)) {
-                                  scenario = trimmedLine.replace(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:?\s*/, '').trim();
-                                }
-                                // Check for Given
-                                else if (trimmedLine.match(/^[Gg][Ii][Vv][Ee][Nn]/)) {
-                                  given = trimmedLine.replace(/^[Gg][Ii][Vv][Ee][Nn]\s+/, '').trim();
-                                }
-                                // Check for When
-                                else if (trimmedLine.match(/^[Ww][Hh][Ee][Nn]/)) {
-                                  when = trimmedLine.replace(/^[Ww][Hh][Ee][Nn]\s+/, '').trim();
-                                }
-                                // Check for And - take the first one
-                                else if (trimmedLine.match(/^[Aa][Nn][Dd]/) && !and) {
-                                  and = trimmedLine.replace(/^[Aa][Nn][Dd]\s+/, '').trim();
-                                }
-                                // Check for Then
-                                else if (trimmedLine.match(/^[Tt][Hh][Ee][Nn]/)) {
-                                  then = trimmedLine.replace(/^[Tt][Hh][Ee][Nn]\s+/, '').trim();
+                              // Check if we have structured gherkin data
+                              if (criterion.gherkin) {
+                                scenario = criterion.gherkin.scenario;
+                                given = criterion.gherkin.given;
+                                when = criterion.gherkin.when;
+                                and = criterion.gherkin.and && criterion.gherkin.and.length > 0 
+                                  ? criterion.gherkin.and[0] 
+                                  : '';
+                                then = criterion.gherkin.then;
+                              } else {
+                                // Fallback to text parsing for backward compatibility
+                                // Split by lines for better parsing
+                                const lines = description.split('\n');
+                                for (const line of lines) {
+                                  const trimmedLine = line.trim();
+                                  
+                                  // Check for Scenario
+                                  if (trimmedLine.match(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:/)) {
+                                    scenario = trimmedLine.replace(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:?\s*/, '').trim();
+                                  }
+                                  // Check for Given
+                                  else if (trimmedLine.match(/^[Gg][Ii][Vv][Ee][Nn]/)) {
+                                    given = trimmedLine.replace(/^[Gg][Ii][Vv][Ee][Nn]\s+/, '').trim();
+                                  }
+                                  // Check for When
+                                  else if (trimmedLine.match(/^[Ww][Hh][Ee][Nn]/)) {
+                                    when = trimmedLine.replace(/^[Ww][Hh][Ee][Nn]\s+/, '').trim();
+                                  }
+                                  // Check for And - take the first one
+                                  else if (trimmedLine.match(/^[Aa][Nn][Dd]/) && !and) {
+                                    and = trimmedLine.replace(/^[Aa][Nn][Dd]\s+/, '').trim();
+                                  }
+                                  // Check for Then
+                                  else if (trimmedLine.match(/^[Tt][Hh][Ee][Nn]/)) {
+                                    then = trimmedLine.replace(/^[Tt][Hh][Ee][Nn]\s+/, '').trim();
+                                  }
                                 }
                               }
                               
                               return (
                                 <TableRow key={criterion.id}>
-                                  <TableCell className="font-medium">
-                                    <div className="w-8 text-center">{index + 1}</div>
+                                  <TableCell className="font-medium p-2 align-top">
+                                    <div className="w-6 text-center">{index + 1}</div>
                                   </TableCell>
-                                  <TableCell>
-                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2 hover:underline cursor-pointer"
+                                  <TableCell className="p-2 align-top">
+                                    <div className="w-[150px] break-words hover:underline cursor-pointer"
                                          onClick={() => {
                                            setSelectedCriterion(criterion);
                                            setDialogOpen(true);
@@ -726,19 +783,19 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                                       {scenario}
                                     </div>
                                   </TableCell>
-                                  <TableCell>
-                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{given}</div>
+                                  <TableCell className="p-2 align-top">
+                                    <div className="w-[150px] break-words">{given}</div>
                                   </TableCell>
-                                  <TableCell>
-                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{when}</div>
+                                  <TableCell className="p-2 align-top">
+                                    <div className="w-[150px] break-words">{when}</div>
                                   </TableCell>
-                                  <TableCell>
-                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{and}</div>
+                                  <TableCell className="p-2 align-top">
+                                    <div className="w-[150px] break-words">{and}</div>
                                   </TableCell>
-                                  <TableCell>
-                                    <div className="w-[120px] break-words overflow-hidden text-ellipsis line-clamp-2">{then}</div>
+                                  <TableCell className="p-2 align-top">
+                                    <div className="w-[150px] break-words">{then}</div>
                                   </TableCell>
-                                  <TableCell>
+                                  <TableCell className="p-2 align-top">
                                     <Badge 
                                       variant={criterion.status === 'approved' ? 'default' : 
                                               criterion.status === 'rejected' ? 'destructive' : 'outline'}
@@ -746,7 +803,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                                       {criterion.status.charAt(0).toUpperCase() + criterion.status.slice(1)}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="text-right">
+                                  <TableCell className="text-right p-2 align-top">
                                     <div className="flex gap-1 justify-end">
                                       <Button variant="ghost" size="icon" onClick={() => {
                                         setSelectedCriterion(criterion);
@@ -780,7 +837,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                               </>
                             ) : (
                               <>
-                                <Sparkles className="h-4 w-4" />
+                                <Sparkles className="h-4 w-4 mr-2" />
                                 Generate Criteria Automatically
                               </>
                             )}
@@ -840,7 +897,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                           disabled={generateTasksMutation.isPending}
                           className="flex gap-2 items-center"
                         >
-                          <Sparkles className="h-4 w-4" />
+                          <Sparkles className="h-4 w-4 mr-2" />
                           <span>Generate Tasks</span>
                         </Button>
                         <div className="absolute right-0 top-full mt-2 w-72 p-2 bg-popover text-popover-foreground text-sm rounded-md shadow-md hidden group-hover:block z-50">
