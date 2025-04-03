@@ -1,6 +1,7 @@
 import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { 
   insertProjectSchema, 
   insertInputDataSchema, 
@@ -8,8 +9,12 @@ import {
   insertActivitySchema,
   insertImplementationTaskSchema,
   insertUserSchema,
-  insertInviteSchema
+  insertInviteSchema,
+  insertCustomerSchema,
+  customers,
+  projects
 } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { AcceptanceCriterion } from "@shared/types";
 import multer from "multer";
 import path from "path";
@@ -283,6 +288,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customer routes
+  app.get("/api/customers", async (req: Request, res: Response) => {
+    try {
+      const customersList = await db.query.customers.findMany({
+        orderBy: (customers, { desc }) => [desc(customers.updatedAt)]
+      });
+      res.json(customersList);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/customers/:id", async (req: Request, res: Response) => {
+    const customerId = parseInt(req.params.id);
+    if (isNaN(customerId)) {
+      return res.status(400).json({ message: "Invalid customer ID" });
+    }
+
+    try {
+      const customer = await db.query.customers.findFirst({
+        where: eq(customers.id, customerId)
+      });
+
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      // Get projects associated with this customer
+      const customerProjects = await db.query.projects.findMany({
+        where: eq(projects.customerId, customerId)
+      });
+
+      res.json({ ...customer, projects: customerProjects });
+    } catch (error) {
+      console.error("Error fetching customer:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/customers", async (req: Request, res: Response) => {
+    try {
+      const customerData = insertCustomerSchema.parse(req.body);
+      
+      const result = await db.insert(customers).values(customerData).returning();
+      res.status(201).json(result[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid customer data", errors: error.errors });
+      }
+      console.error("Error creating customer:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/customers/:id", async (req: Request, res: Response) => {
+    const customerId = parseInt(req.params.id);
+    if (isNaN(customerId)) {
+      return res.status(400).json({ message: "Invalid customer ID" });
+    }
+
+    try {
+      const customerData = insertCustomerSchema.parse(req.body);
+      
+      const result = await db.update(customers)
+        .set({
+          ...customerData,
+          updatedAt: new Date()
+        })
+        .where(eq(customers.id, customerId))
+        .returning();
+      
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      res.json(result[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid customer data", errors: error.errors });
+      }
+      console.error("Error updating customer:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/customers/:id", async (req: Request, res: Response) => {
+    const customerId = parseInt(req.params.id);
+    if (isNaN(customerId)) {
+      return res.status(400).json({ message: "Invalid customer ID" });
+    }
+
+    try {
+      // Check if customer has associated projects
+      const associatedProjects = await db.query.projects.findMany({
+        where: eq(projects.customerId, customerId)
+      });
+
+      if (associatedProjects.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete customer with associated projects. Please remove or reassign the projects first."
+        });
+      }
+
+      await db.delete(customers).where(eq(customers.id, customerId));
+      res.status(200).json({ message: "Customer deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Project endpoints
   app.get("/api/projects", async (req: Request, res: Response) => {
     // For demo, always use the demo user
@@ -318,6 +435,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log('Creating project with data:', req.body);
+
+      // If customerId is provided, verify it exists
+      if (req.body.customerId) {
+        const customerId = parseInt(req.body.customerId);
+        const customer = await db.query.customers.findFirst({
+          where: eq(customers.id, customerId)
+        });
+        
+        if (!customer) {
+          return res.status(400).json({ message: "Invalid customer ID. Customer not found." });
+        }
+      }
 
       const validatedData = insertProjectSchema.parse({
         ...req.body,
@@ -360,14 +489,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // If customerId is provided, verify it exists
+      if (req.body.customerId) {
+        const customerId = parseInt(req.body.customerId);
+        const customer = await db.query.customers.findFirst({
+          where: eq(customers.id, customerId)
+        });
+        
+        if (!customer) {
+          return res.status(400).json({ message: "Invalid customer ID. Customer not found." });
+        }
+      }
+
       // Validate partial update fields
-      const { name, description, type, sourceSystem, targetSystem } = req.body;
+      const { name, description, type, sourceSystem, targetSystem, customerId } = req.body;
       const updateData = {
         name,
         description,
         type,
         sourceSystem,
-        targetSystem
+        targetSystem,
+        customerId // Include customerId in the update
       };
       
       console.log('Updating project with data:', updateData);

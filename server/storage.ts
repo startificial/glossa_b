@@ -2,6 +2,7 @@ import {
   users, type User, type InsertUser,
   invites, type Invite, type InsertInvite,
   projects, type Project, type InsertProject,
+  customers, type Customer, type InsertCustomer,
   inputData, type InputData, type InsertInputData,
   requirements, type Requirement, type InsertRequirement,
   activities, type Activity, type InsertActivity,
@@ -268,6 +269,8 @@ export class MemStorage implements IStorage {
       ...project, 
       id, 
       description: project.description || null,
+      customerId: project.customerId || null,
+      customer: project.customer || null,
       sourceSystem: project.sourceSystem || null,
       targetSystem: project.targetSystem || null,
       createdAt: now, 
@@ -457,6 +460,8 @@ export class MemStorage implements IStorage {
       estimatedHours: task.estimatedHours || null,
       complexity: task.complexity || null,
       assignee: task.assignee || null,
+      taskType: task.taskType || null,
+      sfDocumentationLinks: task.sfDocumentationLinks || [],
       createdAt: now, 
       updatedAt: now 
     };
@@ -796,12 +801,53 @@ export class DatabaseStorage implements IStorage {
 
   // Project methods
   async getProject(id: number): Promise<Project | undefined> {
-    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    // Join with customers table to get customer details
+    const [result] = await db
+      .select({
+        project: projects,
+        customer: customers,
+      })
+      .from(projects)
+      .leftJoin(customers, eq(projects.customerId, customers.id))
+      .where(eq(projects.id, id));
+    
+    if (!result) return undefined;
+    
+    // Combine project with customer details
+    const project = result.project;
+    
+    // Add customerDetails if customer exists
+    if (result.customer) {
+      const projectWithCustomer = {
+        ...project,
+        customerDetails: result.customer
+      } as Project; // Type assertion needed here for TypeScript
+      return projectWithCustomer;
+    }
+    
     return project;
   }
 
   async getProjects(userId: number): Promise<Project[]> {
-    return await db.select().from(projects).where(eq(projects.userId, userId));
+    const results = await db
+      .select({
+        project: projects,
+        customer: customers,
+      })
+      .from(projects)
+      .leftJoin(customers, eq(projects.customerId, customers.id))
+      .where(eq(projects.userId, userId));
+    
+    // Combine projects with their customer details
+    return results.map(result => {
+      if (result.customer) {
+        return {
+          ...result.project,
+          customerDetails: result.customer
+        } as Project; // Type assertion needed here for TypeScript
+      }
+      return result.project;
+    });
   }
 
   async createProject(project: InsertProject): Promise<Project> {

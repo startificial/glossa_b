@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { formatRelativeTime } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Project } from "@/lib/types";
-import { FolderOpenIcon, ArrowRightIcon } from "lucide-react";
+import { FolderOpenIcon, ArrowRightIcon, BuildingIcon } from "lucide-react";
 
 interface ProjectCardProps {
   project: Project;
@@ -27,6 +27,27 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
             {project.description || "No description provided."}
           </p>
+          
+          {/* Customer information */}
+          {project.customerDetails && (
+            <div className="mb-3 flex items-center text-xs text-muted-foreground border-l-2 border-primary pl-2">
+              <BuildingIcon className="h-3.5 w-3.5 mr-1.5 text-primary" />
+              <div className="flex flex-col">
+                <span className="font-medium">{project.customerDetails.name}</span>
+                {project.customerDetails.industry && (
+                  <span className="text-xs opacity-80">{project.customerDetails.industry}</span>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Legacy customer field fallback */}
+          {!project.customerDetails && project.customer && (
+            <div className="mb-3 flex items-center text-xs text-muted-foreground border-l-2 border-primary pl-2">
+              <BuildingIcon className="h-3.5 w-3.5 mr-1.5 text-primary" />
+              <span>{project.customer}</span>
+            </div>
+          )}
           
           {/* Systems information */}
           {(project.sourceSystem || project.targetSystem) && (

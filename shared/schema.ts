@@ -30,6 +30,30 @@ export const insertUserSchema = createInsertSchema(users).pick({
   invitedBy: true,
 });
 
+// Customer schema
+export const customers = pgTable("customers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  industry: text("industry"),
+  backgroundInfo: text("background_info"),
+  website: text("website"),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertCustomerSchema = createInsertSchema(customers).pick({
+  name: true,
+  description: true,
+  industry: true,
+  backgroundInfo: true,
+  website: true,
+  contactEmail: true,
+  contactPhone: true,
+});
+
 // Invites schema
 export const invites = pgTable("invites", {
   id: serial("id").primaryKey(),
@@ -55,7 +79,8 @@ export const projects = pgTable("projects", {
   description: text("description"),
   type: text("type").notNull(),
   userId: integer("user_id").notNull(),
-  customer: text("customer"), // Customer for whom the project is intended
+  customerId: integer("customer_id").references(() => customers.id), // Reference to customer table
+  customer: text("customer"), // Legacy field for backward compatibility
   sourceSystem: text("source_system"), // System being migrated from
   targetSystem: text("target_system"), // System being migrated to
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -67,6 +92,7 @@ export const insertProjectSchema = createInsertSchema(projects).pick({
   description: true,
   type: true,
   userId: true,
+  customerId: true,
   customer: true,
   sourceSystem: true,
   targetSystem: true,
@@ -182,6 +208,9 @@ export const insertImplementationTaskSchema = createInsertSchema(implementationT
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type Customer = typeof customers.$inferSelect;
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 
 export type Invite = typeof invites.$inferSelect;
 export type InsertInvite = z.infer<typeof insertInviteSchema>;

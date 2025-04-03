@@ -12,13 +12,28 @@ export interface User {
   updatedAt: string;
 }
 
+export interface Customer {
+  id: number;
+  name: string;
+  description: string | null;
+  industry: string | null;
+  backgroundInfo: string | null;
+  website: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   id: number;
   name: string;
   description: string | null;
   type: string;
   userId: number;
-  customer: string | null;
+  customerId: number | null;
+  customer: string | null; // Legacy field
+  customerDetails?: Customer; // For joined data
   sourceSystem: string | null;
   targetSystem: string | null;
   createdAt: string;
@@ -129,11 +144,22 @@ export interface RequirementsFilter {
   search?: string;
 }
 
+export interface CreateCustomerFormData {
+  name: string;
+  description: string;  // React form input needs string (we'll handle null conversion)
+  industry: string;
+  backgroundInfo: string;
+  website: string;
+  contactEmail: string;
+  contactPhone: string;
+}
+
 export interface CreateProjectFormData {
   name: string;
   description: string;  // React form input needs string (we'll handle null conversion)
   type: string;
-  customer?: string;  // React form input needs string (we'll handle null conversion)
+  customerId?: number | null;  // Reference to customer id
+  customer?: string;  // Legacy field for backward compatibility
   sourceSystem?: string;  // React form input needs string (we'll handle null conversion)
   targetSystem?: string;  // React form input needs string (we'll handle null conversion)
 }
