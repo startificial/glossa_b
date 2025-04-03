@@ -23,6 +23,10 @@ export interface Customer {
   contactPhone: string | null;
   createdAt: string;
   updatedAt: string;
+  // Additional fields for UI display
+  projects?: Project[];
+  successRate?: number;
+  collaborators?: number;
 }
 
 export interface Project {

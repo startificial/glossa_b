@@ -37,6 +37,13 @@ export interface IStorage {
   createInvite(invite: InsertInvite): Promise<Invite>;
   markInviteAsUsed(token: string): Promise<Invite | undefined>;
 
+  // Customer methods
+  getCustomer(id: number): Promise<Customer | undefined>;
+  getAllCustomers(): Promise<Customer[]>;
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
+  deleteCustomer(id: number): Promise<boolean>;
+
   // Project methods
   getProject(id: number): Promise<Project | undefined>;
   getProjects(userId: number): Promise<Project[]>;
@@ -102,6 +109,7 @@ export class MemStorage implements IStorage {
   sessionStore: session.Store;
   private users: Map<number, User>;
   private invites: Map<string, Invite>;
+  private customers: Map<number, Customer>;
   private projects: Map<number, Project>;
   private inputDataItems: Map<number, InputData>;
   private requirements: Map<number, Requirement>;
@@ -109,6 +117,7 @@ export class MemStorage implements IStorage {
   private implementationTasks: Map<number, ImplementationTask>;
   private userIdCounter: number;
   private inviteIdCounter: number;
+  private customerIdCounter: number;
   private projectIdCounter: number;
   private inputDataIdCounter: number;
   private requirementIdCounter: number;
@@ -124,6 +133,7 @@ export class MemStorage implements IStorage {
     // Initialize storage maps
     this.users = new Map();
     this.invites = new Map();
+    this.customers = new Map();
     this.projects = new Map();
     this.inputDataItems = new Map();
     this.requirements = new Map();
@@ -133,6 +143,7 @@ export class MemStorage implements IStorage {
     // Initialize ID counters
     this.userIdCounter = 1;
     this.inviteIdCounter = 1;
+    this.customerIdCounter = 1;
     this.projectIdCounter = 1;
     this.inputDataIdCounter = 1;
     this.requirementIdCounter = 1;
@@ -251,15 +262,89 @@ export class MemStorage implements IStorage {
     return updatedInvite;
   }
 
+  // Customer methods
+  async getCustomer(id: number): Promise<Customer | undefined> {
+    return this.customers.get(id);
+  }
+
+  async getAllCustomers(): Promise<Customer[]> {
+    return Array.from(this.customers.values());
+  }
+
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    const id = this.customerIdCounter++;
+    const now = new Date();
+    const newCustomer: Customer = {
+      ...customer,
+      id,
+      description: customer.description || null,
+      industry: customer.industry || null,
+      backgroundInfo: customer.backgroundInfo || null,
+      website: customer.website || null,
+      contactEmail: customer.contactEmail || null,
+      contactPhone: customer.contactPhone || null,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.customers.set(id, newCustomer);
+    return newCustomer;
+  }
+
+  async updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const existingCustomer = this.customers.get(id);
+    if (!existingCustomer) return undefined;
+    
+    const updatedCustomer: Customer = {
+      ...existingCustomer,
+      ...customer,
+      updatedAt: new Date()
+    };
+    this.customers.set(id, updatedCustomer);
+    return updatedCustomer;
+  }
+
+  async deleteCustomer(id: number): Promise<boolean> {
+    return this.customers.delete(id);
+  }
+
   // Project methods
   async getProject(id: number): Promise<Project | undefined> {
-    return this.projects.get(id);
+    const project = this.projects.get(id);
+    if (!project) return undefined;
+    
+    // If project has a customer ID, fetch the customer details
+    if (project.customerId) {
+      const customer = this.customers.get(project.customerId);
+      if (customer) {
+        const projectWithCustomer = {
+          ...project,
+          customerDetails: customer
+        } as Project; // Type assertion needed for TypeScript
+        return projectWithCustomer;
+      }
+    }
+    
+    return project;
   }
 
   async getProjects(userId: number): Promise<Project[]> {
-    return Array.from(this.projects.values()).filter(
+    const userProjects = Array.from(this.projects.values()).filter(
       project => project.userId === userId
     );
+    
+    // Enrich projects with customer details
+    return userProjects.map(project => {
+      if (project.customerId) {
+        const customer = this.customers.get(project.customerId);
+        if (customer) {
+          return {
+            ...project,
+            customerDetails: customer
+          } as Project; // Type assertion needed for TypeScript
+        }
+      }
+      return project;
+    });
   }
 
   async createProject(project: InsertProject): Promise<Project> {
@@ -797,6 +882,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(invites.token, token))
       .returning();
     return updatedInvite;
+  }
+
+  // Customer methods
+  async getCustomer(id: number): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    return customer;
+  }
+
+  async getAllCustomers(): Promise<Customer[]> {
+    return await db.select().from(customers);
+  }
+
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    const [newCustomer] = await db.insert(customers).values(customer).returning();
+    return newCustomer;
+  }
+
+  async updateCustomer(id: number, customerData: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const [updatedCustomer] = await db
+      .update(customers)
+      .set({ ...customerData, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    
+    return updatedCustomer;
+  }
+
+  async deleteCustomer(id: number): Promise<boolean> {
+    const result = await db
+      .delete(customers)
+      .where(eq(customers.id, id));
+    
+    // If result.count is undefined, assume no deletion happened
+    return result.count !== undefined && result.count > 0;
   }
 
   // Project methods

@@ -17,6 +17,8 @@ import TaskDetail from "@/pages/task-detail";
 import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
+import Customers from "@/pages/customers";
+import CustomerDetail from "@/pages/customer-detail";
 import { SearchResults } from "@/pages/search-results";
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -130,6 +132,24 @@ function Router() {
             {params => (
               <ProtectedLayout>
                 <ProjectDetail projectId={parseInt(params.id)} />
+              </ProtectedLayout>
+            )}
+          </Route>
+        );
+      }} />
+      
+      <ProtectedRoute path="/customers" component={() => (
+        <ProtectedLayout>
+          <Customers />
+        </ProtectedLayout>
+      )} />
+      
+      <ProtectedRoute path="/customers/:id" component={() => {
+        return (
+          <Route path="/customers/:id">
+            {params => (
+              <ProtectedLayout>
+                <CustomerDetail customerId={parseInt(params.id)} />
               </ProtectedLayout>
             )}
           </Route>

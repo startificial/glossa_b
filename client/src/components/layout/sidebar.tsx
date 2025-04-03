@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { Settings, HelpCircle, FileText, ChevronLeft, ChevronRight, LogOut, LogIn } from "lucide-react";
+import { Settings, HelpCircle, FileText, ChevronLeft, ChevronRight, LogOut, LogIn, Building, Home } from "lucide-react";
 import { Project } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -70,74 +70,178 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
           </Button>
         </div>
 
-        {/* Project Navigation */}
+        {/* Main Navigation */}
         <div className="mt-2 md:mt-5 flex-1">
-          <nav className="flex-1 space-y-1 px-2">
+          <nav className="flex-1 space-y-4 px-2">
+            {/* Main Navigation Links */}
             <div className={cn(
               "px-2 md:px-3 py-1 md:py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider",
               isCollapsed && "hidden"
             )}>
-              Recent Projects
+              Navigation
             </div>
-
-            {isLoading ? (
-              // Loading skeletons - responsive
-              <>
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="px-2 md:px-3 py-2 md:py-3">
-                    <Skeleton className="h-5 md:h-6 w-full" />
-                  </div>
-                ))}
-              </>
-            ) : (
-              // Project list - responsive
-              <>
-                {(projects || []).length === 0 ? (
-                  <div className={cn(
-                    "px-2 md:px-3 py-2 text-sm text-gray-500 italic",
-                    isCollapsed && "hidden"
-                  )}>
-                    No projects yet
-                  </div>
-                ) : (
-                  (projects || []).map((project: Project) => {
-                    const isActive = location === `/projects/${project.id}`;
-                    return (
-                      <div key={project.id}>
-                        <Link 
-                          href={`/projects/${project.id}`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleNavigate(`/projects/${project.id}`);
-                          }}
-                          className={cn(
-                            "group flex items-center px-2 md:px-3 py-2 text-sm font-medium rounded-md",
-                            isActive
-                              ? "bg-primary text-white"
-                              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          )}
-                          title={isCollapsed ? project.name : undefined}
-                        >
-                          <FileText
-                            className={cn(
-                              "flex-shrink-0 h-5 w-5",
-                              isCollapsed ? "mr-0" : "mr-2 md:mr-3",
-                              isActive ? "" : "text-gray-500 dark:text-gray-400"
-                            )}
-                          />
-                          <span className={cn(
-                            "truncate",
-                            isCollapsed && "hidden"
-                          )}>
-                            {project.name}
-                          </span>
-                        </Link>
-                      </div>
-                    );
-                  })
+            
+            <div>
+              <Link 
+                href="/"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavigate("/");
+                }}
+                className={cn(
+                  "group flex items-center px-2 md:px-3 py-2 text-sm font-medium rounded-md",
+                  location === "/"
+                    ? "bg-primary text-white"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 )}
-              </>
-            )}
+                title={isCollapsed ? "Dashboard" : undefined}
+              >
+                <Home
+                  className={cn(
+                    "flex-shrink-0 h-5 w-5",
+                    isCollapsed ? "mr-0" : "mr-2 md:mr-3",
+                    location === "/" ? "" : "text-gray-500 dark:text-gray-400"
+                  )}
+                />
+                <span className={cn(
+                  "truncate",
+                  isCollapsed && "hidden"
+                )}>
+                  Dashboard
+                </span>
+              </Link>
+            </div>
+            
+            <div>
+              <Link 
+                href="/projects"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavigate("/projects");
+                }}
+                className={cn(
+                  "group flex items-center px-2 md:px-3 py-2 text-sm font-medium rounded-md",
+                  location === "/projects"
+                    ? "bg-primary text-white"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                )}
+                title={isCollapsed ? "Projects" : undefined}
+              >
+                <FileText
+                  className={cn(
+                    "flex-shrink-0 h-5 w-5",
+                    isCollapsed ? "mr-0" : "mr-2 md:mr-3",
+                    location === "/projects" ? "" : "text-gray-500 dark:text-gray-400"
+                  )}
+                />
+                <span className={cn(
+                  "truncate",
+                  isCollapsed && "hidden"
+                )}>
+                  Projects
+                </span>
+              </Link>
+            </div>
+            
+            <div>
+              <Link 
+                href="/customers"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavigate("/customers");
+                }}
+                className={cn(
+                  "group flex items-center px-2 md:px-3 py-2 text-sm font-medium rounded-md",
+                  location === "/customers"
+                    ? "bg-primary text-white"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                )}
+                title={isCollapsed ? "Customers" : undefined}
+              >
+                <Building
+                  className={cn(
+                    "flex-shrink-0 h-5 w-5",
+                    isCollapsed ? "mr-0" : "mr-2 md:mr-3",
+                    location === "/customers" ? "" : "text-gray-500 dark:text-gray-400"
+                  )}
+                />
+                <span className={cn(
+                  "truncate",
+                  isCollapsed && "hidden"
+                )}>
+                  Customers
+                </span>
+              </Link>
+            </div>
+            
+            {/* Recent Projects Section */}
+            <div className="mt-6">
+              <div className={cn(
+                "px-2 md:px-3 py-1 md:py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider",
+                isCollapsed && "hidden"
+              )}>
+                Recent Projects
+              </div>
+
+              {isLoading ? (
+                // Loading skeletons - responsive
+                <>
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="px-2 md:px-3 py-2 md:py-3">
+                      <Skeleton className="h-5 md:h-6 w-full" />
+                    </div>
+                  ))}
+                </>
+              ) : (
+                // Project list - responsive
+                <>
+                  {(projects || []).length === 0 ? (
+                    <div className={cn(
+                      "px-2 md:px-3 py-2 text-sm text-gray-500 italic",
+                      isCollapsed && "hidden"
+                    )}>
+                      No projects yet
+                    </div>
+                  ) : (
+                    (projects || []).map((project: Project) => {
+                      const isActive = location === `/projects/${project.id}`;
+                      return (
+                        <div key={project.id}>
+                          <Link 
+                            href={`/projects/${project.id}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleNavigate(`/projects/${project.id}`);
+                            }}
+                            className={cn(
+                              "group flex items-center px-2 md:px-3 py-2 text-sm font-medium rounded-md",
+                              isActive
+                                ? "bg-primary text-white"
+                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            )}
+                            title={isCollapsed ? project.name : undefined}
+                          >
+                            <FileText
+                              className={cn(
+                                "flex-shrink-0 h-5 w-5",
+                                isCollapsed ? "mr-0" : "mr-2 md:mr-3",
+                                isActive ? "" : "text-gray-500 dark:text-gray-400"
+                              )}
+                            />
+                            <span className={cn(
+                              "truncate",
+                              isCollapsed && "hidden"
+                            )}>
+                              {project.name}
+                            </span>
+                          </Link>
+                        </div>
+                      );
+                    })
+                  )}
+                </>
+              )}
+            </div>
           </nav>
         </div>
 
