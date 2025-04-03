@@ -32,7 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FolderPlus } from "lucide-react";
+import { FolderPlus, PlusCircle } from "lucide-react";
+import { CustomerDialog } from "@/components/customers/customer-dialog";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -52,13 +53,14 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
 
   // Fetch customers for the dropdown
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
     enabled: isOpen, // Only fetch when dialog is open
   });
-
+  
   const form = useForm<CreateProjectFormData>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
@@ -70,6 +72,12 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       targetSystem: "",
     },
   });
+  
+  // Handle when a new customer is created from the dialog
+  const handleCustomerCreated = (newCustomer: Customer) => {
+    // Set the new customer as the selected customer
+    form.setValue('customerId', newCustomer.id.toString());
+  };
 
   const createProject = useMutation({
     mutationFn: async (data: CreateProjectFormData) => {
@@ -112,167 +120,201 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
     createProject.mutate(apiData as any);
   }
 
+  // Handler for when "Add New Customer" is clicked
+  const handleAddNewCustomer = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCustomerDialogOpen(true);
+  };
+
+  // Handler for closing the customer dialog
+  const handleCloseCustomerDialog = () => {
+    setCustomerDialogOpen(false);
+    // Reset the dropdown value to none if it's "add_new" to avoid showing "Add New Customer" as the selected option
+    if (form.getValues('customerId') === 'add_new') {
+      form.setValue('customerId', 'none');
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[525px]">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900">
-              <FolderPlus className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900">
+                <FolderPlus className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+              </div>
+              <div>
+                <DialogTitle>Create New Project</DialogTitle>
+                <DialogDescription>
+                  Create a new project to start organizing your requirements.
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle>Create New Project</DialogTitle>
-              <DialogDescription>
-                Create a new project to start organizing your requirements.
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+          </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Project Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter project name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Describe your project"
-                      className="resize-none"
-                      {...field}
-                      value={field.value || ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Project Type</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Name</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select project type" />
-                      </SelectTrigger>
+                      <Input placeholder="Enter project name" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Software Migration">Software Migration</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="customerId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Customer</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value?.toString() || 'none'}
-                    disabled={isLoadingCustomers}
-                  >
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a customer" />
-                      </SelectTrigger>
+                      <Textarea
+                        placeholder="Describe your project"
+                        className="resize-none"
+                        {...field}
+                        value={field.value || ''}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {customers.map((customer: Customer) => (
-                        <SelectItem key={customer.id} value={customer.id.toString()}>
-                          {customer.name}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Type</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select project type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Software Migration">Software Migration</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="customerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Customer</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value?.toString() || 'none'}
+                      disabled={isLoadingCustomers}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a customer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {customers.map((customer: Customer) => (
+                          <SelectItem key={customer.id} value={customer.id.toString()}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem 
+                          value="add_new" 
+                          className="text-primary font-medium border-t mt-1 pt-1"
+                          onClick={handleAddNewCustomer}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <PlusCircle className="h-4 w-4" />
+                            Add New Customer
+                          </span>
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="sourceSystem"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Source System</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="e.g., Legacy CRM" 
-                        {...field}
-                        value={field.value || ''} 
-                      />
-                    </FormControl>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="targetSystem"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Target System</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="e.g., Cloud CRM" 
-                        {...field}
-                        value={field.value || ''} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="sourceSystem"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Source System</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., Legacy CRM" 
+                          {...field}
+                          value={field.value || ''} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create Project"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+                <FormField
+                  control={form.control}
+                  name="targetSystem"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Target System</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., Cloud CRM" 
+                          {...field}
+                          value={field.value || ''} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Creating..." : "Create Project"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      <CustomerDialog 
+        isOpen={customerDialogOpen}
+        onClose={handleCloseCustomerDialog}
+        onCustomerCreated={handleCustomerCreated}
+      />
+    </>
   );
 }

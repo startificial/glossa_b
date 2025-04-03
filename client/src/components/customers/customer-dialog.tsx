@@ -41,9 +41,10 @@ interface CustomerDialogProps {
   isOpen: boolean;
   onClose: () => void;
   customer?: Customer; // If provided, dialog will be in edit mode
+  onCustomerCreated?: (customer: Customer) => void; // Callback when a customer is created or updated
 }
 
-export function CustomerDialog({ isOpen, onClose, customer }: CustomerDialogProps) {
+export function CustomerDialog({ isOpen, onClose, customer, onCustomerCreated }: CustomerDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,8 +71,14 @@ export function CustomerDialog({ isOpen, onClose, customer }: CustomerDialogProp
       const method = isEditMode ? "PUT" : "POST";
       return apiRequest(method, endpoint, data);
     },
-    onSuccess: () => {
+    onSuccess: (newCustomer: Customer) => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      
+      // Call the callback if provided
+      if (onCustomerCreated) {
+        onCustomerCreated(newCustomer);
+      }
+      
       onClose();
       form.reset();
       toast({
