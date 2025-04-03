@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { CreateProjectFormData } from "@/lib/types";
+import { CreateProjectFormData, Customer } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +38,7 @@ const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().optional(),
   type: z.string().min(1, "Project type is required"),
-  customer: z.string().optional(),
+  customerId: z.string().optional(), // We'll convert to number when submitting
   sourceSystem: z.string().optional(),
   targetSystem: z.string().optional(),
 });
@@ -53,13 +53,19 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch customers for the dropdown
+  const { data: customers = [], isLoading: isLoadingCustomers } = useQuery<Customer[]>({
+    queryKey: ['/api/customers'],
+    enabled: isOpen, // Only fetch when dialog is open
+  });
+
   const form = useForm<CreateProjectFormData>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
       name: "",
       description: "",
       type: "Software Migration",
-      customer: "",
+      customerId: "",
       sourceSystem: "",
       targetSystem: "",
     },
@@ -97,10 +103,11 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       name: data.name,
       type: data.type,
       description: data.description.trim() === '' ? null : data.description,
-      customer: data.customer?.trim() === '' ? null : data.customer,
+      customerId: data.customerId ? parseInt(data.customerId) : null,
       sourceSystem: data.sourceSystem?.trim() === '' ? null : data.sourceSystem,
       targetSystem: data.targetSystem?.trim() === '' ? null : data.targetSystem,
     };
+    console.log('Submitting project with data:', apiData);
     // Use a type assertion to handle the server-side typing correctly
     createProject.mutate(apiData as any);
   }
@@ -184,17 +191,29 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
 
             <FormField
               control={form.control}
-              name="customer"
+              name="customerId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Customer</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="e.g., Acme Inc." 
-                      {...field}
-                      value={field.value || ''} 
-                    />
-                  </FormControl>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value?.toString() || ''}
+                    disabled={isLoadingCustomers}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a customer" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {customers.map((customer: Customer) => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

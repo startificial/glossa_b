@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { CustomerDetail as CustomerDetailComponent } from "@/components/customers/customer-detail";
-import { Customer } from "@/lib/types";
+import { Button } from "../components/ui/button";
+import { EnhancedCustomerDetail } from "../components/customers/enhanced-customer-detail";
+import { Customer } from "../lib/types";
 import { ChevronLeft } from "lucide-react";
 
 interface CustomerDetailPageProps {
@@ -13,27 +13,20 @@ interface CustomerDetailPageProps {
 export default function CustomerDetail({ customerId }: CustomerDetailPageProps) {
   // Fetch customer data
   const { 
-    data: customer, 
+    data, 
     isLoading, 
     isError 
-  } = useQuery<Customer>({
+  } = useQuery<{[key: string]: any}>({
     queryKey: [`/api/customers/${customerId}`],
     staleTime: 60000, // 1 minute
   });
+  
+  const customer = data as Customer;
   
   // Fetch related projects (optional - our customer already has projects via join)
   
   return (
     <div className="container mx-auto py-6 max-w-7xl">
-      {/* Back button */}
-      <div className="mb-6">
-        <Link href="/customers">
-          <Button variant="ghost" size="sm" className="gap-1 pl-0 hover:pl-0">
-            <ChevronLeft className="h-4 w-4" />
-            Back to Customers
-          </Button>
-        </Link>
-      </div>
       
       {isLoading ? (
         <div className="space-y-4">
@@ -57,7 +50,7 @@ export default function CustomerDetail({ customerId }: CustomerDetailPageProps) 
           </div>
         </div>
       ) : customer ? (
-        <CustomerDetailComponent customer={customer} />
+        <EnhancedCustomerDetail customer={customer} />
       ) : (
         <div className="py-12 text-center">
           <h2 className="text-xl font-semibold mb-2">Customer not found</h2>

@@ -1,31 +1,40 @@
-import { cn } from "@/lib/utils";
-import React from "react";
+import React from 'react';
 
-interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {}
+interface PageHeaderProps {
+  children?: React.ReactNode;
+  className?: string;
+}
 
-function PageHeader({ className, ...props }: PageHeaderProps) {
+export function PageHeader({ children, className }: PageHeaderProps) {
   return (
-    <div className={cn("grid gap-1", className)} {...props} />
+    <div className={`flex flex-col gap-1 ${className || ''}`}>
+      {children}
+    </div>
   );
 }
 
-interface PageHeaderHeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {}
+interface PageHeaderHeadingProps {
+  children?: React.ReactNode;
+  className?: string;
+}
 
-function PageHeaderHeading({ className, ...props }: PageHeaderHeadingProps) {
+export function PageHeaderHeading({ children, className }: PageHeaderHeadingProps) {
   return (
-    <h1 className={cn("text-2xl font-bold tracking-tight", className)} {...props} />
+    <h1 className={`text-2xl font-bold tracking-tight ${className || ''}`}>
+      {children}
+    </h1>
   );
 }
 
-interface PageHeaderDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {}
-
-function PageHeaderDescription({ className, ...props }: PageHeaderDescriptionProps) {
-  return (
-    <p
-      className={cn("text-muted-foreground", className)}
-      {...props}
-    />
-  );
+interface PageHeaderDescriptionProps {
+  children?: React.ReactNode;
+  className?: string;
 }
 
-export { PageHeader, PageHeaderHeading, PageHeaderDescription };
+export function PageHeaderDescription({ children, className }: PageHeaderDescriptionProps) {
+  return (
+    <p className={`text-muted-foreground ${className || ''}`}>
+      {children}
+    </p>
+  );
+}

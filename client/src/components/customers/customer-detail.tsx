@@ -227,19 +227,9 @@ export function CustomerDetail({ customer }: CustomerDetailProps) {
       
       {/* Edit customer dialog */}
       <CustomerDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        mode="edit"
-        customerId={customer.id}
-        defaultValues={{
-          name: customer.name,
-          description: customer.description || "",
-          industry: customer.industry || "",
-          backgroundInfo: customer.backgroundInfo || "",
-          website: customer.website || "",
-          contactEmail: customer.contactEmail || "",
-          contactPhone: customer.contactPhone || "",
-        }}
+        isOpen={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        customer={customer}
       />
     </>
   );

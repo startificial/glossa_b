@@ -162,7 +162,7 @@ export interface CreateProjectFormData {
   name: string;
   description: string;  // React form input needs string (we'll handle null conversion)
   type: string;
-  customerId?: number | null;  // Reference to customer id
+  customerId?: string;  // String in the form, will be converted to number when submitting
   customer?: string;  // Legacy field for backward compatibility
   sourceSystem?: string;  // React form input needs string (we'll handle null conversion)
   targetSystem?: string;  // React form input needs string (we'll handle null conversion)

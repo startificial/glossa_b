@@ -318,7 +318,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get projects associated with this customer
       const customerProjects = await db.query.projects.findMany({
-        where: eq(projects.customerId, customerId)
+        where: eq(projects.customerId, customerId),
+        columns: {
+          id: true,
+          name: true,
+          description: true,
+          sourceSystem: true,
+          targetSystem: true,
+          createdAt: true,
+          updatedAt: true
+        }
       });
 
       res.json({ ...customer, projects: customerProjects });
@@ -383,7 +392,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Check if customer has associated projects
       const associatedProjects = await db.query.projects.findMany({
-        where: eq(projects.customerId, customerId)
+        where: eq(projects.customerId, customerId),
+        columns: {
+          id: true,
+          name: true
+        }
       });
 
       if (associatedProjects.length > 0) {

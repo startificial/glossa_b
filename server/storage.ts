@@ -914,8 +914,8 @@ export class DatabaseStorage implements IStorage {
       .delete(customers)
       .where(eq(customers.id, id));
     
-    // If result.count is undefined, assume no deletion happened
-    return result.count !== undefined && result.count > 0;
+    // Check if any rows were affected
+    return result !== undefined && Object.keys(result).length > 0;
   }
 
   // Project methods

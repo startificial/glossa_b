@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Customer } from "@/lib/types";
-import { CustomerCard } from "@/components/customers/customer-card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Customer } from "../lib/types";
+import { CustomerCard } from "../components/customers/customer-card";
+import { EnhancedCustomerCard } from "../components/customers/enhanced-customer-card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import { Plus, Search } from "lucide-react";
-import { PageHeader, PageHeaderHeading, PageHeaderDescription } from "@/components/ui/page-header";
-import { CustomerDialog } from "@/components/customers/customer-dialog";
+import { PageHeader, PageHeaderHeading, PageHeaderDescription } from "../components/ui/page-header";
+import { CustomerDialog } from "../components/customers/customer-dialog";
 
 export default function Customers() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,7 +70,7 @@ export default function Customers() {
       ) : filteredCustomers && filteredCustomers.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCustomers.map((customer) => (
-            <CustomerCard key={customer.id} customer={customer} />
+            <EnhancedCustomerCard key={customer.id} customer={customer} />
           ))}
         </div>
       ) : (
@@ -97,9 +98,8 @@ export default function Customers() {
       )}
       
       <CustomerDialog 
-        open={dialogOpen} 
-        onOpenChange={setDialogOpen}
-        mode="create" 
+        isOpen={dialogOpen} 
+        onClose={() => setDialogOpen(false)}
       />
     </div>
   );

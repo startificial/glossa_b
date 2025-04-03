@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { insertCustomerSchema } from "@shared/schema";
-import { Button } from "@/components/ui/button";
+import { Customer, CreateCustomerFormData } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -24,131 +24,120 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Building2, User2 } from "lucide-react";
 
-// Extended schema with required fields and validation
-const formSchema = insertCustomerSchema.extend({
-  name: z.string().min(1, "Name is required"),
-  industry: z.string().optional(),
+const customerSchema = z.object({
+  name: z.string().min(1, "Customer name is required"),
   description: z.string().optional(),
+  industry: z.string().optional(),
   backgroundInfo: z.string().optional(),
-  website: z.string().url("Please enter a valid URL").optional().or(z.literal('')),
-  contactEmail: z.string().email("Please enter a valid email").optional().or(z.literal('')),
+  website: z.string().optional(),
+  contactEmail: z.string().email("Invalid email address").optional().or(z.literal('')),
   contactPhone: z.string().optional(),
 });
 
 interface CustomerDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  defaultValues?: z.infer<typeof formSchema>;
-  mode?: "create" | "edit";
-  customerId?: number;
+  isOpen: boolean;
+  onClose: () => void;
+  customer?: Customer; // If provided, dialog will be in edit mode
 }
 
-export function CustomerDialog({
-  open,
-  onOpenChange,
-  defaultValues = {
-    name: "",
-    industry: "",
-    description: "",
-    backgroundInfo: "",
-    website: "",
-    contactEmail: "",
-    contactPhone: "",
-  },
-  mode = "create",
-  customerId,
-}: CustomerDialogProps) {
-  const [pending, setPending] = useState(false);
-  const queryClient = useQueryClient();
+export function CustomerDialog({ isOpen, onClose, customer }: CustomerDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isEditMode = !!customer;
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues,
+  const form = useForm<CreateCustomerFormData>({
+    resolver: zodResolver(customerSchema),
+    defaultValues: {
+      name: customer?.name || "",
+      description: customer?.description || "",
+      industry: customer?.industry || "",
+      backgroundInfo: customer?.backgroundInfo || "",
+      website: customer?.website || "",
+      contactEmail: customer?.contactEmail || "",
+      contactPhone: customer?.contactPhone || "",
+    },
   });
 
-  const createCustomerMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof formSchema>) => {
-      return apiRequest("POST", "/api/customers", data);
+  const createCustomer = useMutation({
+    mutationFn: async (data: CreateCustomerFormData) => {
+      const endpoint = isEditMode 
+        ? `/api/customers/${customer.id}` 
+        : "/api/customers";
+      const method = isEditMode ? "PUT" : "POST";
+      return apiRequest(method, endpoint, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
-      toast({
-        title: "Customer created",
-        description: "The customer has been successfully created.",
-      });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      onClose();
       form.reset();
-      onOpenChange(false);
+      toast({
+        title: "Success",
+        description: `Customer ${isEditMode ? 'updated' : 'created'} successfully`,
+      });
     },
     onError: (error) => {
-      console.error("Error creating customer:", error);
       toast({
-        title: "Failed to create customer",
-        description: "There was an error creating the customer. Please try again.",
+        title: "Error",
+        description: `Failed to ${isEditMode ? 'update' : 'create'} customer: ${error.message}`,
         variant: "destructive",
       });
     },
-  });
-
-  const updateCustomerMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof formSchema>) => {
-      return apiRequest("PUT", `/api/customers/${customerId}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/customers/${customerId}`] });
-      toast({
-        title: "Customer updated",
-        description: "The customer has been successfully updated.",
-      });
-      onOpenChange(false);
-    },
-    onError: (error) => {
-      console.error("Error updating customer:", error);
-      toast({
-        title: "Failed to update customer",
-        description: "There was an error updating the customer. Please try again.",
-        variant: "destructive",
-      });
+    onSettled: () => {
+      setIsSubmitting(false);
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof formSchema>) => {
-    setPending(true);
-    try {
-      if (mode === "create") {
-        await createCustomerMutation.mutateAsync(data);
-      } else {
-        await updateCustomerMutation.mutateAsync(data);
-      }
-    } finally {
-      setPending(false);
-    }
-  };
+  function onSubmit(data: CreateCustomerFormData) {
+    setIsSubmitting(true);
+    // Convert empty strings to null for API
+    const apiData = {
+      name: data.name,
+      description: data.description.trim() === '' ? null : data.description,
+      industry: data.industry?.trim() === '' ? null : data.industry,
+      backgroundInfo: data.backgroundInfo?.trim() === '' ? null : data.backgroundInfo,
+      website: data.website?.trim() === '' ? null : data.website,
+      contactEmail: data.contactEmail?.trim() === '' ? null : data.contactEmail,
+      contactPhone: data.contactPhone?.trim() === '' ? null : data.contactPhone,
+    };
+    
+    createCustomer.mutate(apiData as any);
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle>
-            {mode === "create" ? "Add Customer" : "Edit Customer"}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === "create"
-              ? "Create a new customer profile."
-              : "Update customer information."}
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-indigo-100 dark:bg-indigo-900">
+              {isEditMode ? (
+                <User2 className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />
+              ) : (
+                <Building2 className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />
+              )}
+            </div>
+            <div>
+              <DialogTitle>{isEditMode ? 'Edit Customer' : 'Create New Customer'}</DialogTitle>
+              <DialogDescription>
+                {isEditMode 
+                  ? 'Update customer information' 
+                  : 'Add a new customer to manage their projects'}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Customer Name</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter customer name" {...field} />
                   </FormControl>
@@ -156,21 +145,7 @@ export function CustomerDialog({
                 </FormItem>
               )}
             />
-            
-            <FormField
-              control={form.control}
-              name="industry"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Industry</FormLabel>
-                  <FormControl>
-                    <Input placeholder="E.g. Technology, Healthcare, Finance" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
+
             <FormField
               control={form.control}
               name="description"
@@ -180,15 +155,54 @@ export function CustomerDialog({
                   <FormControl>
                     <Textarea
                       placeholder="Brief description of the customer"
-                      rows={2}
+                      className="resize-none"
                       {...field}
+                      value={field.value || ''}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="industry"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Industry</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., Healthcare, Finance" 
+                        {...field}
+                        value={field.value || ''} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="website"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Website</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., www.example.com" 
+                        {...field}
+                        value={field.value || ''} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
               name="backgroundInfo"
@@ -197,31 +211,18 @@ export function CustomerDialog({
                   <FormLabel>Background Information</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Detailed background information about the customer"
-                      rows={4}
+                      placeholder="More detailed information about the customer"
+                      className="resize-none"
                       {...field}
+                      value={field.value || ''}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="website"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Website</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="contactEmail"
@@ -229,39 +230,48 @@ export function CustomerDialog({
                   <FormItem>
                     <FormLabel>Contact Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="contact@example.com" {...field} />
+                      <Input 
+                        placeholder="contact@example.com" 
+                        type="email"
+                        {...field}
+                        value={field.value || ''} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="contactPhone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Phone</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., (123) 456-7890" 
+                        {...field}
+                        value={field.value || ''} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            
-            <FormField
-              control={form.control}
-              name="contactPhone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Contact Phone</FormLabel>
-                  <FormControl>
-                    <Input placeholder="+1 (555) 123-4567" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
+
             <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={pending}
+                onClick={onClose}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={pending}>
-                {pending ? "Saving..." : mode === "create" ? "Create" : "Update"}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (isEditMode ? "Updating..." : "Creating...") : (isEditMode ? "Update Customer" : "Create Customer")}
               </Button>
             </DialogFooter>
           </form>
