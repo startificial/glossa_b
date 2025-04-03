@@ -65,7 +65,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       name: "",
       description: "",
       type: "Software Migration",
-      customerId: "",
+      customerId: "none",
       sourceSystem: "",
       targetSystem: "",
     },
@@ -103,7 +103,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       name: data.name,
       type: data.type,
       description: data.description.trim() === '' ? null : data.description,
-      customerId: data.customerId ? parseInt(data.customerId) : null,
+      customerId: data.customerId && data.customerId !== 'none' ? parseInt(data.customerId) : null,
       sourceSystem: data.sourceSystem?.trim() === '' ? null : data.sourceSystem,
       targetSystem: data.targetSystem?.trim() === '' ? null : data.targetSystem,
     };
@@ -197,7 +197,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                   <FormLabel>Customer</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    value={field.value?.toString() || ''}
+                    value={field.value?.toString() || 'none'}
                     disabled={isLoadingCustomers}
                   >
                     <FormControl>
@@ -206,7 +206,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {customers.map((customer: Customer) => (
                         <SelectItem key={customer.id} value={customer.id.toString()}>
                           {customer.name}
