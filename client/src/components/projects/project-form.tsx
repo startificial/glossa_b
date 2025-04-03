@@ -130,8 +130,9 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
   // Handler for closing the customer dialog
   const handleCloseCustomerDialog = () => {
     setCustomerDialogOpen(false);
-    // Reset the dropdown value to none if it's "add_new" to avoid showing "Add New Customer" as the selected option
-    if (form.getValues('customerId') === 'add_new') {
+    // If a customer wasn't created (via handleCustomerCreated), make sure the form value isn't set to "add_new"
+    const currentValue = form.getValues('customerId');
+    if (currentValue === 'add_new') {
       form.setValue('customerId', 'none');
     }
   };
@@ -221,7 +222,14 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                   <FormItem>
                     <FormLabel>Customer</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
+                      onValueChange={(value) => {
+                        if (value === 'add_new') {
+                          // Don't update the form value yet, just open the dialog
+                          setCustomerDialogOpen(true);
+                        } else {
+                          field.onChange(value);
+                        }
+                      }}
                       value={field.value?.toString() || 'none'}
                       disabled={isLoadingCustomers}
                     >
@@ -240,7 +248,6 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                         <SelectItem 
                           value="add_new" 
                           className="text-primary font-medium border-t mt-1 pt-1"
-                          onClick={handleAddNewCustomer}
                         >
                           <span className="flex items-center gap-1.5">
                             <PlusCircle className="h-4 w-4" />
