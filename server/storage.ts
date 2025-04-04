@@ -1501,7 +1501,11 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Use database storage if configured, otherwise fallback to in-memory storage
-export const storage = process.env.USE_POSTGRES === 'true' 
+// Use database storage if DATABASE_URL is available, otherwise fallback to in-memory storage
+// This ensures we always use the database when available
+export const storage = process.env.DATABASE_URL 
   ? new DatabaseStorage() 
   : new MemStorage();
+
+// Log which storage system we're using
+console.log(`Storage system: ${process.env.DATABASE_URL ? 'PostgreSQL Database' : 'In-Memory'}`);
