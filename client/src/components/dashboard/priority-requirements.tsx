@@ -22,7 +22,7 @@ interface PriorityRequirementsProps {
 }
 
 export function PriorityRequirements({ projectId }: PriorityRequirementsProps) {
-  const { data: requirements, isLoading } = useQuery({
+  const { data: requirements = [], isLoading } = useQuery<Requirement[]>({
     queryKey: [`/api/projects/${projectId}/requirements/high-priority`],
   });
 
@@ -52,7 +52,7 @@ export function PriorityRequirements({ projectId }: PriorityRequirementsProps) {
           </ul>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {requirements?.map((req: Requirement) => (
+            {Array.isArray(requirements) && requirements.map((req: Requirement) => (
               <li key={req.id} className="px-0 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700">
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">

@@ -466,6 +466,7 @@ export class MemStorage implements IStorage {
       priority: requirement.priority || "medium",
       inputDataId: requirement.inputDataId || null,
       source: requirement.source || null,
+      codeId: requirement.codeId || null,
       acceptanceCriteria: requirement.acceptanceCriteria || [],
       videoScenes: requirement.videoScenes || [],
       textReferences: requirement.textReferences || [],
@@ -630,7 +631,7 @@ export class MemStorage implements IStorage {
       .filter(req => 
         exactMatch(req.description) || 
         exactMatch(req.category) || 
-        exactMatch(req.codeId)
+        (req.codeId && exactMatch(req.codeId))
       );
 
     // If we have fewer than the limit, add fuzzy matches
@@ -641,7 +642,7 @@ export class MemStorage implements IStorage {
           !matchedRequirements.includes(req) && (
             fuzzyMatch(req.description) || 
             fuzzyMatch(req.category) || 
-            fuzzyMatch(req.codeId)
+            (req.codeId && fuzzyMatch(req.codeId))
           )
         );
       matchedRequirements.push(...fuzzyRequirements.slice(0, limit - matchedRequirements.length));
