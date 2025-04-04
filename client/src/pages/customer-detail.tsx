@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "../components/ui/button";
 import { EnhancedCustomerDetail } from "../components/customers/enhanced-customer-detail";
-import { Customer } from "../lib/types";
+import { Customer, Project } from "../lib/types";
 import { ChevronLeft } from "lucide-react";
 
 interface CustomerDetailPageProps {

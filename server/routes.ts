@@ -323,6 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: true,
           name: true,
           description: true,
+          type: true, // Add type field which is used in UI
           sourceSystem: true,
           targetSystem: true,
           createdAt: true,
@@ -330,7 +331,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      res.json({ ...customer, projects: customerProjects });
+      console.log('Customer id:', customerId);
+      console.log('Customer projects:', customerProjects);
+      
+      const responseData = { ...customer, projects: customerProjects };
+      console.log('Response data:', responseData);
+      
+      res.json(responseData);
     } catch (error) {
       console.error("Error fetching customer:", error);
       res.status(500).json({ message: "Internal server error" });
