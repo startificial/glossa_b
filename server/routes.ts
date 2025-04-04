@@ -656,7 +656,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      const project = await storage.getProject(projectId);
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
@@ -1162,7 +1166,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: "Invalid project ID" });
     }
 
-    const project = await storage.getProject(projectId);
+    // Check if project exists in the database
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId)
+    });
+    
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
@@ -1187,7 +1195,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid requirement ID" });
       }
 
-      const project = await storage.getProject(projectId);
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
@@ -1215,7 +1227,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      const project = await storage.getProject(projectId);
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
@@ -1437,7 +1453,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      const project = await storage.getProject(projectId);
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
