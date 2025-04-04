@@ -13,7 +13,11 @@ import {
   insertInviteSchema,
   insertCustomerSchema,
   customers,
-  projects
+  projects,
+  requirements,
+  activities,
+  users,
+  implementationTasks
 } from "@shared/schema";
 import { eq, asc, desc } from "drizzle-orm";
 import { AcceptanceCriterion } from "@shared/types";
@@ -1212,21 +1216,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if project exists in the database
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
+      const [project] = await db.select()
+        .from(projects)
+        .where(eq(projects.id, projectId));
       
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      const requirement = await storage.getRequirement(requirementId);
+      // Direct database access for requirement
+      const [requirement] = await db.select()
+        .from(requirements)
+        .where(eq(requirements.id, requirementId));
+      
+      console.log("Direct DB lookup for requirement:", requirement);
+      
       if (!requirement) {
         return res.status(404).json({ message: "Requirement not found" });
       }
 
       if (requirement.projectId !== projectId) {
-        return res.status(404).json({ message: "Requirement does not belong to this project" });
+        return res.status(404).json({ 
+          message: "Requirement does not belong to this project",
+          reqProjectId: requirement.projectId,
+          requestedProjectId: projectId
+        });
       }
 
       res.json(requirement);
@@ -1831,20 +1845,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid requirement ID", requirementId: req.params.requirementId });
       }
 
-      // Get the requirement directly from the database without any project check
-      // We'll validate the project relationship separately
-      const [requirement] = await db.select()
+      // Get requirement directly from the database for debugging
+      const [directRequirement] = await db.select()
         .from(requirements)
         .where(eq(requirements.id, requirementId));
       
+      console.log("Direct DB lookup result:", directRequirement);
+      
+      // If direct lookup works, use it
+      const requirement = directRequirement;
+      
       if (!requirement) {
-        console.error(`Requirement with ID ${requirementId} not found in database`);
+        console.error(`Requirement with ID ${requirementId} not found in database via direct lookup`);
         return res.status(404).json({ message: "Requirement not found", requirementId });
       }
 
       console.log(`Found requirement: ${requirement.title}, project ID: ${requirement.projectId}`);
       
-      // Get the project directly from the database 
+      // Get the project directly from the database
       const [project] = await db.select()
         .from(projects)
         .where(eq(projects.id, requirement.projectId));
@@ -1857,10 +1875,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Found project: ${project.name}`);
 
       // For demo, always use the demo user
-      const [user] = await db.select()
-        .from(users)
-        .where(eq(users.username, "demo"));
-        
+      const user = await storage.getUserByUsername("demo");
+      
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -1879,23 +1895,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requirement.description
       );
 
-      // Update the requirement with the new acceptance criteria directly in the database
+      // Update the requirement with the new acceptance criteria
+      // Use direct database access for the update
       const [updatedRequirement] = await db
         .update(requirements)
         .set({ acceptanceCriteria })
         .where(eq(requirements.id, requirementId))
         .returning();
 
-      // Add activity directly in the database
-      await db.insert(activities).values({
+      console.log("Updated requirement with acceptance criteria:", updatedRequirement);
+
+      // Add activity
+      const activityData = {
         type: "generated_acceptance_criteria",
         description: `${user.username} generated acceptance criteria for requirement ${requirement.codeId || requirement.id}`,
         userId: user.id,
         projectId: requirement.projectId,
         relatedEntityId: requirement.id,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
+        createdAt: new Date()
+      };
+      await storage.createActivity(activityData);
 
       res.status(200).json(acceptanceCriteria);
     } catch (error) {
@@ -1916,16 +1935,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectId = req.body.projectId ? parseInt(req.body.projectId) : null;
       console.log(`Generating tasks for requirement ID: ${requirementId}, project ID from body: ${projectId}`);
       
-      // No project ID provided, try direct lookup
-      let requirement;
+      // Use direct DB lookup instead of going through the storage layer
+      const directDbResult = await db
+        .select()
+        .from(requirements)
+        .where(eq(requirements.id, requirementId))
+        .limit(1);
       
-      if (!projectId) {
-        // Try to get the requirement directly
-        requirement = await storage.getRequirement(requirementId);
-      } else {
-        // Use the combined method for better reliability
-        requirement = await storage.getRequirementWithProjectCheck(requirementId, projectId);
-      }
+      const requirement = directDbResult[0];
+      
+      // Log the direct DB lookup result
+      console.log('Direct DB lookup result for implementation tasks:', requirement);
       
       // If we still don't have a requirement, return an error
       if (!requirement) {
@@ -1942,11 +1962,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Requirement has no associated project and no project ID was provided" });
       }
 
-      const project = await storage.getProject(effectiveProjectId);
+      // Use direct DB lookup for project
+      const projectResult = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, effectiveProjectId))
+        .limit(1);
+      
+      const project = projectResult[0];
+      
       if (!project) {
         console.error(`Project with ID ${effectiveProjectId} not found for requirement ${requirementId}`);
         return res.status(404).json({ message: "Project not found", projectId: effectiveProjectId });
       }
+      
+      console.log('Found project for implementation tasks:', project.name);
 
       // For demo, always use the demo user
       const user = await storage.getUserByUsername("demo");
@@ -2021,13 +2051,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Add activity
-      await storage.createActivity({
+      const activityData = {
         type: "generated_tasks",
         description: `${user.username} generated ${createdTasks.length} Salesforce-specific implementation tasks for requirement ${requirement.codeId}`,
         userId: user.id,
         projectId: requirement.projectId,
-        relatedEntityId: requirement.id
-      });
+        relatedEntityId: requirement.id,
+        createdAt: new Date()
+      };
+      await storage.createActivity(activityData);
 
       res.status(201).json(createdTasks);
     } catch (error) {
