@@ -841,7 +841,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                             ) : (
                               <>
                                 <Sparkles className="h-4 w-4 mr-2" />
-                                Generate 10-20 Comprehensive Criteria
+                                Generate Acceptance Criteria
                               </>
                             )}
                           </Button>
