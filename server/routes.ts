@@ -323,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: true,
           name: true,
           description: true,
-          type: true, // Add type field which is used in UI
+          // Don't include type field if it's not in the database
           sourceSystem: true,
           targetSystem: true,
           createdAt: true,
