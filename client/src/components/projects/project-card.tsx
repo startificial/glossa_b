@@ -45,31 +45,35 @@ export function ProjectCard({ project }: ProjectCardProps) {
           {!project.customerDetails && project.customer && (
             <div className="mb-3 flex items-center text-xs text-muted-foreground border-l-2 border-primary pl-2">
               <BuildingIcon className="h-3.5 w-3.5 mr-1.5 text-primary" />
-              <span>{project.customer}</span>
+              <span>
+                {typeof project.customer === 'string' 
+                  ? project.customer 
+                  : (project.customer as Customer).name}
+              </span>
             </div>
           )}
           
           {/* Systems information */}
           {(project.sourceSystem || project.targetSystem) && (
             <div className="mb-3 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {project.sourceSystem && (
-                  <div className="flex items-center">
-                    <span className="font-medium mr-1">From:</span> 
-                    <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                  <div className="flex items-center flex-shrink-0">
+                    <span className="font-medium mr-1 whitespace-nowrap">From:</span> 
+                    <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 max-w-[120px] truncate">
                       {project.sourceSystem}
                     </span>
                   </div>
                 )}
                 
                 {project.sourceSystem && project.targetSystem && (
-                  <ArrowRightIcon className="h-3 w-3" />
+                  <ArrowRightIcon className="h-3 w-3 flex-shrink-0" />
                 )}
                 
                 {project.targetSystem && (
-                  <div className="flex items-center">
-                    <span className="font-medium mr-1">To:</span>
-                    <span className="px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                  <div className="flex items-center flex-shrink-0">
+                    <span className="font-medium mr-1 whitespace-nowrap">To:</span>
+                    <span className="px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 max-w-[120px] truncate">
                       {project.targetSystem}
                     </span>
                   </div>
@@ -79,7 +83,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           )}
           
           <div className="flex items-center text-xs text-muted-foreground">
-            <span className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary">
+            <span className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary max-w-full truncate">
               {project.type}
             </span>
           </div>
