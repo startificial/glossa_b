@@ -3,11 +3,7 @@ import { Link } from "wouter";
 import { Customer } from "@/lib/types";
 import { 
   Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+  CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,20 +21,22 @@ export function CustomerInfoCard({ customerId }: CustomerInfoCardProps) {
 
   if (isLoading) {
     return (
-      <Card className="w-full bg-white dark:bg-gray-800 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Skeleton className="h-5 w-40" />
-          </CardTitle>
-          <CardDescription>
-            <Skeleton className="h-4 w-60" />
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
+      <Card className="w-full bg-white dark:bg-gray-800 shadow-sm mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-gray-400" />
+                <Skeleton className="h-6 w-40" />
+              </div>
+              <Skeleton className="h-4 w-32 mt-2" />
+            </div>
+            <div className="flex-1">
+              <Skeleton className="h-4 w-full" />
+            </div>
+            <div className="flex-1 flex md:justify-end">
+              <Skeleton className="h-9 w-44" />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -50,25 +48,27 @@ export function CustomerInfoCard({ customerId }: CustomerInfoCardProps) {
   }
 
   return (
-    <Card className="w-full bg-white dark:bg-gray-800 shadow-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-primary/80" />
-          {customer.name}
-        </CardTitle>
-        <CardDescription>
-          {customer.industry || "Industry not specified"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3 text-sm">
-          {customer.description && (
-            <p className="text-gray-600 dark:text-gray-400">
+    <Card className="w-full bg-white dark:bg-gray-800 shadow-sm mb-6">
+      <CardContent className="p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          {/* Left side: Customer name and industry */}
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary/80" />
+              <h3 className="text-lg font-medium">
+                {customer.name}
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {customer.industry || "Industry not specified"}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               {customer.description}
             </p>
-          )}
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2">
+          {/* Middle: Contact information */}
+          <div className="flex-1 space-y-1">
             {customer.website && (
               <div className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-gray-500" />
@@ -76,7 +76,7 @@ export function CustomerInfoCard({ customerId }: CustomerInfoCardProps) {
                   href={customer.website.startsWith('http') ? customer.website : `https://${customer.website}`} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
                 >
                   {customer.website}
                 </a>
@@ -88,7 +88,7 @@ export function CustomerInfoCard({ customerId }: CustomerInfoCardProps) {
                 <Mail className="h-4 w-4 text-gray-500" />
                 <a 
                   href={`mailto:${customer.contactEmail}`}
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
                 >
                   {customer.contactEmail}
                 </a>
@@ -100,28 +100,29 @@ export function CustomerInfoCard({ customerId }: CustomerInfoCardProps) {
                 <Phone className="h-4 w-4 text-gray-500" />
                 <a 
                   href={`tel:${customer.contactPhone}`}
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
                 >
                   {customer.contactPhone}
                 </a>
               </div>
             )}
           </div>
+          
+          {/* Right side: Action button */}
+          <div className="flex-1 flex md:justify-end">
+            <Button 
+              variant="outline" 
+              size="sm"
+              asChild
+            >
+              <Link to={`/customers/${customer.id}`}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                View Customer Details
+              </Link>
+            </Button>
+          </div>
         </div>
       </CardContent>
-      <CardFooter className="pt-0">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="w-full" 
-          asChild
-        >
-          <Link to={`/customers/${customer.id}`}>
-            <ExternalLink className="mr-2 h-4 w-4" />
-            View Customer Details
-          </Link>
-        </Button>
-      </CardFooter>
     </Card>
   );
 }
