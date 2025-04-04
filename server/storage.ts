@@ -1039,7 +1039,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRequirementWithProjectCheck(id: number, projectId: number): Promise<Requirement | undefined> {
-    // First try the direct method
+    // First try the direct method with strict project ID check
     const [req] = await db.select()
       .from(requirements)
       .where(and(
@@ -1051,13 +1051,31 @@ export class DatabaseStorage implements IStorage {
       return req;
     }
     
-    // If not found with the project check, try getting just by ID
-    // This is a fallback for legacy data or if projectId isn't set correctly
+    // If not found with the project check, fetch the requirement to check its projectId
     const [fallbackReq] = await db.select()
       .from(requirements)
       .where(eq(requirements.id, id));
     
-    return fallbackReq;
+    // Only return the requirement if it exists AND:
+    // 1. Its projectId matches the requested projectId, OR
+    // 2. It has no projectId (legacy data) - in which case we'll associate it
+    if (fallbackReq) {
+      if (fallbackReq.projectId === projectId || fallbackReq.projectId === null) {
+        // If it has no projectId, update it with the provided projectId for future requests
+        if (fallbackReq.projectId === null) {
+          await db.update(requirements)
+            .set({ projectId })
+            .where(eq(requirements.id, id));
+          fallbackReq.projectId = projectId;
+        }
+        return fallbackReq;
+      }
+      
+      // If projectId doesn't match, log it and return undefined
+      console.log(`Requirement ${id} exists but belongs to project ${fallbackReq.projectId}, not ${projectId}`);
+    }
+    
+    return undefined;
   }
 
   async getRequirementsByProject(projectId: number): Promise<Requirement[]> {
