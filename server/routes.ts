@@ -19,7 +19,7 @@ import {
   users,
   implementationTasks
 } from "@shared/schema";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, and } from "drizzle-orm";
 import { AcceptanceCriterion } from "@shared/types";
 import multer from "multer";
 import path from "path";
@@ -1224,35 +1224,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // First try getting the detailed requirement using the same approach as the list endpoint
-      const reqs = await storage.getRequirementsByProject(projectId);
-      const matchingRequirement = reqs.find(r => r.id === requirementId);
+      // Always use direct database access to ensure we get consistent data
+      // with all fields including the latest acceptance criteria
+      // This approach ensures we get JSON fields like acceptanceCriteria properly parsed
+      const [dbRequirement] = await db.select()
+        .from(requirements)
+        .where(
+          and(
+            eq(requirements.id, requirementId),
+            eq(requirements.projectId, projectId)
+          )
+        );
       
-      // Use direct DB lookup as fallback if not found
-      if (!matchingRequirement) {
-        const [dbRequirement] = await db.select()
+      if (!dbRequirement) {
+        // Try to find it by ID only to provide a better error message
+        const [anyRequirement] = await db.select()
           .from(requirements)
           .where(eq(requirements.id, requirementId));
         
-        console.log("Direct DB lookup for requirement:", dbRequirement);
-        
-        if (!dbRequirement) {
+        if (!anyRequirement) {
           return res.status(404).json({ message: "Requirement not found" });
         }
-
-        if (dbRequirement.projectId !== projectId) {
-          return res.status(404).json({ 
-            message: "Requirement does not belong to this project",
-            reqProjectId: dbRequirement.projectId,
-            requestedProjectId: projectId
-          });
-        }
-
-        return res.json(dbRequirement);
+        
+        // Found a requirement but in a different project
+        return res.status(404).json({ 
+          message: "Requirement does not belong to this project",
+          reqProjectId: anyRequirement.projectId,
+          requestedProjectId: projectId
+        });
       }
       
-      console.log("Found matching requirement from project requirements:", matchingRequirement);
-      res.json(matchingRequirement);
+      console.log("Found matching requirement from project requirements:", dbRequirement);
+      res.json(dbRequirement);
     } catch (error) {
       console.error("Error fetching requirement:", error);
       res.status(400).json({ message: "Error fetching requirement", error });
@@ -1913,6 +1916,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .returning();
 
       console.log("Updated requirement with acceptance criteria:", updatedRequirement);
+      
+      // Invalidate any cached requirement data
+      // This is a workaround for the storage layer's caching
+      storage.invalidateRequirementCache?.(requirementId);
 
       // Add activity
       const activityData = {

@@ -10,9 +10,11 @@ import path from "path";
 import os from "os";
 import fs from "fs";
 
-// Set USE_POSTGRES environment variable if it's not already set
-if (process.env.DATABASE_URL && process.env.USE_POSTGRES === undefined) {
+// Always use PostgreSQL database if available
+// This ensures consistent data retrieval and proper handling of complex fields like acceptanceCriteria
+if (process.env.DATABASE_URL) {
   process.env.USE_POSTGRES = 'true';
+  console.log('PostgreSQL database URL detected, enforcing USE_POSTGRES=true');
 }
 
 // Add session type

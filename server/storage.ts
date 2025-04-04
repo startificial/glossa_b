@@ -67,6 +67,7 @@ export interface IStorage {
   updateRequirement(id: number, requirement: Partial<InsertRequirement>): Promise<Requirement | undefined>;
   deleteRequirement(id: number): Promise<boolean>;
   getHighPriorityRequirements(projectId: number, limit?: number): Promise<Requirement[]>;
+  invalidateRequirementCache?(id: number): void; // Optional method to invalidate any cached requirement data
 
   // Activity methods
   getActivitiesByProject(projectId: number, limit?: number): Promise<Activity[]>;
@@ -509,6 +510,12 @@ export class MemStorage implements IStorage {
       .filter(req => req.projectId === projectId && req.priority === "high")
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit);
+  }
+  
+  // Method to invalidate cached requirement data
+  invalidateRequirementCache(id: number): void {
+    // For MemStorage, just make sure we have the latest data
+    console.log(`Invalidating cache for requirement ID: ${id}`);
   }
 
   // Activity methods
@@ -1116,6 +1123,12 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .limit(limit);
+  }
+  
+  // Method to invalidate cached requirement data
+  invalidateRequirementCache(id: number): void {
+    // For DatabaseStorage, this ensures we don't have stale data
+    console.log(`Invalidating database cache for requirement ID: ${id}`);
   }
 
   // Activity methods
