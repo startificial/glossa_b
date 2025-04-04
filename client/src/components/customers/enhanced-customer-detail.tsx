@@ -33,6 +33,7 @@ import { Separator } from "../ui/separator";
 import { Badge } from "../ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { CustomerDialog } from "./customer-dialog";
+import { ProjectForm } from "../projects/project-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Progress } from "../ui/progress";
 
@@ -62,6 +63,7 @@ interface EnhancedCustomerDetailProps {
 
 export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerDetailProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [projectFormOpen, setProjectFormOpen] = useState(false);
   
   // Format dates
   const formattedCreatedAt = format(new Date(customer.createdAt), "PPP");
@@ -76,6 +78,17 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
   // Avatar and banner
   const avatarFallback = generateAvatarFallback(customer.name);
   const bannerStyle = { background: generateBannerColor(customer.name) };
+  
+  // Open project form dialog
+  const handleOpenProjectForm = () => {
+    // Update URL to include customerId parameter
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('customerId', customer.id.toString());
+    window.history.replaceState({}, '', currentUrl.toString());
+    
+    // Open the project form dialog
+    setProjectFormOpen(true);
+  };
   
   return (
     <>
@@ -263,9 +276,7 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
                     <p className="text-muted-foreground mb-4">
                       This customer doesn't have any projects.
                     </p>
-                    <Link href={`/projects/new?customerId=${customer.id}`}>
-                      <Button>Create a project</Button>
-                    </Link>
+                    <Button onClick={handleOpenProjectForm}>Create a project</Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -325,11 +336,13 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
               <CardDescription>Common tasks for this customer</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button className="w-full justify-start" variant="outline" asChild>
-                <Link href={`/projects/new?customerId=${customer.id}`}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Create New Project
-                </Link>
+              <Button 
+                className="w-full justify-start" 
+                variant="outline" 
+                onClick={handleOpenProjectForm}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Create New Project
               </Button>
               
               <Button className="w-full justify-start" variant="outline">
@@ -382,6 +395,12 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
         isOpen={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         customer={customer}
+      />
+      
+      {/* Project form dialog */}
+      <ProjectForm
+        isOpen={projectFormOpen}
+        onClose={() => setProjectFormOpen(false)}
       />
     </>
   );
