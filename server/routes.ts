@@ -1111,9 +1111,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Generate a sequential code ID
             const codeId = `REQ-${(requirementsCount + i + 1).toString().padStart(3, '0')}`;
             
+            // Handle both new format (title/description) and legacy format (text only)
+            const title = requirement.title || `Requirement ${codeId}`;
+            let description = requirement.description;
+            
+            // If the requirement has a 'text' field but no 'description', use the text field content
+            if (!description && requirement.text) {
+              description = requirement.text;
+              console.log(`Converting legacy format requirement (text) to new format (description) for ${codeId}`);
+            }
+            
             await storage.createRequirement({
-              title: requirement.title || `Requirement ${codeId}`,
-              description: requirement.description,
+              title: title,
+              description: description,
               category: requirement.category || 'functional',
               priority: requirement.priority || 'medium',
               projectId,

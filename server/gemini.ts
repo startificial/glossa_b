@@ -172,19 +172,22 @@ export async function processTextFile(filePath: string, projectName: string, fil
         Extract as many requirements as necessary to comprehensively cover the content provided. Do not limit yourself to a specific number - extract all valid requirements from the text. You should aim to extract at least ${minRequirements} requirements if the content supports it, but extract more if necessary.
         
         Format your response as a JSON array of requirements, where each requirement has:
-        1. 'text' (string): A detailed description of at least 150 words that thoroughly explains what needs to be implemented
-        2. 'category' (string): One of 'functional', 'non-functional', 'security', 'performance'
-        3. 'priority' (string): One of 'high', 'medium', 'low'
+        1. 'title' (string): A concise title for the requirement (3-10 words)
+        2. 'description' (string): A detailed description of at least 150 words that thoroughly explains what needs to be implemented
+        3. 'category' (string): One of 'functional', 'non-functional', 'security', 'performance'
+        4. 'priority' (string): One of 'high', 'medium', 'low'
         
-        Example format (but with much more detailed text for each requirement):
+        Example format (but with much more detailed descriptions for each requirement):
         [
           {
-            "text": "The system must implement a comprehensive case management workflow that allows customer service representatives to...[detailed 150+ word description]",
+            "title": "Case Management Workflow",
+            "description": "The system must implement a comprehensive case management workflow that allows customer service representatives to...[detailed 150+ word description]",
             "category": "functional", 
             "priority": "high"
           },
           {
-            "text": "The Salesforce implementation must support a knowledge base integration that...[detailed 150+ word description]",
+            "title": "Knowledge Base Integration",
+            "description": "The Salesforce implementation must support a knowledge base integration that...[detailed 150+ word description]",
             "category": "functional",
             "priority": "medium"
           }
@@ -228,10 +231,15 @@ export async function processTextFile(filePath: string, projectName: string, fil
       }
     }
     
-    // Remove any duplicate requirements (comparing by text)
-    const uniqueRequirements = allRequirements.filter((req, index, self) =>
-      index === self.findIndex((r) => r.text === req.text)
-    );
+    // Remove any duplicate requirements (comparing by title or description)
+    const uniqueRequirements = allRequirements.filter((req, index, self) => {
+      // Handle both new format (title/description) and legacy format (text)
+      const reqText = req.description || req.text;
+      return index === self.findIndex((r) => {
+        const rText = r.description || r.text;
+        return reqText === rText;
+      });
+    });
     
     console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${chunks.length} chunks`);
     
@@ -427,12 +435,13 @@ export async function processVideoFile(
         }
 
         For each requirement:
-        1. Provide a detailed, domain-specific requirement text of at least 150 words that focuses on ${perspective.focus} within ${inferredDomain} functionality
-        2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
-        3. Assign a priority level: 'high', 'medium', or 'low'
+        1. Provide a concise title (3-10 words) that summarizes the requirement
+        2. Provide a detailed, domain-specific requirement description of at least 150 words that focuses on ${perspective.focus} within ${inferredDomain} functionality
+        3. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
+        4. Assign a priority level: 'high', 'medium', or 'low'
         
-        Format your response as a JSON array with exactly ${reqPerChunk} requirements, each with the properties 'text', 'category', and 'priority'.
-        Example: [{"text": "The target system must implement the service call center queue management workflow with priority-based routing, skill-based assignment, and SLA tracking identical to the source system... [detailed 150+ word description that thoroughly explains the requirement]", "category": "functional", "priority": "high"}, ...]
+        Format your response as a JSON array with exactly ${reqPerChunk} requirements, each with the properties 'title', 'description', 'category', and 'priority'.
+        Example: [{"title": "Call Center Queue Management", "description": "The target system must implement the service call center queue management workflow with priority-based routing, skill-based assignment, and SLA tracking identical to the source system... [detailed 150+ word description that thoroughly explains the requirement]", "category": "functional", "priority": "high"}, ...]
         
         Only output valid JSON with no additional text or explanations.
       `;
@@ -453,7 +462,8 @@ export async function processVideoFile(
             
             // Transform the response to match the expected format and add to collection
             const chunkRequirements = parsedResponse.map((item: any) => ({
-              text: item.text,
+              title: item.title || `${perspective.name} Requirement`,
+              description: item.description || item.text, // Use description or fall back to text field for backward compatibility
               category: item.category,
               priority: item.priority
             }));
@@ -466,7 +476,8 @@ export async function processVideoFile(
             
             // Transform the response to match the expected format and add to collection
             const chunkRequirements = parsedResponse.map((item: any) => ({
-              text: item.text,
+              title: item.title || `${perspective.name} Requirement`,
+              description: item.description || item.text, // Use description or fall back to text field for backward compatibility
               category: item.category,
               priority: item.priority
             }));
@@ -490,10 +501,15 @@ export async function processVideoFile(
       }
     }
     
-    // Remove any duplicate requirements (comparing by text)
-    const uniqueRequirements = allRequirements.filter((req, index, self) =>
-      index === self.findIndex((r) => r.text === req.text)
-    );
+    // Remove any duplicate requirements (comparing by title or description)
+    const uniqueRequirements = allRequirements.filter((req, index, self) => {
+      // Handle both new format (title/description) and legacy format (text)
+      const reqText = req.description || req.text;
+      return index === self.findIndex((r) => {
+        const rText = r.description || r.text;
+        return reqText === rText;
+      });
+    });
     
     console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${selectedPerspectives.length} perspectives`);
     
@@ -726,12 +742,13 @@ export async function generateRequirementsForFile(
         }
         
         For each requirement:
-        1. Provide a detailed, domain-specific requirement text of at least 150 words related to ${perspective.focus} within ${inferredDomain} functionality
-        2. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
-        3. Assign a priority level: 'high', 'medium', or 'low'
+        1. Provide a concise title (3-10 words) that summarizes the requirement
+        2. Provide a detailed, domain-specific requirement description of at least 150 words related to ${perspective.focus} within ${inferredDomain} functionality
+        3. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
+        4. Assign a priority level: 'high', 'medium', or 'low'
         
-        Format your response as a JSON array with exactly ${reqPerAnalysis} requirements, each with the properties 'text', 'category', and 'priority'.
-        Example: [{"text": "The target system must maintain the current call center queuing logic that routes cases based on SLA priority and agent skill matching... [detailed 150+ word description that thoroughly explains the requirement]", "category": "functional", "priority": "high"}, ...]
+        Format your response as a JSON array with exactly ${reqPerAnalysis} requirements, each with the properties 'title', 'description', 'category', and 'priority'.
+        Example: [{"title": "Call Center Queue Logic", "description": "The target system must maintain the current call center queuing logic that routes cases based on SLA priority and agent skill matching... [detailed 150+ word description that thoroughly explains the requirement]", "category": "functional", "priority": "high"}, ...]
         
         Only output valid JSON with no additional text or explanations.
       `;
@@ -749,13 +766,31 @@ export async function generateRequirementsForFile(
           if (jsonMatch) {
             const jsonText = jsonMatch[0];
             const parsedResponse = JSON.parse(jsonText);
-            allRequirements = [...allRequirements, ...parsedResponse];
-            console.log(`Added ${parsedResponse.length} requirements from perspective ${perspective.name}`);
+            
+            // Transform the response to match the expected format
+            const requirements = parsedResponse.map((item: any) => ({
+              title: item.title || `${perspective.name} Requirement`,
+              description: item.description || item.text, // Use description or fall back to text field for backward compatibility
+              category: item.category,
+              priority: item.priority
+            }));
+            
+            allRequirements = [...allRequirements, ...requirements];
+            console.log(`Added ${requirements.length} requirements from perspective ${perspective.name}`);
           } else {
             // If no JSON array was found, try parsing the whole response
             const parsedResponse = JSON.parse(text);
-            allRequirements = [...allRequirements, ...parsedResponse];
-            console.log(`Added ${parsedResponse.length} requirements from perspective ${perspective.name}`);
+            
+            // Transform the response to match the expected format
+            const requirements = parsedResponse.map((item: any) => ({
+              title: item.title || `${perspective.name} Requirement`,
+              description: item.description || item.text, // Use description or fall back to text field for backward compatibility
+              category: item.category,
+              priority: item.priority
+            }));
+            
+            allRequirements = [...allRequirements, ...requirements];
+            console.log(`Added ${requirements.length} requirements from perspective ${perspective.name}`);
           }
         } catch (parseError) {
           console.error(`Error parsing Gemini response for perspective ${perspective.name}:`, parseError);
@@ -773,10 +808,15 @@ export async function generateRequirementsForFile(
       }
     }
     
-    // Remove any duplicate requirements (comparing by text)
-    const uniqueRequirements = allRequirements.filter((req, index, self) =>
-      index === self.findIndex((r) => r.text === req.text)
-    );
+    // Remove any duplicate requirements (comparing by title or description)
+    const uniqueRequirements = allRequirements.filter((req, index, self) => {
+      // Handle both new format (title/description) and legacy format (text)
+      const reqText = req.description || req.text;
+      return index === self.findIndex((r) => {
+        const rText = r.description || r.text;
+        return reqText === rText;
+      });
+    });
     
     console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${selectedPerspectives.length} analysis perspectives`);
     return uniqueRequirements;
