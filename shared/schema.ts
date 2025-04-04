@@ -188,7 +188,11 @@ export const implementationTasks = pgTable("implementation_tasks", {
   complexity: text("complexity").default("medium"), // low, medium, high
   assignee: text("assignee"), // Optional
   taskType: text("task_type"), // data-mapping, workflow, ui, integration, etc.
-  sfDocumentationLinks: jsonb("sf_documentation_links").default([]), // Array of Salesforce documentation links
+  // Updated fields for the new structure
+  highLevelDescription: text("high_level_description"), // Brief overview of the task
+  implementationSteps: jsonb("implementation_steps").default([]), // Array of implementation steps
+  documentationLinks: jsonb("documentation_links").default([]), // Array of documentation links
+  sfDocumentationLinks: jsonb("sf_documentation_links").default([]), // Keeping for backward compatibility
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -205,6 +209,10 @@ export const insertImplementationTaskSchema = createInsertSchema(implementationT
   assignee: true,
   taskType: true,
   sfDocumentationLinks: true,
+  // New fields
+  highLevelDescription: true,
+  implementationSteps: true,
+  documentationLinks: true,
 });
 
 // Type exports

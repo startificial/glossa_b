@@ -35,6 +35,10 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
     assignee: '',
     taskType: '',
     sfDocumentationLinks: [],
+    // New fields
+    highLevelDescription: '',
+    implementationSteps: [],
+    documentationLinks: [],
   });
 
   // Get task data
@@ -132,6 +136,10 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
         assignee: task.assignee || '',
         taskType: task.taskType || 'implementation',
         sfDocumentationLinks: task.sfDocumentationLinks || [],
+        // New fields
+        highLevelDescription: task.highLevelDescription || '',
+        implementationSteps: task.implementationSteps || [],
+        documentationLinks: task.documentationLinks || [],
       });
     }
   }, [task]);
@@ -355,6 +363,89 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                     </div>
                   </div>
                   
+                  {/* High-Level Description */}
+                  {task.highLevelDescription && (
+                    <div className="border rounded-md p-4">
+                      <div className="text-sm font-medium mb-2">High-Level Description</div>
+                      <div className="text-sm text-muted-foreground whitespace-pre-line">
+                        {task.highLevelDescription}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Implementation Steps */}
+                  {task.implementationSteps && task.implementationSteps.length > 0 && (
+                    <div className="border rounded-md p-4">
+                      <div className="text-sm font-medium mb-2">Implementation Steps</div>
+                      <div className="space-y-4">
+                        {task.implementationSteps.map((step: { stepNumber: number; description: string; documentationLinks: string[] }, index: number) => (
+                          <div key={index} className="p-3 bg-muted/20 rounded-md">
+                            <div className="flex items-start">
+                              <Badge className="mr-2 mt-0.5" variant="outline">{step.stepNumber}</Badge>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium">{step.description}</div>
+                                
+                                {step.documentationLinks && step.documentationLinks.length > 0 && (
+                                  <div className="mt-2 space-y-1">
+                                    <div className="text-xs text-muted-foreground">Reference Links:</div>
+                                    {step.documentationLinks.map((link, linkIndex) => (
+                                      <div key={linkIndex} className="pl-2">
+                                        <a 
+                                          href={link}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:text-blue-800 hover:underline text-xs flex items-center"
+                                        >
+                                          <div className="w-3 h-3 mr-1 flex-shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                              <polyline points="15 3 21 3 21 9"></polyline>
+                                              <line x1="10" y1="14" x2="21" y2="3"></line>
+                                            </svg>
+                                          </div>
+                                          {link}
+                                        </a>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Documentation Links */}
+                  {task.documentationLinks && task.documentationLinks.length > 0 && (
+                    <div className="border rounded-md p-4">
+                      <div className="text-sm font-medium mb-2">Documentation Links</div>
+                      <div className="space-y-2">
+                        {task.documentationLinks.map((link: string, index: number) => (
+                          <div key={index} className="flex items-start">
+                            <a 
+                              href={link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-sm flex items-center"
+                            >
+                              <div className="w-4 h-4 mr-2 flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                  <polyline points="15 3 21 3 21 9"></polyline>
+                                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                              </div>
+                              {link}
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Legacy Salesforce Documentation */}
                   {task.sfDocumentationLinks && task.sfDocumentationLinks.length > 0 && (
                     <div className="border rounded-md p-4">
                       <div className="text-sm font-medium mb-2">Salesforce Documentation</div>
@@ -402,6 +493,18 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                       value={formData.description}
                       onChange={handleInputChange}
                       className="min-h-[120px]"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="highLevelDescription">High-Level Description</Label>
+                    <Textarea 
+                      id="highLevelDescription"
+                      name="highLevelDescription"
+                      value={formData.highLevelDescription}
+                      onChange={handleInputChange}
+                      className="min-h-[80px]"
+                      placeholder="Brief overview of what this task entails"
                     />
                   </div>
                   
