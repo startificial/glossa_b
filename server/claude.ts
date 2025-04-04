@@ -176,6 +176,7 @@ export async function generateImplementationTasks(
               "stepDescription": "[Another specific, actionable step grounded in the Target System's documentation]",
               "relevantDocumentationLinks": ["[Link 1]", "[Link 2]"]
             }
+            // ... more steps as needed
           ],
           "sfDocumentationLinks": [
             {
@@ -199,18 +200,7 @@ export async function generateImplementationTasks(
       7. Provide detailed implementation steps with step numbers, descriptions, and relevant documentation links
       8. Include overall documentation links that are relevant to the entire task
       
-      CRITICAL FORMATTING REQUIREMENTS:
-      1. Only output valid JSON with no preamble, explanations, markdown formatting, or additional text
-      2. The JSON must be a valid array that starts with [ and ends with ]
-      3. All property names must be in double quotes
-      4. All string values must be in double quotes
-      5. Don't include any comments in the JSON (no // comments)
-      6. Numeric values should not have quotes
-      7. Don't use trailing commas at the end of arrays or objects
-      8. Ensure nested arrays and objects are properly closed and formatted
-      9. Make sure 'implementationSteps' is an array of step objects with proper structure
-      10. Make sure 'sfDocumentationLinks' is an array of link objects with 'title' and 'url' properties
-      11. Make sure 'overallDocumentationLinks' is an array of string URLs
+      Only output valid JSON with no additional text or explanations.
     `;
 
     // Generate content using Claude
@@ -218,7 +208,7 @@ export async function generateImplementationTasks(
       model: 'claude-3-opus-20240229',
       max_tokens: 3000,
       temperature: 0.7,
-      system: 'You are a Salesforce technical architect specialized in implementing complex migration projects and integrations. You respond with structured JSON only, without any explanatory text or markdown formatting. Your responses are strictly validated as JSON and must be valid, properly formatted JSON arrays with all properties correctly quoted and nested.',
+      system: 'You are a Salesforce technical architect specialized in implementing complex migration projects and integrations.',
       messages: [
         { role: 'user', content: prompt }
       ]
@@ -239,65 +229,23 @@ export async function generateImplementationTasks(
     }
     
     try {
-      // Log the raw response for debugging
-      console.log('Raw Claude response:', responseText.substring(0, 200) + '...');
-      
-      // Try to extract just the JSON array part from the response using a more robust regex
-      // This handles cases where Claude might add commentary before or after the JSON
-      const jsonMatch = responseText.match(/(\[[\s\S]*?\])/);
+      // Extract just the JSON part from the response
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        const jsonText = jsonMatch[1];
-        try {
-          const implementationTasks = JSON.parse(jsonText);
-          console.log(`Successfully parsed JSON array: Generated ${implementationTasks.length} implementation tasks`);
-          return implementationTasks;
-        } catch (innerError) {
-          console.error('Failed to parse extracted JSON array:', innerError);
-          // If the extracted JSON fails to parse, fall through to try other methods
-        }
-      }
-      
-      // If no JSON array extraction worked, try parsing the whole response as JSON
-      try {
+        const jsonText = jsonMatch[0];
+        const implementationTasks = JSON.parse(jsonText);
+        console.log(`Generated ${implementationTasks.length} implementation tasks`);
+        return implementationTasks;
+      } else {
+        // If no JSON array was found, try parsing the whole response
         const implementationTasks = JSON.parse(responseText);
-        if (Array.isArray(implementationTasks)) {
-          console.log(`Successfully parsed full response: Generated ${implementationTasks.length} implementation tasks`);
-          return implementationTasks;
-        } else {
-          console.error('Response parsed as JSON but is not an array');
-          // If we got a JSON object but not an array, check if it has a data property that might be the array
-          if (implementationTasks.tasks && Array.isArray(implementationTasks.tasks)) {
-            console.log(`Found tasks array in response object: ${implementationTasks.tasks.length} tasks`);
-            return implementationTasks.tasks;
-          }
-          throw new Error('Response is not a valid tasks array');
-        }
-      } catch (parseFullError) {
-        console.error('Error parsing full response as JSON:', parseFullError);
+        console.log(`Generated ${implementationTasks.length} implementation tasks`);
+        return implementationTasks;
       }
-      
-      // Last resort: Try to fix common JSON formatting issues and parse again
-      console.log('Attempting to fix and parse malformed JSON...');
-      // Trim whitespace
-      const cleanedText = responseText.trim();
-      // Try to extract just what looks like a JSON array
-      const lastResortMatch = cleanedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      if (lastResortMatch) {
-        try {
-          const implementationTasks = JSON.parse(lastResortMatch[0]);
-          console.log(`Successfully parsed cleaned JSON: Generated ${implementationTasks.length} implementation tasks`);
-          return implementationTasks;
-        } catch (lastError) {
-          console.error('Failed to parse even after cleanup:', lastError);
-        }
-      }
-      
-      // If we reach here, none of our parsing attempts worked
-      console.error('All parsing attempts failed - raw response:', responseText);
+    } catch (parseError) {
+      console.error('Error parsing Claude response:', parseError);
+      console.error('Raw response:', responseText);
       throw new Error('Failed to parse implementation tasks from Claude response');
-    } catch (error) {
-      console.error('Error in parsing logic:', error);
-      throw error;
     }
   } catch (error) {
     console.error('Error generating implementation tasks with Claude:', error);
