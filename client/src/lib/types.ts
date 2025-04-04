@@ -36,7 +36,7 @@ export interface Project {
   type: string;
   userId: number;
   customerId: number | null;
-  customer: string | null; // Legacy field
+  customer: string | Customer | null; // Can be a string or Customer object
   customerDetails?: Customer; // For joined data
   sourceSystem: string | null;
   targetSystem: string | null;

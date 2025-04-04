@@ -54,13 +54,21 @@ type ProjectEditFormValues = z.infer<typeof projectEditSchema>;
 export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialogProps) {
   const { toast } = useToast();
   
+  // Handle customer which can be a string or an object
+  const getCustomerValue = (customer: any): string => {
+    if (typeof customer === 'object' && customer && customer.name) {
+      return customer.name;
+    }
+    return typeof customer === 'string' ? customer : '';
+  };
+
   const form = useForm<ProjectEditFormValues>({
     resolver: zodResolver(projectEditSchema),
     defaultValues: {
       name: project.name,
       description: project.description || '',
       type: project.type,
-      customer: project.customer || '',
+      customer: getCustomerValue(project.customer),
       sourceSystem: project.sourceSystem || '',
       targetSystem: project.targetSystem || '',
     },
@@ -72,7 +80,7 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
         name: project.name,
         description: project.description || '',
         type: project.type,
-        customer: project.customer || '',
+        customer: getCustomerValue(project.customer),
         sourceSystem: project.sourceSystem || '',
         targetSystem: project.targetSystem || '',
       });
