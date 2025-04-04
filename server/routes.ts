@@ -1828,18 +1828,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const requirementId = parseInt(req.params.requirementId);
       if (isNaN(requirementId)) {
-        return res.status(400).json({ message: "Invalid requirement ID" });
+        return res.status(400).json({ message: "Invalid requirement ID", requirementId: req.params.requirementId });
       }
 
-      const requirement = await storage.getRequirement(requirementId);
+      // Get projectId from request body
+      const projectId = req.body.projectId ? parseInt(req.body.projectId) : null;
+      console.log(`Generating acceptance criteria for requirement ID: ${requirementId}, project ID from body: ${projectId}`);
+      
+      // No project ID provided, try direct lookup
+      let requirement;
+      
+      if (!projectId) {
+        // Try to get the requirement directly
+        requirement = await storage.getRequirement(requirementId);
+      } else {
+        // Use the combined method for better reliability
+        requirement = await storage.getRequirementWithProjectCheck(requirementId, projectId);
+      }
+      
+      // If we still don't have a requirement, return an error
       if (!requirement) {
-        return res.status(404).json({ message: "Requirement not found" });
+        console.error(`Requirement with ID ${requirementId} not found in database`);
+        return res.status(404).json({ message: "Requirement not found", requirementId });
       }
 
-      const project = await storage.getProject(requirement.projectId);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
+      console.log(`Found requirement: ${requirement.title}, project ID: ${requirement.projectId}`);
+      
+      // Use provided projectId if requirement's projectId is missing
+      const effectiveProjectId = requirement.projectId || projectId;
+      
+      // Handle case where projectId might be null or undefined
+      if (!effectiveProjectId) {
+        console.error(`Requirement ${requirementId} has no associated project ID and none was provided`);
+        return res.status(400).json({ message: "Requirement has no associated project and no project ID was provided" });
       }
+
+      const project = await storage.getProject(effectiveProjectId);
+      if (!project) {
+        console.error(`Project with ID ${effectiveProjectId} not found for requirement ${requirementId}`);
+        return res.status(404).json({ message: "Project not found", projectId: effectiveProjectId });
+      }
+      
+      console.log(`Found project: ${project.name}`);
+      
 
       // For demo, always use the demo user
       const user = await storage.getUserByUsername("demo");
@@ -1890,14 +1921,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid requirement ID" });
       }
 
-      const requirement = await storage.getRequirement(requirementId);
+      // Get projectId from request body
+      const projectId = req.body.projectId ? parseInt(req.body.projectId) : null;
+      console.log(`Generating tasks for requirement ID: ${requirementId}, project ID from body: ${projectId}`);
+      
+      // No project ID provided, try direct lookup
+      let requirement;
+      
+      if (!projectId) {
+        // Try to get the requirement directly
+        requirement = await storage.getRequirement(requirementId);
+      } else {
+        // Use the combined method for better reliability
+        requirement = await storage.getRequirementWithProjectCheck(requirementId, projectId);
+      }
+      
+      // If we still don't have a requirement, return an error
       if (!requirement) {
-        return res.status(404).json({ message: "Requirement not found" });
+        console.error(`Requirement with ID ${requirementId} not found in database`);
+        return res.status(404).json({ message: "Requirement not found", requirementId });
       }
 
-      const project = await storage.getProject(requirement.projectId);
+      // Use provided projectId if requirement's projectId is missing
+      const effectiveProjectId = requirement.projectId || projectId;
+      
+      // Handle case where projectId might be null or undefined
+      if (!effectiveProjectId) {
+        console.error(`Requirement ${requirementId} has no associated project ID and none was provided`);
+        return res.status(400).json({ message: "Requirement has no associated project and no project ID was provided" });
+      }
+
+      const project = await storage.getProject(effectiveProjectId);
       if (!project) {
-        return res.status(404).json({ message: "Project not found" });
+        console.error(`Project with ID ${effectiveProjectId} not found for requirement ${requirementId}`);
+        return res.status(404).json({ message: "Project not found", projectId: effectiveProjectId });
       }
 
       // For demo, always use the demo user

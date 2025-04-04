@@ -62,7 +62,7 @@ export function PriorityRequirements({ projectId }: PriorityRequirementsProps) {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {req.text}
+                      {req.description}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {req.codeId} • {req.category.charAt(0).toUpperCase() + req.category.slice(1)} • From: {req.source || "Manual"}

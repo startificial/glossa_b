@@ -193,11 +193,12 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   // Mutation for generating acceptance criteria using Claude API
   const generateCriteriaMutation = useMutation({
     mutationFn: async () => {
+      console.log(`Generating criteria for requirement ID: ${requirementId} in project: ${projectId}`);
       // Call the server endpoint to generate acceptance criteria with Claude
       return apiRequest(
         "POST",
         `/api/requirements/${requirementId}/generate-acceptance-criteria`,
-        {}
+        { projectId } // Include projectId in the request body
       );
     },
     onSuccess: (data) => {
@@ -245,10 +246,11 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   // Generate implementation tasks mutation
   const generateTasksMutation = useMutation({
     mutationFn: async () => {
+      console.log(`Generating tasks for requirement ID: ${requirementId} in project: ${projectId}`);
       return apiRequest(
         "POST",
         `/api/requirements/${requirementId}/generate-tasks`,
-        {}
+        { projectId } // Include projectId in the request body
       );
     },
     onSuccess: () => {

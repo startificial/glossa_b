@@ -60,6 +60,7 @@ export interface IStorage {
 
   // Requirement methods
   getRequirement(id: number): Promise<Requirement | undefined>;
+  getRequirementWithProjectCheck(id: number, projectId: number): Promise<Requirement | undefined>;
   getRequirementsByProject(projectId: number): Promise<Requirement[]>;
   getRequirementsByInputData(inputDataId: number): Promise<Requirement[]>;
   createRequirement(requirement: InsertRequirement): Promise<Requirement>;
@@ -430,6 +431,19 @@ export class MemStorage implements IStorage {
   async getRequirement(id: number): Promise<Requirement | undefined> {
     return this.requirements.get(id);
   }
+  
+  async getRequirementWithProjectCheck(id: number, projectId: number): Promise<Requirement | undefined> {
+    // Get the requirement
+    const requirement = this.requirements.get(id);
+    
+    // If found, check if it belongs to the specified project
+    if (requirement && requirement.projectId === projectId) {
+      return requirement;
+    }
+    
+    // If no match with the project check, return the requirement only if we found it by ID
+    return requirement;
+  }
 
   async getRequirementsByProject(projectId: number): Promise<Requirement[]> {
     return Array.from(this.requirements.values()).filter(
@@ -614,7 +628,7 @@ export class MemStorage implements IStorage {
     const matchedRequirements = Array.from(this.requirements.values())
       .filter(req => userProjectIds.includes(req.projectId))
       .filter(req => 
-        exactMatch(req.text) || 
+        exactMatch(req.description) || 
         exactMatch(req.category) || 
         exactMatch(req.codeId)
       );
@@ -625,7 +639,7 @@ export class MemStorage implements IStorage {
         .filter(req => userProjectIds.includes(req.projectId))
         .filter(req => 
           !matchedRequirements.includes(req) && (
-            fuzzyMatch(req.text) || 
+            fuzzyMatch(req.description) || 
             fuzzyMatch(req.category) || 
             fuzzyMatch(req.codeId)
           )
@@ -723,7 +737,7 @@ export class MemStorage implements IStorage {
       matchedRequirements = Array.from(this.requirements.values())
         .filter(req => 
           projectFilter.includes(req.projectId) &&
-          (!hasQuery || matchText(req.text) || matchText(req.codeId) || matchText(req.source)) &&
+          (!hasQuery || matchText(req.description) || matchText(req.codeId) || matchText(req.source)) &&
           (!filters.category || req.category === filters.category) &&
           (!filters.priority || req.priority === filters.priority) &&
           matchesDateRange(req.createdAt)
@@ -1023,6 +1037,28 @@ export class DatabaseStorage implements IStorage {
     return req;
   }
 
+  async getRequirementWithProjectCheck(id: number, projectId: number): Promise<Requirement | undefined> {
+    // First try the direct method
+    const [req] = await db.select()
+      .from(requirements)
+      .where(and(
+        eq(requirements.id, id),
+        eq(requirements.projectId, projectId)
+      ));
+    
+    if (req) {
+      return req;
+    }
+    
+    // If not found with the project check, try getting just by ID
+    // This is a fallback for legacy data or if projectId isn't set correctly
+    const [fallbackReq] = await db.select()
+      .from(requirements)
+      .where(eq(requirements.id, id));
+    
+    return fallbackReq;
+  }
+
   async getRequirementsByProject(projectId: number): Promise<Requirement[]> {
     return await db.select().from(requirements).where(eq(requirements.projectId, projectId));
   }
@@ -1156,9 +1192,9 @@ export class DatabaseStorage implements IStorage {
     
     // Filter requirements matching search term
     const matchedRequirements = filteredRequirements.filter(req => 
-      req.text.toLowerCase().includes(searchTerm) || 
+      req.description.toLowerCase().includes(searchTerm) || 
       req.category.toLowerCase().includes(searchTerm) || 
-      req.codeId.toLowerCase().includes(searchTerm)
+      (req.codeId && req.codeId.toLowerCase().includes(searchTerm))
     ).slice(0, limit);
 
     return {
@@ -1266,9 +1302,9 @@ export class DatabaseStorage implements IStorage {
       // Apply text search filter
       if (hasQuery) {
         filtered = filtered.filter(r => 
-          r.text.toLowerCase().includes(searchTerm) ||
+          r.description.toLowerCase().includes(searchTerm) ||
           r.category.toLowerCase().includes(searchTerm) ||
-          r.codeId.toLowerCase().includes(searchTerm) ||
+          (r.codeId && r.codeId.toLowerCase().includes(searchTerm)) ||
           (r.source && r.source.toLowerCase().includes(searchTerm))
         );
       }

@@ -227,7 +227,7 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
                                 className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                                 onClick={() => navigateToResult('requirement', req.id)}
                               >
-                                <div className="text-sm font-medium truncate">{req.text.substring(0, 100)}{req.text.length > 100 ? '...' : ''}</div>
+                                <div className="text-sm font-medium truncate">{req.description.substring(0, 100)}{req.description.length > 100 ? '...' : ''}</div>
                                 <div className="flex items-center mt-1">
                                   <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full mr-2">
                                     {req.category}
@@ -389,7 +389,7 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
                                 className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                                 onClick={() => navigateToResult('requirement', req.id)}
                               >
-                                <div className="text-sm font-medium truncate">{req.text.substring(0, 60)}{req.text.length > 60 ? '...' : ''}</div>
+                                <div className="text-sm font-medium truncate">{req.description.substring(0, 60)}{req.description.length > 60 ? '...' : ''}</div>
                                 <div className="flex items-center mt-1">
                                   <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full mr-2">
                                     {req.category}
