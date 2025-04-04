@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { formatDateTime } from '@/lib/utils';
 import { AlarmClock, ArrowLeft, CheckSquare, ClipboardList, Clock, Edit2, Hourglass, Save, Target, Trash2, User, X } from 'lucide-react';
+import { ImplementationStepsTable } from '@/components/implementation-tasks/implementation-steps-table';
 
 interface TaskDetailProps {
   taskId: number;
@@ -372,46 +373,7 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                     </div>
                   </div>
                   
-                  {task.implementationSteps && task.implementationSteps.length > 0 && (
-                    <div className="border rounded-md p-4 mb-4">
-                      <div className="text-sm font-medium mb-3">Implementation Steps</div>
-                      <div className="space-y-4">
-                        {task.implementationSteps.map((step: ImplementationStep, index: number) => (
-                          <div key={index} className="flex gap-3">
-                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                              {step.stepNumber}
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-sm mb-1">{step.stepDescription}</div>
-                              {step.relevantDocumentationLinks && step.relevantDocumentationLinks.length > 0 && (
-                                <div className="mt-1 text-xs space-y-1">
-                                  {step.relevantDocumentationLinks.map((link: string, linkIndex: number) => (
-                                    <div key={linkIndex}>
-                                      <a 
-                                        href={link}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:text-blue-800 hover:underline flex items-center"
-                                      >
-                                        <div className="w-3 h-3 mr-1 flex-shrink-0">
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                            <polyline points="15 3 21 3 21 9"></polyline>
-                                            <line x1="10" y1="14" x2="21" y2="3"></line>
-                                          </svg>
-                                        </div>
-                                        Documentation
-                                      </a>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <ImplementationStepsTable steps={task.implementationSteps || []} />
 
                   {task.overallDocumentationLinks && task.overallDocumentationLinks.length > 0 && (
                     <div className="border rounded-md p-4 mb-4">
