@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Link } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import { Customer, Project } from "../../lib/types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   Star,
@@ -64,6 +65,7 @@ interface EnhancedCustomerDetailProps {
 export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerDetailProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [projectFormOpen, setProjectFormOpen] = useState(false);
+  const queryClient = useQueryClient();
   
   // Format dates
   const formattedCreatedAt = format(new Date(customer.createdAt), "PPP");
@@ -400,7 +402,12 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
       {/* Project form dialog */}
       <ProjectForm
         isOpen={projectFormOpen}
-        onClose={() => setProjectFormOpen(false)}
+        onClose={() => {
+          setProjectFormOpen(false);
+          // Invalidate both the customer and projects queries to refresh the data
+          queryClient.invalidateQueries({ queryKey: [`/api/customers/${customer.id}`] });
+          queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        }}
       />
     </>
   );
