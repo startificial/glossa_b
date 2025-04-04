@@ -8,6 +8,7 @@ import {
   activities, type Activity, type InsertActivity,
   implementationTasks, type ImplementationTask, type InsertImplementationTask
 } from "@shared/schema";
+import { ExtendedImplementationTask } from './extended-types';
 import { and, desc, eq, or, like, sql as drizzleSql } from 'drizzle-orm';
 import { db, sql } from './db';
 import session from "express-session";
@@ -75,8 +76,8 @@ export interface IStorage {
   createActivity(activity: InsertActivity): Promise<Activity>;
   
   // Implementation Task methods
-  getImplementationTask(id: number): Promise<ImplementationTask | undefined>;
-  getImplementationTasksByRequirement(requirementId: number): Promise<ImplementationTask[]>;
+  getImplementationTask(id: number): Promise<ExtendedImplementationTask | undefined>;
+  getImplementationTasksByRequirement(requirementId: number): Promise<ExtendedImplementationTask[]>;
   createImplementationTask(task: InsertImplementationTask): Promise<ImplementationTask>;
   updateImplementationTask(id: number, task: Partial<InsertImplementationTask>): Promise<ImplementationTask | undefined>;
   deleteImplementationTask(id: number): Promise<boolean>;
@@ -100,7 +101,7 @@ export interface IStorage {
     projects: Project[];
     requirements: Requirement[];
     inputData: InputData[];
-    tasks: ImplementationTask[];
+    tasks: ExtendedImplementationTask[];
     totalResults: number;
     totalPages: number;
   }>;
@@ -546,14 +547,34 @@ export class MemStorage implements IStorage {
   }
 
   // Implementation Task methods
-  async getImplementationTask(id: number): Promise<ImplementationTask | undefined> {
-    return this.implementationTasks.get(id);
+  async getImplementationTask(id: number): Promise<ExtendedImplementationTask | undefined> {
+    const task = this.implementationTasks.get(id);
+    if (task) {
+      const requirement = this.requirements.get(task.requirementId);
+      if (requirement) {
+        return {
+          ...task,
+          projectId: requirement.projectId
+        } as ExtendedImplementationTask;
+      }
+    }
+    return task as ExtendedImplementationTask;
   }
 
-  async getImplementationTasksByRequirement(requirementId: number): Promise<ImplementationTask[]> {
-    return Array.from(this.implementationTasks.values()).filter(
+  async getImplementationTasksByRequirement(requirementId: number): Promise<ExtendedImplementationTask[]> {
+    const tasks = Array.from(this.implementationTasks.values()).filter(
       task => task.requirementId === requirementId
     );
+    
+    const requirement = this.requirements.get(requirementId);
+    if (requirement) {
+      return tasks.map(task => ({
+        ...task,
+        projectId: requirement.projectId
+      } as ExtendedImplementationTask));
+    }
+    
+    return tasks as ExtendedImplementationTask[];
   }
 
   async createImplementationTask(task: InsertImplementationTask): Promise<ImplementationTask> {
@@ -1164,16 +1185,51 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Implementation Task methods
-  async getImplementationTask(id: number): Promise<ImplementationTask | undefined> {
+  async getImplementationTask(id: number): Promise<ExtendedImplementationTask | undefined> {
+    // First get the implementation task
     const [task] = await db.select().from(implementationTasks).where(eq(implementationTasks.id, id));
-    return task;
+    
+    if (task) {
+      // Now get the project ID from the related requirement
+      const [requirement] = await db.select()
+        .from(requirements)
+        .where(eq(requirements.id, task.requirementId));
+      
+      if (requirement) {
+        // Add projectId to the task (even though it's not in the database schema)
+        return {
+          ...task,
+          projectId: requirement.projectId
+        } as ExtendedImplementationTask;
+      }
+    }
+    
+    return task as ExtendedImplementationTask;
   }
 
-  async getImplementationTasksByRequirement(requirementId: number): Promise<ImplementationTask[]> {
-    return await db
+  async getImplementationTasksByRequirement(requirementId: number): Promise<ExtendedImplementationTask[]> {
+    // Get the tasks
+    const tasks = await db
       .select()
       .from(implementationTasks)
       .where(eq(implementationTasks.requirementId, requirementId));
+    
+    if (tasks.length > 0) {
+      // Get the project ID from the requirement
+      const [requirement] = await db.select()
+        .from(requirements)
+        .where(eq(requirements.id, requirementId));
+      
+      if (requirement) {
+        // Add projectId to all tasks
+        return tasks.map(task => ({
+          ...task,
+          projectId: requirement.projectId
+        } as ExtendedImplementationTask));
+      }
+    }
+    
+    return tasks as ExtendedImplementationTask[];
   }
 
   async createImplementationTask(task: InsertImplementationTask): Promise<ImplementationTask> {

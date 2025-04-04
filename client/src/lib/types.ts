@@ -217,6 +217,7 @@ export interface ImplementationTask {
   priority: 'high' | 'medium' | 'low';
   system: 'source' | 'target';
   requirementId: number;
+  projectId?: number; // Added to support UI navigation
   estimatedHours: number | null;
   complexity: string | null;
   assignee: string | null;
