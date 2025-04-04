@@ -119,7 +119,7 @@ export function RequirementCard({ requirement, projectId, onEdit }: RequirementC
         <div className="mt-2">
           <h4 className="text-sm font-medium text-gray-900 dark:text-white">{requirement.codeId}</h4>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-            {requirement.text}
+            {requirement.description}
           </p>
         </div>
         <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">

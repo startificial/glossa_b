@@ -40,11 +40,11 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   
   // Form state
   const [formData, setFormData] = useState<{
-    text: string;
+    description: string;
     category: string;
     priority: string;
   }>({
-    text: '',
+    description: '',
     category: 'functional',
     priority: 'medium'
   });
@@ -162,7 +162,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   useEffect(() => {
     if (requirement) {
       setFormData({
-        text: requirement.text,
+        description: requirement.description,
         category: requirement.category,
         priority: requirement.priority,
       });
@@ -179,7 +179,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   
   // Form input handlers
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setFormData({ ...formData, text: e.target.value });
+    setFormData({ ...formData, description: e.target.value });
   };
   
   const handleCategoryChange = (value: string) => {
@@ -537,15 +537,15 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
             <CardContent>
               {!isEditing ? (
                 <div className="p-4 border rounded-md bg-muted/20 whitespace-pre-line">
-                  {requirement.text}
+                  {requirement.description}
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="text">Requirement Text</Label>
+                    <Label htmlFor="description">Requirement Description</Label>
                     <Textarea 
-                      id="text"
-                      value={formData.text}
+                      id="description"
+                      value={formData.description}
                       onChange={handleTextChange}
                       className="min-h-[120px]"
                     />

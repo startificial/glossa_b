@@ -1112,7 +1112,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const codeId = `REQ-${(requirementsCount + i + 1).toString().padStart(3, '0')}`;
             
             await storage.createRequirement({
-              text: requirement.text,
+              title: requirement.title || `Requirement ${codeId}`,
+              description: requirement.description,
               category: requirement.category || 'functional',
               priority: requirement.priority || 'medium',
               projectId,
@@ -1266,7 +1267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.search) {
         const searchTerm = (req.query.search as string).toLowerCase();
         filteredRequirements = filteredRequirements.filter(
-          r => r.text.toLowerCase().includes(searchTerm) || 
+          r => r.description.toLowerCase().includes(searchTerm) || 
                r.category.toLowerCase().includes(searchTerm) ||
                (r.source && r.source.toLowerCase().includes(searchTerm))
         );
@@ -1577,7 +1578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         requirements: requirements.map(r => ({
           id: r.codeId,
-          text: r.text,
+          description: r.description,
           category: r.category,
           priority: r.priority,
           source: r.source,
@@ -1842,7 +1843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const acceptanceCriteria = await generateAcceptanceCriteria(
         project.name,
         project.description || "No project description available",
-        requirement.text
+        requirement.description
       );
 
       // Update the requirement with the new acceptance criteria
@@ -1914,7 +1915,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         project.sourceSystem,
         project.targetSystem,
         project.description || "",
-        requirement.text,
+        requirement.description,
         acceptanceCriteria,
         requirementId
       );
@@ -2079,14 +2080,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           highlights: [
             {
               pageNumber: 1,
-              text: requirement.text.substring(0, Math.min(200, requirement.text.length)),
+              text: requirement.description.substring(0, Math.min(200, requirement.description.length)),
               color: 'rgba(255, 255, 0, 0.4)'
             },
             {
               pageNumber: 2,
-              text: requirement.text.substring(
-                Math.min(200, requirement.text.length), 
-                Math.min(400, requirement.text.length)
+              text: requirement.description.substring(
+                Math.min(200, requirement.description.length), 
+                Math.min(400, requirement.description.length)
               ),
               color: 'rgba(0, 255, 255, 0.3)'
             }
@@ -2094,7 +2095,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         // Also add some text references
-        const sentences = requirement.text.split('.').filter((s: string) => s.trim().length > 0);
+        const sentences = requirement.description.split('.').filter((s: string) => s.trim().length > 0);
         
         if (sentences.length > 1) {
           references.push({
@@ -2121,7 +2122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else if (inputData.type === 'text') {
         // Text references for text files
-        const sentences = requirement.text.split('.').filter((s: string) => s.trim().length > 0);
+        const sentences = requirement.description.split('.').filter((s: string) => s.trim().length > 0);
         
         sentences.forEach((sentence: string, index: number) => {
           if (index < 3) { // Limit to first 3 sentences for demo
@@ -2150,15 +2151,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             {
               startTime: 15, // 15 seconds
               endTime: 30,
-              transcript: requirement.text.substring(0, Math.min(200, requirement.text.length)),
+              transcript: requirement.description.substring(0, Math.min(200, requirement.description.length)),
               relevance: 0.95
             },
             {
               startTime: 45, // 45 seconds
               endTime: 60,
-              transcript: requirement.text.substring(
-                Math.min(200, requirement.text.length), 
-                Math.min(400, requirement.text.length)
+              transcript: requirement.description.substring(
+                Math.min(200, requirement.description.length), 
+                Math.min(400, requirement.description.length)
               ),
               relevance: 0.87
             }
@@ -2166,7 +2167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         // Also add text references for context
-        const sentences = requirement.text.split('.').filter((s: string) => s.trim().length > 0);
+        const sentences = requirement.description.split('.').filter((s: string) => s.trim().length > 0);
         if (sentences.length > 1) {
           references.push({
             type: 'text',
@@ -2192,15 +2193,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             {
               startTime: 20, // 20 seconds
               endTime: 40,
-              transcript: requirement.text.substring(0, Math.min(200, requirement.text.length)),
+              transcript: requirement.description.substring(0, Math.min(200, requirement.description.length)),
               relevance: 0.92
             },
             {
               startTime: 90, // 90 seconds
               endTime: 110,
-              transcript: requirement.text.substring(
-                Math.min(200, requirement.text.length), 
-                Math.min(400, requirement.text.length)
+              transcript: requirement.description.substring(
+                Math.min(200, requirement.description.length), 
+                Math.min(400, requirement.description.length)
               ),
               relevance: 0.85
             }
@@ -2208,7 +2209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         // Also add text references for context
-        const sentences = requirement.text.split('.').filter((s: string) => s.trim().length > 0);
+        const sentences = requirement.description.split('.').filter((s: string) => s.trim().length > 0);
         if (sentences.length > 1) {
           references.push({
             type: 'text',
