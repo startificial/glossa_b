@@ -160,9 +160,22 @@ export async function streamProcessPdfText(
     }
     
     // Remove duplicates from requirements
-    const uniqueRequirements = allRequirements.filter((req, index, self) =>
-      index === self.findIndex((r) => r.text === req.text)
-    );
+    const uniqueRequirements = allRequirements.filter((req, index, self) => {
+      // Handle both new format (title/description) and legacy format (text)
+      const reqText = req.description || req.text;
+      
+      // Convert legacy requirements to the new title/description format
+      if (req.text && !req.description) {
+        req.description = req.text;
+        req.title = req.title || `Requirement from ${fileName}`;
+        console.log(`Converting legacy format requirement (text) to new format (title/description)`);
+      }
+      
+      return index === self.findIndex((r) => {
+        const rText = r.description || r.text;
+        return reqText === rText;
+      });
+    });
     
     console.log(`Stream processing complete: ${uniqueRequirements.length} unique requirements from ${chunkIndex} chunks`);
     
