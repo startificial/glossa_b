@@ -56,7 +56,8 @@ app.use(session({
   store: sessionStore,
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
-    secure: process.env.NODE_ENV === "production"
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" // Allow cookies to be sent in cross-site requests
   }
 }));
 

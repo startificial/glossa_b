@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { formatRelativeTime } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Project } from "@/lib/types";
+import { Project, Customer } from "@/lib/types";
 import { FolderOpenIcon, ArrowRightIcon, BuildingIcon } from "lucide-react";
 
 interface ProjectCardProps {
