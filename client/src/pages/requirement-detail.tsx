@@ -262,6 +262,8 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
         title: "Tasks Generated",
         description: "Implementation tasks have been generated for this requirement."
       });
+      
+      setIsGeneratingTasks(false);
     },
     onError: (error: any) => {
       const errorMessage = error.message || "There was a problem generating implementation tasks.";
@@ -270,10 +272,16 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
         description: errorMessage,
         variant: "destructive",
       });
+      
+      setIsGeneratingTasks(false);
     }
   });
   
+  // Track the tasks generation loading state
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
+  
   const handleGenerateTasks = () => {
+    setIsGeneratingTasks(true);
     generateTasksMutation.mutate();
   };
   
@@ -897,11 +905,20 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                           variant="outline" 
                           size="sm"
                           onClick={handleGenerateTasks}
-                          disabled={generateTasksMutation.isPending}
+                          disabled={generateTasksMutation.isPending || isGeneratingTasks}
                           className="flex gap-2 items-center"
                         >
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          <span>Generate Tasks</span>
+                          {isGeneratingTasks ? (
+                            <>
+                              <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent mr-2"></div>
+                              <span>Generating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              <span>Generate Tasks</span>
+                            </>
+                          )}
                         </Button>
                         <div className="absolute right-0 top-full mt-2 w-72 p-2 bg-popover text-popover-foreground text-sm rounded-md shadow-md hidden group-hover:block z-50">
                           Project must have source and target systems defined. 
