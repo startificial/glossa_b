@@ -256,7 +256,7 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
                                   setLocation(`/projects/${projectId}/requirements/${task.requirementId}`);
                                 }}
                               >
-                                {requirement && requirement.text ? requirement.text.substring(0, 30) + "..." : `Requirement #${task.requirementId}`}
+                                {requirement && requirement.title ? requirement.title.substring(0, 30) + "..." : `Requirement #${task.requirementId}`}
                               </Button>
                             </TableCell>
                           </TableRow>

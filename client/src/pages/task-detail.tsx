@@ -57,7 +57,10 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
   const { data: task, isLoading, isError } = useQuery({
     queryKey: ['/api/tasks', taskId],
     queryFn: async () => {
-      return apiRequest("GET", `/api/tasks/${taskId}`);
+      const result = await apiRequest("GET", `/api/tasks/${taskId}`);
+      console.log("Task data received:", result);
+      console.log("Implementation steps:", result.implementationSteps);
+      return result;
     }
   });
   
