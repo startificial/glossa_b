@@ -1224,26 +1224,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // Direct database access for requirement
-      const [requirement] = await db.select()
-        .from(requirements)
-        .where(eq(requirements.id, requirementId));
+      // First try getting the detailed requirement using the same approach as the list endpoint
+      const reqs = await storage.getRequirementsByProject(projectId);
+      const matchingRequirement = reqs.find(r => r.id === requirementId);
       
-      console.log("Direct DB lookup for requirement:", requirement);
+      // Use direct DB lookup as fallback if not found
+      if (!matchingRequirement) {
+        const [dbRequirement] = await db.select()
+          .from(requirements)
+          .where(eq(requirements.id, requirementId));
+        
+        console.log("Direct DB lookup for requirement:", dbRequirement);
+        
+        if (!dbRequirement) {
+          return res.status(404).json({ message: "Requirement not found" });
+        }
+
+        if (dbRequirement.projectId !== projectId) {
+          return res.status(404).json({ 
+            message: "Requirement does not belong to this project",
+            reqProjectId: dbRequirement.projectId,
+            requestedProjectId: projectId
+          });
+        }
+
+        return res.json(dbRequirement);
+      }
       
-      if (!requirement) {
-        return res.status(404).json({ message: "Requirement not found" });
-      }
-
-      if (requirement.projectId !== projectId) {
-        return res.status(404).json({ 
-          message: "Requirement does not belong to this project",
-          reqProjectId: requirement.projectId,
-          requestedProjectId: projectId
-        });
-      }
-
-      res.json(requirement);
+      console.log("Found matching requirement from project requirements:", matchingRequirement);
+      res.json(matchingRequirement);
     } catch (error) {
       console.error("Error fetching requirement:", error);
       res.status(400).json({ message: "Error fetching requirement", error });
