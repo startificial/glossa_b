@@ -1278,10 +1278,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      const requirements = await storage.getRequirementsByProject(projectId);
+      // Always use direct database queries for requirements to ensure consistency
+      // This avoids memory/database discrepancies
+      const requirementsData = await db.select()
+        .from(requirements)
+        .where(eq(requirements.projectId, projectId));
       
       // Filter requirements based on query params
-      let filteredRequirements = [...requirements];
+      let filteredRequirements = requirementsData;
       
       // Apply category filter
       if (req.query.category) {
@@ -1607,7 +1611,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      const requirements = await storage.getRequirementsByProject(projectId);
+      // Use direct database queries for consistent data
+      const projectRequirements = await db.select()
+        .from(requirements)
+        .where(eq(requirements.projectId, projectId));
       
       // Create the export data structure
       const exportData = {
@@ -1617,7 +1624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: project.type,
           exportDate: new Date().toISOString()
         },
-        requirements: requirements.map(r => ({
+        requirements: projectRequirements.map(r => ({
           id: r.codeId,
           description: r.description,
           category: r.category,
@@ -1715,15 +1722,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // First, get all requirements for the project
-      const requirements = await storage.getRequirementsByProject(projectId);
+      // First, get all requirements for the project directly from the database
+      // This ensures consistency with other database operations
+      const projectRequirements = await db.select()
+        .from(requirements)
+        .where(eq(requirements.projectId, projectId));
       
-      if (!requirements || requirements.length === 0) {
+      if (!projectRequirements || projectRequirements.length === 0) {
         return res.json([]);
       }
       
       // Get tasks for each requirement
-      const tasksPromises = requirements.map(req => 
+      const tasksPromises = projectRequirements.map(req => 
         storage.getImplementationTasksByRequirement(req.id)
       );
       
