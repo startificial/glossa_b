@@ -237,14 +237,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json(userWithoutPassword);
     }
     
-    // For demo, return the demo user if not authenticated
-    const user = await storage.getUserByUsername("demo");
-    if (!user) {
+    // For demo, auto-login as demo user if not authenticated
+    const demoUser = await storage.getUserByUsername("demo");
+    if (!demoUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Set user in session
+    req.session.userId = demoUser.id;
+    
     // Don't return the password
-    const { password, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = demoUser;
     res.json(userWithoutPassword);
   });
   
