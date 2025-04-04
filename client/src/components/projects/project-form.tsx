@@ -99,8 +99,16 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
     mutationFn: async (data: CreateProjectFormData) => {
       return apiRequest("POST", "/api/projects", data);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate projects query
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      
+      // Invalidate specific customer query if a customer was selected
+      if (form.getValues().customerId) {
+        const customerId = form.getValues().customerId;
+        queryClient.invalidateQueries({ queryKey: [`/api/customers/${customerId}`] });
+      }
+      
       onClose();
       form.reset();
       toast({

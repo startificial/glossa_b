@@ -71,8 +71,9 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
   const formattedCreatedAt = format(new Date(customer.createdAt), "PPP");
   const formattedUpdatedAt = format(new Date(customer.updatedAt), "PPP");
   
-  // Project metrics
-  const projectCount = customer.projects?.length || 0;
+  // Project metrics - use projects from props if available, otherwise from customer
+  const customerProjects = customer.projects || [];
+  const projectCount = customerProjects.length;
   
   // Industries as tags
   const industries = customer.industry ? customer.industry.split(",").map(i => i.trim()) : [];
@@ -282,7 +283,7 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {customer.projects?.map((project) => (
+                    {customerProjects.map((project) => (
                       <Link href={`/projects/${project.id}`} key={project.id}>
                         <Card className="overflow-hidden hover:shadow-md transition-all cursor-pointer">
                           <CardContent className="p-0">

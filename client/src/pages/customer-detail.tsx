@@ -11,17 +11,17 @@ interface CustomerDetailPageProps {
 }
 
 export default function CustomerDetail({ customerId }: CustomerDetailPageProps) {
-  // Fetch customer data
+  // Fetch customer data with proper typing for project association
   const { 
     data, 
     isLoading, 
     isError 
-  } = useQuery<{[key: string]: any}>({
+  } = useQuery<Customer & { projects: Project[] }>({
     queryKey: [`/api/customers/${customerId}`],
     staleTime: 60000, // 1 minute
   });
   
-  const customer = data as Customer;
+  const customer = data;
   
   // Fetch related projects (optional - our customer already has projects via join)
   
