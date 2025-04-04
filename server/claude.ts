@@ -238,7 +238,10 @@ export async function generateImplementationTasks(
         try {
           const implementationTasks = JSON.parse(jsonText);
           console.log(`Strategy 1: Generated ${implementationTasks.length} implementation tasks`);
-          return implementationTasks;
+          
+          // Validate and fix implementation steps structure if needed
+          const validatedTasks = validateAndFixImplementationTasks(implementationTasks);
+          return validatedTasks;
         } catch (err) {
           console.log('Strategy 1 parsing failed, trying next strategy');
         }
@@ -251,7 +254,10 @@ export async function generateImplementationTasks(
         try {
           const implementationTask = JSON.parse(jsonText);
           console.log(`Strategy 2: Generated a single implementation task`);
-          return [implementationTask]; // Wrap in array for consistency
+          
+          // Validate and fix implementation steps structure if needed
+          const validatedTasks = validateAndFixImplementationTasks([implementationTask]);
+          return validatedTasks;
         } catch (err) {
           console.log('Strategy 2 parsing failed, trying next strategy');
         }
@@ -261,8 +267,11 @@ export async function generateImplementationTasks(
       try {
         const implementationTasks = JSON.parse(responseText);
         console.log(`Strategy 3: Generated ${Array.isArray(implementationTasks) ? implementationTasks.length : 1} implementation tasks`);
-        // Ensure we're returning an array
-        return Array.isArray(implementationTasks) ? implementationTasks : [implementationTasks];
+        
+        // Ensure we're returning an array and validate/fix implementation steps
+        const tasksArray = Array.isArray(implementationTasks) ? implementationTasks : [implementationTasks];
+        const validatedTasks = validateAndFixImplementationTasks(tasksArray);
+        return validatedTasks;
       } catch (err) {
         console.log('Strategy 3 parsing failed, trying next strategy');
       }
@@ -273,10 +282,41 @@ export async function generateImplementationTasks(
         try {
           const implementationTasks = JSON.parse(codeBlockMatch[1]);
           console.log(`Strategy 4: Generated ${Array.isArray(implementationTasks) ? implementationTasks.length : 1} implementation tasks`);
-          return Array.isArray(implementationTasks) ? implementationTasks : [implementationTasks];
+          
+          // Ensure we're returning an array and validate/fix implementation steps
+          const tasksArray = Array.isArray(implementationTasks) ? implementationTasks : [implementationTasks];
+          const validatedTasks = validateAndFixImplementationTasks(tasksArray);
+          return validatedTasks;
         } catch (err) {
           console.log('Strategy 4 parsing failed, no more strategies to try');
         }
+      }
+      
+      // Strategy 5: Try to extract and fix truncated/incomplete JSON
+      try {
+        // This strategy extracts the JSON even if it's truncated by looking for the most complete
+        // structure possible and attempting repair
+        console.log('Attempting repair of truncated/incomplete JSON...');
+        
+        // Look for a series of implementation task objects
+        const taskPatterns = responseText.match(/\{[\s\S]*?"title"[\s\S]*?"description"[\s\S]*?"implementationSteps"[\s\S]*?\}/g);
+        
+        if (taskPatterns && taskPatterns.length > 0) {
+          // Try to reconstruct a JSON array from the found patterns
+          const reconstructedJson = `[${taskPatterns.join(',')}]`;
+          try {
+            const implementationTasks = JSON.parse(reconstructedJson);
+            console.log(`Strategy 5: Repaired and generated ${implementationTasks.length} implementation tasks`);
+            
+            // Validate and fix implementation steps structure if needed
+            const validatedTasks = validateAndFixImplementationTasks(implementationTasks);
+            return validatedTasks;
+          } catch (repairErr) {
+            console.log('JSON repair failed:', repairErr);
+          }
+        }
+      } catch (repairAttemptErr) {
+        console.log('Strategy 5 failed entirely:', repairAttemptErr);
       }
       
       // If we're here, all parsing strategies failed
@@ -287,6 +327,57 @@ export async function generateImplementationTasks(
       console.error('Error in parsing process:', parseError);
       console.error('Raw response:', responseText);
       throw new Error('Failed to parse implementation tasks from Claude response');
+    }
+    
+    // Helper function to validate and fix implementation tasks structure
+    function validateAndFixImplementationTasks(tasks: any[]): any[] {
+      return tasks.map(task => {
+        // If the task has no implementation steps, add an empty array
+        if (!task.implementationSteps) {
+          task.implementationSteps = [];
+        }
+        
+        // Validate each implementation step
+        if (Array.isArray(task.implementationSteps)) {
+          task.implementationSteps = task.implementationSteps.map((step: any, index: number) => {
+            // Ensure each step has the required properties
+            const validStep: any = {
+              stepNumber: step.stepNumber || index + 1,
+              stepDescription: step.stepDescription || '',
+              relevantDocumentationLinks: []
+            };
+            
+            // Handle relevantDocumentationLinks
+            if (step.relevantDocumentationLinks) {
+              // Make sure it's an array
+              if (Array.isArray(step.relevantDocumentationLinks)) {
+                validStep.relevantDocumentationLinks = step.relevantDocumentationLinks;
+              } else if (typeof step.relevantDocumentationLinks === 'string') {
+                // If it's a string, try to parse it as JSON or make a single-item array
+                try {
+                  validStep.relevantDocumentationLinks = JSON.parse(step.relevantDocumentationLinks);
+                } catch (e) {
+                  validStep.relevantDocumentationLinks = [step.relevantDocumentationLinks];
+                }
+              }
+            }
+            
+            return validStep;
+          });
+        }
+        
+        // If sfDocumentationLinks is missing, add an empty array
+        if (!task.sfDocumentationLinks) {
+          task.sfDocumentationLinks = [];
+        }
+        
+        // If overallDocumentationLinks is missing, add an empty array
+        if (!task.overallDocumentationLinks) {
+          task.overallDocumentationLinks = [];
+        }
+        
+        return task;
+      });
     }
   } catch (error) {
     console.error('Error generating implementation tasks with Claude:', error);
