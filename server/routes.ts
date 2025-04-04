@@ -2035,6 +2035,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           complexity: task.complexity || "medium",
           taskType: task.taskType || "implementation",
           sfDocumentationLinks: sfDocumentationLinks,
+          implementationSteps: task.implementationSteps || [],
+          overallDocumentationLinks: task.overallDocumentationLinks || [],
           assignee: null
         };
       });
