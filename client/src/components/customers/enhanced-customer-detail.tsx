@@ -95,15 +95,6 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
   
   return (
     <>
-      <div className="mb-6">
-        <Link href="/customers">
-          <Button variant="ghost" className="pl-0 mb-2">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Customers
-          </Button>
-        </Link>
-      </div>
-    
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main info card */}
         <Card className="lg:col-span-2 overflow-hidden">

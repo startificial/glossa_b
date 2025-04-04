@@ -160,6 +160,7 @@ export function EnhancedCustomerCard({ customer, compact = false }: EnhancedCust
                     href={customer.website.startsWith('http') ? customer.website : `https://${customer.website}`}
                     target="_blank" 
                     rel="noopener noreferrer"
+                    className="flex items-center justify-center"
                   >
                     <LinkIcon className="mr-2 h-4 w-4" />
                     Website
