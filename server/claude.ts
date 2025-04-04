@@ -606,7 +606,7 @@ export async function generateAcceptanceCriteria(
       Project Description: ${projectDescription}
       Requirement: ${requirementText}
 
-      Your task is to create 3-5 comprehensive acceptance criteria for this requirement using the Gherkin format with properly structured Scenario, Given, When, And, Then components.
+      Your task is to create 10-20 comprehensive acceptance criteria for this requirement using the Gherkin format with properly structured Scenario, Given, When, And, Then components.
 
       Each acceptance criterion should:
       1. Have a clear Scenario title that summarizes the specific test case
@@ -666,7 +666,7 @@ export async function generateAcceptanceCriteria(
     // Generate content using Claude
     const message = await anthropic.messages.create({
       model: 'claude-3-opus-20240229',
-      max_tokens: 2000,
+      max_tokens: 4000, // Increased to handle 10-20 acceptance criteria
       temperature: 0.7,
       system: 'You are an expert in software requirements engineering, specializing in creating Gherkin-formatted acceptance criteria.',
       messages: [

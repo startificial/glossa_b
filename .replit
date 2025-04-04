@@ -37,6 +37,15 @@ task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "Reset DB"
+mode = "sequential"
+author = 25469632
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node reset-db.mjs"
+
 [[ports]]
 localPort = 5000
 externalPort = 80

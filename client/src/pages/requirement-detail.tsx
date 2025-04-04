@@ -211,7 +211,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       
       toast({
         title: "Acceptance Criteria Generated",
-        description: `${data.length} acceptance criteria have been automatically generated for this requirement.`,
+        description: `${data.length} acceptance criteria have been automatically generated, providing comprehensive test scenarios for this requirement.`,
       });
       
       setIsGeneratingCriteria(false);
@@ -841,7 +841,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                             ) : (
                               <>
                                 <Sparkles className="h-4 w-4 mr-2" />
-                                Generate Criteria Automatically
+                                Generate 10-20 Comprehensive Criteria
                               </>
                             )}
                           </Button>
