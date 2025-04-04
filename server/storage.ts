@@ -1113,15 +1113,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getHighPriorityRequirements(projectId: number, limit: number = 10): Promise<Requirement[]> {
+    // Use SQL ILIKE for case-insensitive matching of 'high' priority
+    // This ensures we match 'high', 'High', or any case variation
     return await db
       .select()
       .from(requirements)
       .where(
         and(
           eq(requirements.projectId, projectId),
-          eq(requirements.priority, 'High')
+          // Consider both lowercase 'high' and uppercase 'High' due to potential inconsistency
+          or(
+            eq(requirements.priority, 'high'),
+            eq(requirements.priority, 'High')
+          )
         )
       )
+      .orderBy(desc(requirements.createdAt))
       .limit(limit);
   }
   
