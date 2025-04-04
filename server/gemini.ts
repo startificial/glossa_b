@@ -251,10 +251,19 @@ export async function processTextFile(filePath: string, projectName: string, fil
       const requirementsWithReferences = await Promise.all(
         uniqueRequirements.map(async (req) => {
           try {
+            // Get the requirement text, handling both new format (description) and legacy format (text)
+            const requirementText = req.description || req.text;
+            
+            // Make sure we have text to process
+            if (!requirementText) {
+              console.warn(`Skipping text references for requirement with missing text: ${JSON.stringify(req)}`);
+              return req;
+            }
+            
             // Find relevant text passages for this requirement
             const textReferences = await processTextFileForRequirement(
               filePath,
-              req.text,
+              requirementText,
               inputDataId
             );
             

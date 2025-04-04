@@ -833,44 +833,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     } catch (genError) {
                       console.error("Context-based generation failed:", genError);
                       
-                      // If context-based generation fails, fall back to domain-specific templates
-                      console.log(`Falling back to domain-specific templates for ${domain} ${docType}`);
+                      // Instead of using hardcoded fallback templates, always use the stream processor
+                      console.log(`Context-based generation failed, will try stream processor instead for ${domain} ${docType}`);
                       
-                      // Generate detailed fallback requirements for scanned/image PDFs with minimum 200 words per requirement
-                      // These are tailored to the document context we've extracted
-                      requirements = [
-                        { 
-                          title: "Robust Document Scanning and OCR Functionality",
-                          description: `The system must implement robust document scanning and OCR functionality to process the information contained in documents like "${req.file!.originalname}". This capability is essential for extracting valuable data from ${docType} documents that are in image or scanned format. The system should detect document type, orientation, and quality automatically to optimize the scanning and recognition process. Multiple OCR engines should be supported to ensure the highest possible accuracy for different document types and quality levels. The extracted text must be automatically categorized and mapped to appropriate data structures and fields based on the document context and content patterns identified. The system should maintain an audit trail of all processed documents, including original images, extracted text, and any manual corrections made during verification. This requirement is critical for ensuring that information locked in image-based documents can be efficiently converted to structured data. The OCR capability should include confidence scoring for each extracted data element, with configurable thresholds for automated processing versus manual review. Integration with machine learning models is necessary to improve extraction accuracy over time based on user corrections and feedback. The system must handle various document formats, resolutions, and quality levels, with appropriate error handling and fallback mechanisms for documents that cannot be accurately processed automatically. Performance metrics must be established for measuring OCR accuracy, with continuous improvement processes to enhance recognition rates over time.`,
-                          category: 'functional', 
-                          priority: 'high' 
-                        },
-                        { 
-                          title: "Comprehensive Document Management Solution",
-                          description: `The system must include a comprehensive document management solution for ${domain}-related documents similar to "${req.file!.originalname}". This solution should enable users to maintain a centralized repository of all business-critical ${docType} documents with appropriate organization, categorization, and searching capabilities. The document management functionality must provide robust version control capabilities, allowing users to track changes, view revision history, and restore previous versions of documents when necessary. Access controls must be implemented to ensure that documents are only accessible to authorized users based on their roles and permissions within the system. The solution should support document classification with metadata tagging to facilitate easy searching and filtering of documents based on various attributes such as document type, date, department, project phase, and other domain-specific criteria. Integration with existing business objects and data structures is essential, allowing documents to be linked to relevant entities to maintain business context and traceability. The system should provide preview capabilities for all supported document formats without requiring users to download files or use external applications. The document management solution should support bulk operations for uploading, categorizing, and processing large numbers of documents during migration or batch processing scenarios. Analytics and reporting on document usage, access patterns, and storage utilization must be provided to support optimization and compliance requirements. Mobile access to documents should be supported, with appropriate security controls and user experience optimizations for different device types. This requirement is essential for maintaining organized and accessible documentation throughout the system lifecycle.`,
-                          category: 'functional', 
-                          priority: 'medium' 
-                        },
-                        { 
-                          title: "Robust Data Extraction and Transformation",
-                          description: `The system must include robust data extraction and transformation capabilities to process information from ${domain} documents like "${req.file!.originalname}". The solution should be able to extract both structured and unstructured data from various document formats, including scanned PDFs, using intelligent data capture technologies appropriate for the domain. Once extracted, the data must be transformed and normalized according to the system's data model, with appropriate validation rules applied to ensure data integrity and conformance to business rules. The system should provide configurable mapping templates that allow administrators to define how data from different document types should be mapped to system entities and fields. These mapping templates should support conditional logic and transformations to handle complex business rules and exceptions typical in ${domain} documentation. The extraction and transformation process must include comprehensive error handling mechanisms that identify issues such as missing required fields, invalid data formats, or potential duplicates, with clear notifications to users. The system should maintain detailed logs of all data extraction and transformation activities for audit, troubleshooting, and compliance purposes. A user interface must be provided for business users to review and approve the extracted data before it is committed to the system of record, with the ability to make manual corrections when necessary. The data extraction system should support batch processing for handling large volumes of documents during the initial migration phase and ongoing operations. It should also include learning capabilities to improve extraction accuracy over time based on corrections and feedback from users working with ${domain} documentation. Integration with existing data validation rules and duplicate detection mechanisms is essential to maintain data quality standards across the integrated systems.`,
-                          category: 'functional', 
-                          priority: 'high' 
-                        },
-                        { 
-                          title: "Workflow Automation for Document Processing",
-                          description: `The system must implement a comprehensive workflow automation solution for processing ${domain} documentation like "${req.file!.originalname}". The workflow automation should support multi-step approval processes, conditional routing based on document content or metadata, and automatic task assignment to appropriate users or groups based on document type, content, and organizational roles. Notifications should be configurable at each step of the workflow to keep relevant stakeholders informed of document status and required actions, with support for multiple communication channels including email, in-app notifications, and mobile alerts. The workflows must support parallel processing, allowing multiple users to work on different aspects of a document simultaneously when appropriate for the business process. Exception handling should be built into the workflows, with clear escalation paths and SLA tracking for documents that require special handling or are at risk of missing deadlines. The system should provide a visual workflow designer that allows business administrators to create and modify workflows without coding, including the ability to define entry conditions, steps, approval rules, and exit actions appropriate for ${domain} processes. Real-time visibility into workflow status is essential, with dashboards and reports that show document volume, processing times, bottlenecks, and completion rates to support continuous process improvement. The workflow automation should integrate with standard automation tools and allow for custom integrations when more complex logic is required for specialized ${domain} processing. The system should support conditional branching in workflows based on document content, metadata, or user inputs, allowing for complex business processes to be automated effectively. Integration with external systems may be required to maintain end-to-end process integrity across system boundaries. Tools for workflow optimization should be provided, with analytics that identify opportunities to improve efficiency and reduce processing times.`,
-                          category: 'functional', 
-                          priority: 'medium' 
-                        },
-                        { 
-                          title: "Document Security and Compliance Controls",
-                          description: `The system must include comprehensive security controls for document handling and processing that are appropriate for ${domain} applications. All documents uploaded to the system, including those similar to "${req.file!.originalname}", must be scanned for malware and potentially harmful content before being stored in the system. The security framework must implement proper encryption for documents both at rest and in transit, with key management systems that comply with industry best practices and relevant standards for ${domain} systems. Access controls should be granular, allowing permissions to be set at the document level when necessary, and should integrate with the system's role-based security model. The system must maintain detailed audit logs for all document-related operations, including viewing, downloading, modifying, and sharing, with user information, timestamps, and IP addresses recorded for compliance purposes. Data loss prevention (DLP) measures should be implemented to identify and protect sensitive information within documents, such as personal identifiable information (PII), financial data, or proprietary business information that may be contained in ${docType} documents. The security controls must support compliance with relevant regulations such as GDPR, HIPAA, SOX, or industry-specific requirements, depending on the organization's regulatory environment. Regular security assessments, including vulnerability scanning and penetration testing, should be conducted to ensure the document handling system remains secure against evolving threats. The security model should support the concept of least privilege, ensuring users only have access to the documents and data they need to perform their job functions. Enhanced security capabilities should be considered, including content encryption, comprehensive event monitoring, and field-level audit trails for sensitive document metadata. Security policies and procedures should be documented and communicated to all system users, with regular training provided on secure document handling practices appropriate for the sensitivity level of ${domain} documentation.`,
-                          category: 'security', 
-                          priority: 'high' 
+                      try {
+                        // Import the stream processor
+                        const { streamProcessPdfText } = await import('./stream-pdf-processor.js');
+                        
+                        // Use our dedicated stream processor with either contextPrompt or contextText
+                        const projectName = project?.name || 'Unknown Project';
+                        
+                        // Create a more detailed extraction context
+                        const enhancedContext = `
+                          Project: ${projectName}
+                          Document Type: ${docType}
+                          Domain: ${domain}
+                          Keywords: ${keywords.join(', ')}
+                          Filename: ${req.file!.originalname}
+                          
+                          ${contextPrompt}
+                        `;
+                        
+                        // Write the enhanced context to a temporary file
+                        const enhancedContextPath = path.join(path.dirname(req.file!.path), 'enhanced_context_' + path.basename(req.file!.path, '.pdf') + '.txt');
+                        fs.writeFileSync(enhancedContextPath, enhancedContext, 'utf8');
+                        
+                        // Process with stream processor using the enhanced context
+                        requirements = await streamProcessPdfText(
+                          enhancedContext,
+                          enhancedContextPath,
+                          projectName,
+                          req.file!.originalname,
+                          contentType,
+                          minRequirements * 2, // Increase minimum requirements to get more thorough results
+                          inputDataRecord.id // Pass input data ID for text references
+                        );
+                        
+                        // Clean up temporary file
+                        try {
+                          fs.unlinkSync(enhancedContextPath);
+                        } catch (err) {
+                          console.error('Error removing enhanced context file:', err);
                         }
-                      ];
-                      console.log(`Generated ${requirements.length} domain-specific fallback requirements for ${domain} ${docType} with minimal extractable text`);
+                        
+                        console.log(`Stream processor with enhanced context returned ${requirements.length} requirements`);
+                        
+                        // If we still didn't get requirements, try Claude as a fallback
+                        if (requirements.length === 0) {
+                          console.log("Stream processor returned no requirements. Trying Claude as a final fallback");
+                          
+                          try {
+                            // Import Claude processor
+                            const { generateRequirementsWithClaude } = await import('./claude.js');
+                            
+                            // Try Claude with the enhanced context
+                            requirements = await generateRequirementsWithClaude(
+                              enhancedContext,
+                              projectName,
+                              req.file!.originalname,
+                              contentType,
+                              minRequirements
+                            );
+                            
+                            console.log(`Claude returned ${requirements.length} requirements as final fallback`);
+                          } catch (claudeError) {
+                            console.error("Claude fallback also failed:", claudeError);
+                            // At this point we have no fallback options left
+                            // Return an empty array, the user will need to try again or manually add requirements
+                            requirements = [];
+                          }
+                        }
+                      } catch (streamError) {
+                        console.error("Error in stream processing:", streamError);
+                        // If all automated approaches fail, return an empty array
+                        requirements = [];
+                      }
                     }
                   } else {
                     // We have limited but usable text content - process using standard method with the limited text

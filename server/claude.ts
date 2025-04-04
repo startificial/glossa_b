@@ -9,6 +9,103 @@ const anthropic = new Anthropic({
 });
 
 /**
+ * Generate requirements using Claude AI
+ * @param context Input context for Claude to analyze
+ * @param projectName Name of the project for context
+ * @param fileName Name of the file being processed
+ * @param contentType Type of content in the file
+ * @param minRequirements Minimum number of requirements to generate
+ * @returns Array of requirements with titles, descriptions, categories, and priorities
+ */
+export async function generateRequirementsWithClaude(
+  context: string,
+  projectName: string,
+  fileName: string,
+  contentType: string = 'general',
+  minRequirements: number = 5
+): Promise<any[]> {
+  try {
+    if (!apiKey) {
+      console.error('Missing ANTHROPIC_API_KEY environment variable');
+      throw new Error('Claude API key is not configured. Please set the ANTHROPIC_API_KEY environment variable.');
+    }
+
+    console.log(`Generating requirements with Claude for ${fileName}, content type: ${contentType}`);
+    
+    // Create a Claude-specific prompt for requirement generation
+    const prompt = `
+    You are a business analyst with expertise in software migration projects. Analyze the provided content and extract clear, detailed requirements for implementing the described functionality in a target system.
+
+    Project: ${projectName}
+    Content Type: ${contentType}
+    File: ${fileName}
+
+    Content to analyze:
+    ${context}
+
+    Extract at least ${minRequirements} requirements from this content. For each requirement:
+    1. Provide a concise title (3-10 words) that summarizes the requirement
+    2. Provide a detailed, specific description of at least 150 words that thoroughly explains what needs to be implemented
+    3. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
+    4. Assign a priority level: 'high', 'medium', or 'low'
+
+    Format your response as a JSON array of requirements, each with the properties 'title', 'description', 'category', and 'priority'.
+    
+    Example:
+    [
+      {
+        "title": "Customer Data Migration",
+        "description": "The system must implement a comprehensive customer data migration process that preserves all customer information... [detailed 150+ word description]",
+        "category": "functional",
+        "priority": "high"
+      }
+    ]
+    `;
+
+    // Call Claude API to generate requirements
+    const message = await anthropic.messages.create({
+      model: 'claude-3-opus-20240229',
+      max_tokens: 4000,
+      temperature: 0.2,
+      system: "You are a business analyst specializing in requirement extraction for software migration projects. Extract detailed, specific requirements from provided content and format them as valid JSON with no additional text.",
+      messages: [
+        { role: 'user', content: prompt }
+      ]
+    });
+
+    // Extract the response text
+    const responseText = typeof message.content[0] === 'object' && 'text' in message.content[0] 
+      ? message.content[0].text as string
+      : JSON.stringify(message.content[0]);
+    
+    // Parse the JSON response
+    try {
+      // Extract just the JSON part from the response 
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const jsonText = jsonMatch[0];
+        const parsedResponse = JSON.parse(jsonText);
+        
+        console.log(`Claude extracted ${parsedResponse.length} requirements from the content`);
+        return parsedResponse;
+      } else {
+        // If no JSON array was found, try parsing the whole response
+        const parsedResponse = JSON.parse(responseText);
+        console.log(`Claude extracted ${parsedResponse.length} requirements from the content`);
+        return parsedResponse;
+      }
+    } catch (parseError) {
+      console.error('Error parsing Claude response:', parseError);
+      console.error('Raw response:', responseText);
+      return []; // Return empty array on error
+    }
+  } catch (error) {
+    console.error('Error generating requirements with Claude:', error);
+    return []; // Return empty array on error
+  }
+}
+
+/**
  * Generate Salesforce-specific implementation tasks for requirements
  * @param projectName Name of the project for context
  * @param sourceSystem Name of the source system
