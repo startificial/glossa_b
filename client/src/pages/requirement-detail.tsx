@@ -539,7 +539,8 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
             <CardContent>
               {!isEditing ? (
                 <div className="p-4 border rounded-md bg-muted/20 whitespace-pre-line">
-                  {requirement.description}
+                  <div className="font-medium text-lg mb-2">{requirement.title}</div>
+                  <div>{requirement.description}</div>
                 </div>
               ) : (
                 <div className="space-y-4">
