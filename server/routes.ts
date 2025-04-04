@@ -1026,121 +1026,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } catch (geminiError) {
             console.error("Error with Gemini processing:", geminiError);
             
-            // Fallback to basic NLP if Gemini fails
-            console.log("Falling back to basic NLP processing");
-            
-            // Initialize content for requirement extraction
-            let content = "";
-            
-            // Extract content based on file type
-            if (type === 'text' || type === 'document') {
-              try {
-                // For text files, read directly
-                content = fs.readFileSync(req.file!.path, 'utf8');
-              } catch (err) {
-                console.error("Error reading file:", err);
-                content = `This is a sample text for ${type} file processing. 
-                The system should extract information from ${req.file!.originalname}.
-                Users must be able to view requirements generated from this file.
-                The application shall organize requirements by priority and category.
-                Security measures should be implemented for sensitive data from input sources.`;
-              }
-            } else if (type === 'pdf') {
-              try {
-                // For PDF files, read directly but handle with specialized cleanup
-                content = fs.readFileSync(req.file!.path, 'utf8');
-                
-                // Basic PDF cleaning for fallback
-                content = content.replace(/\f/g, '\n'); // Form feeds
-                content = content.replace(/(\r\n|\r)/g, '\n'); // Normalize line endings
-                content = content.replace(/ {2,}/g, ' '); // Remove repeated spaces
-                content = content.replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // Control chars
-                
-                // If content is too long, take a reasonable chunk
-                // Use a much smaller limit to prevent memory issues
-                if (content.length > 2000) {
-                  console.log(`Truncating content from ${content.length} to 2000 chars to prevent memory issues`);
-                  content = content.substring(0, 2000);
-                }
-              } catch (err) {
-                console.error("Error reading PDF file:", err);
-                content = `PDF document analysis for ${req.file!.originalname}.
-                The system must properly extract structured content from PDF documents.
-                The application shall identify section headings and document structure in PDFs.
-                Implementation of clean text extraction from PDFs is required for accurate requirements gathering.
-                The system should preserve formatting and bullets from structured documents.
-                Security scanning for uploaded PDF documents is required to prevent malicious code execution.`;
-              }
-            } else if (type === 'video') {
-              // Enhanced fallback for video files with workflow-focused requirements
-              content = `Analysis of workflow video: ${req.file!.originalname}.
-              The system must implement the complete user authentication workflow from the source system, including multi-factor authentication, password reset, and account recovery options.
-              The system should replicate the order processing workflow with all approval steps, exception handling, and integration with inventory management systems.
-              The application shall migrate the customer onboarding workflow, preserving all validation rules, KYC processes, and automated document verification processes.
-              Implementation of the financial transaction workflow is required with all security controls, audit logging, and reconciliation processes maintained.
-              The data migration workflow must include comprehensive mapping between source and target systems, data transformation rules, and validation checkpoints.
-              The system should support notification workflows including email, SMS, and in-app alerts based on specific triggers and user preferences.`;
-            } else if (type === 'audio') {
-              // Placeholder for audio
-              content = `Transcription from audio file: ${req.file!.originalname}.
-              The system must support audio processing for requirements extraction.
-              Users should be able to navigate through audio content with precise timestamp markers.
-              The application shall display waveform visualization of the audio content.
-              Implementation of audio analysis capabilities is required to identify speakers and key segments.
-              Security measures must be in place to protect sensitive audio content.`;
-            } else {
-              // For other file types
-              content = `Processing for ${req.file!.originalname}.
-              The system should support this file format for requirement extraction.
-              Users must be able to filter requirements by different criteria.
-              The application shall provide detailed views of each requirement.
-              Security protocols should be implemented for all uploaded files.`;
-            }
-            
-            // Use NLP to extract and process requirements
-            const doc = nlp(content);
-            const sentences = doc.sentences().out('array');
-            
-            const requirementKeywords = [
-              'must', 'should', 'will', 'shall', 'required', 'needs to', 
-              'have to', 'system', 'user', 'implement', 'support',
-              'application', 'feature', 'functionality', 'interface'
-            ];
-            
-            // Filter sentences that are likely requirements
-            const potentialRequirements = sentences.filter((sentence: string) => 
-              requirementKeywords.some(keyword => sentence.toLowerCase().includes(keyword)) &&
-              sentence.length > 20 && sentence.length < 200
-            );
-            
-            // Format requirements for consistent processing
-            requirements = potentialRequirements.slice(0, 5).map((text: string) => ({
-              text,
-              category: 'functional',
-              priority: 'medium'
-            }));
-            
-            // If no requirements found, create fallback requirements based on file type
-            if (requirements.length === 0) {
-              if (type === 'video') {
-                // Create workflow-specific fallback requirements for video files
-                requirements = [
-                  { title: "User Management Workflow Migration", description: `The system must migrate the user management workflow from the source system, including all roles, permissions, and authentication processes shown in ${req.file!.originalname}`, category: 'functional', priority: 'high' },
-                  { title: "Data Processing Workflow Replication", description: `The system shall replicate the data processing workflow with all validation rules, transformation logic, and error handling as demonstrated in the source system`, category: 'functional', priority: 'high' },
-                  { title: "Notification Workflow Implementation", description: `The notification workflow must be implemented with identical triggers, delivery channels, and personalization options as the source system`, category: 'functional', priority: 'medium' },
-                  { title: "Reporting Workflow Migration", description: `The reporting workflow shall be migrated with all existing templates, scheduling capabilities, and export formats maintained from the source system`, category: 'functional', priority: 'medium' },
-                  { title: "Security and Audit Workflow Compliance", description: `The system must implement the complete security and audit workflow to maintain compliance with all regulatory requirements shown in the video`, category: 'security', priority: 'high' }
-                ];
+            // Try to use Claude as the final fallback
+            try {
+              console.log("Attempting to use Claude as a fallback...");
+              
+              // Extract text content for Claude to process
+              let textContent = '';
+              
+              if (type === 'text' || type === 'document') {
+                textContent = fs.readFileSync(req.file!.path, 'utf8');
+              } else if (type === 'pdf') {
+                // Use our PDF processor to extract text
+                textContent = await extractTextFromPdf(req.file!.path);
               } else {
-                // Default fallback requirements for other file types
-                requirements = [
-                  { title: `${type.charAt(0).toUpperCase() + type.slice(1)} File Processing`, description: `The system must properly process ${type} files like ${req.file!.originalname}`, category: 'functional', priority: 'high' },
-                  { title: "Detailed Requirements View", description: `Users should be able to view detailed information about requirements extracted from ${type} files`, category: 'functional', priority: 'medium' },
-                  { title: "Requirements Filtering and Sorting", description: `The application shall provide filtering and sorting options for requirements`, category: 'functional', priority: 'medium' },
-                  { title: "Version Control for Requirements", description: `Implementation of version control is required for tracking requirement changes`, category: 'non-functional', priority: 'low' },
-                  { title: "Uploaded File Security", description: `Security measures must be in place to protect sensitive data in uploaded files`, category: 'security', priority: 'high' }
-                ];
+                // For other file types, provide a description
+                textContent = `This is a ${type} file named ${req.file!.originalname} that needs to be analyzed to extract requirements for the project ${project.name}.`;
               }
+              
+              // Import Claude processor
+              const { generateRequirementsWithClaude } = await import('./claude.js');
+              
+              // Use Claude with the file content
+              requirements = await generateRequirementsWithClaude(
+                textContent,
+                project.name,
+                req.file!.originalname,
+                contentType,
+                5 // Fixed number of min requirements
+              );
+              
+              // If Claude also fails or returns empty, throw an error to be handled
+              if (!requirements || requirements.length === 0) {
+                throw new Error("Claude AI failed to generate requirements");
+              }
+              
+              console.log(`Claude successfully generated ${requirements.length} requirements as fallback`);
+              
+            } catch (claudeError) {
+              // If both AI services fail, log the error and throw a user-friendly error
+              console.error("Error using Claude as fallback:", claudeError);
+              
+              // Update input data status to failed
+              await storage.updateInputData(inputDataRecord.id, { status: "failed" });
+              
+              // Return error to client
+              return res.status(500).json({ 
+                message: "Unable to process the uploaded file with available AI services. Please try again later or contact support.",
+                error: "AI_PROCESSING_FAILED"
+              });
             }
           }
           

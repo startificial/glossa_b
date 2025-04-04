@@ -132,14 +132,8 @@ export async function generateImplementationTasks(
 
     console.log(`Generating Salesforce implementation tasks for requirement: ${requirementText.substring(0, 100)}...`);
 
-    // For demo purposes, we'll return mock data to avoid API timeouts
-    console.log('Using mock implementation tasks for demo purposes');
-    return getMockImplementationTasks(requirementText, acceptanceCriteria, requirementId, sourceSystem, targetSystem);
-    
-    // Note: The Claude API code is commented out to avoid API timeouts,
-    // but would be used in production with a valid API key
-
-    /*
+    // Use Claude API for generating implementation tasks
+    console.log('Generating implementation tasks with Claude...');
     // Format acceptance criteria for the prompt
     const formattedCriteria = acceptanceCriteria.map((ac, index) => {
       return `Acceptance Criterion ${index + 1}: ${ac.description}`;
@@ -254,7 +248,6 @@ export async function generateImplementationTasks(
       console.error('Raw response:', responseText);
       throw new Error('Failed to parse implementation tasks from Claude response');
     }
-    */
   } catch (error) {
     console.error('Error generating implementation tasks with Claude:', error);
     throw error;
@@ -602,14 +595,9 @@ export async function generateAcceptanceCriteria(
 
     console.log(`Generating acceptance criteria for requirement: ${requirementText.substring(0, 100)}...`);
 
-    // For demo purposes, we'll return mock data to avoid API timeouts
-    console.log('Using mock acceptance criteria for demo purposes');
-    return getMockAcceptanceCriteria(requirementText);
+    // Use Claude API to generate the acceptance criteria
+    console.log('Generating acceptance criteria with Claude...');
     
-    // Note: The Claude API code is commented out to avoid API timeouts,
-    // but would be used in production with a valid API key
-    
-    /* 
     // Create a prompt for generating acceptance criteria
     const prompt = `
       You are an expert software engineer and business analyst specializing in creating high-quality acceptance criteria in Gherkin format for software requirements.
@@ -720,7 +708,6 @@ export async function generateAcceptanceCriteria(
       console.error('Raw response:', responseText);
       throw new Error('Failed to parse acceptance criteria from Claude response');
     }
-    */
   } catch (error) {
     console.error('Error generating acceptance criteria with Claude:', error);
     throw error;
