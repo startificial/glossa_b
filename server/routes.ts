@@ -1831,22 +1831,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid requirement ID", requirementId: req.params.requirementId });
       }
 
-      // Get projectId from request body
-      const projectId = req.body.projectId ? parseInt(req.body.projectId) : null;
-      console.log(`Generating acceptance criteria for requirement ID: ${requirementId}, project ID from body: ${projectId}`);
+      // Get the requirement directly from the database without any project check
+      // We'll validate the project relationship separately
+      const [requirement] = await db.select()
+        .from(requirements)
+        .where(eq(requirements.id, requirementId));
       
-      // No project ID provided, try direct lookup
-      let requirement;
-      
-      if (!projectId) {
-        // Try to get the requirement directly
-        requirement = await storage.getRequirement(requirementId);
-      } else {
-        // Use the combined method for better reliability
-        requirement = await storage.getRequirementWithProjectCheck(requirementId, projectId);
-      }
-      
-      // If we still don't have a requirement, return an error
       if (!requirement) {
         console.error(`Requirement with ID ${requirementId} not found in database`);
         return res.status(404).json({ message: "Requirement not found", requirementId });
@@ -1854,26 +1844,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Found requirement: ${requirement.title}, project ID: ${requirement.projectId}`);
       
-      // Use provided projectId if requirement's projectId is missing
-      const effectiveProjectId = requirement.projectId || projectId;
+      // Get the project directly from the database 
+      const [project] = await db.select()
+        .from(projects)
+        .where(eq(projects.id, requirement.projectId));
       
-      // Handle case where projectId might be null or undefined
-      if (!effectiveProjectId) {
-        console.error(`Requirement ${requirementId} has no associated project ID and none was provided`);
-        return res.status(400).json({ message: "Requirement has no associated project and no project ID was provided" });
-      }
-
-      const project = await storage.getProject(effectiveProjectId);
       if (!project) {
-        console.error(`Project with ID ${effectiveProjectId} not found for requirement ${requirementId}`);
-        return res.status(404).json({ message: "Project not found", projectId: effectiveProjectId });
+        console.error(`Project with ID ${requirement.projectId} not found for requirement ${requirementId}`);
+        return res.status(404).json({ message: "Project not found", projectId: requirement.projectId });
       }
       
       console.log(`Found project: ${project.name}`);
-      
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const [user] = await db.select()
+        .from(users)
+        .where(eq(users.username, "demo"));
+        
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -1892,18 +1879,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requirement.description
       );
 
-      // Update the requirement with the new acceptance criteria
-      const updatedRequirement = await storage.updateRequirement(requirementId, {
-        acceptanceCriteria
-      });
+      // Update the requirement with the new acceptance criteria directly in the database
+      const [updatedRequirement] = await db
+        .update(requirements)
+        .set({ acceptanceCriteria })
+        .where(eq(requirements.id, requirementId))
+        .returning();
 
-      // Add activity
-      await storage.createActivity({
+      // Add activity directly in the database
+      await db.insert(activities).values({
         type: "generated_acceptance_criteria",
-        description: `${user.username} generated acceptance criteria for requirement ${requirement.codeId}`,
+        description: `${user.username} generated acceptance criteria for requirement ${requirement.codeId || requirement.id}`,
         userId: user.id,
         projectId: requirement.projectId,
-        relatedEntityId: requirement.id
+        relatedEntityId: requirement.id,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
       res.status(200).json(acceptanceCriteria);
