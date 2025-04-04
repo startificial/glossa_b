@@ -203,6 +203,12 @@ export interface SfDocumentationLink {
   url: string;
 }
 
+export interface ImplementationStep {
+  stepNumber: number;
+  stepDescription: string;
+  relevantDocumentationLinks?: string[];
+}
+
 export interface ImplementationTask {
   id: number;
   title: string;
@@ -216,6 +222,8 @@ export interface ImplementationTask {
   assignee: string | null;
   taskType?: string;
   sfDocumentationLinks?: SfDocumentationLink[];
+  implementationSteps?: ImplementationStep[];
+  overallDocumentationLinks?: string[];
   createdAt: string;
   updatedAt: string;
 }

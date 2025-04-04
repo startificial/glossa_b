@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { ImplementationTask, Requirement } from '@/lib/types';
+import { ImplementationTask, Requirement, ImplementationStep } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,7 +24,20 @@ interface TaskDetailProps {
 export default function TaskDetail({ taskId }: TaskDetailProps) {
   const [, setLocation] = useLocation();
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    status: string;
+    priority: string;
+    system: string;
+    estimatedHours: number;
+    complexity: string;
+    assignee: string;
+    taskType: string;
+    sfDocumentationLinks: any[];
+    implementationSteps: ImplementationStep[];
+    overallDocumentationLinks: string[];
+  }>({
     title: '',
     description: '',
     status: '',
@@ -363,7 +376,7 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                     <div className="border rounded-md p-4 mb-4">
                       <div className="text-sm font-medium mb-3">Implementation Steps</div>
                       <div className="space-y-4">
-                        {task.implementationSteps.map((step: { stepNumber: number; stepDescription: string; relevantDocumentationLinks?: string[] }, index: number) => (
+                        {task.implementationSteps.map((step: ImplementationStep, index: number) => (
                           <div key={index} className="flex gap-3">
                             <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                               {step.stepNumber}
@@ -372,7 +385,7 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                               <div className="text-sm mb-1">{step.stepDescription}</div>
                               {step.relevantDocumentationLinks && step.relevantDocumentationLinks.length > 0 && (
                                 <div className="mt-1 text-xs space-y-1">
-                                  {step.relevantDocumentationLinks.map((link, linkIndex) => (
+                                  {step.relevantDocumentationLinks.map((link: string, linkIndex: number) => (
                                     <div key={linkIndex}>
                                       <a 
                                         href={link}
