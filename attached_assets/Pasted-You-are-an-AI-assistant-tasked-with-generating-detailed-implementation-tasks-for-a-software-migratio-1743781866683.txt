@@ -1,0 +1,45 @@
+You are an AI assistant tasked with generating detailed implementation tasks for a software migration project. Your responses should be grounded in the provided documentation of the Target System.
+
+**Please use the following information to generate one implementation task:**
+
+**Project Description:** [Insert a brief description of the overall software migration project here. For example: "Migrate the customer management system from the legacy 'OldSystem' to the new 'TargetSystem'."]
+
+**Target System:** [Insert the name of the target system here. It is crucial that you utilize your knowledge base and any internal documentation you have about this system to generate accurate steps and identify relevant documents. For example: "TargetSystem"]
+
+**Requirement Description:** [Insert a specific requirement that needs to be implemented as part of the migration. For example: "Migrate all existing customer records, including name, contact information, and purchase history, to the TargetSystem."]
+
+**Acceptance Criteria:** [Insert a list of criteria that must be met for this specific requirement to be considered successfully implemented. For example:
+* All customer records from OldSystem are present in TargetSystem.
+* Customer names, contact information (phone, email, address), and purchase history are accurately transferred.
+* Data integrity checks show no data loss or corruption.
+* Users can successfully search and retrieve customer records in TargetSystem.]
+
+**Based on the above information and your understanding of the Target System, generate a single implementation task with the following structure, returned as a structured JSON object:**
+
+```json
+{
+  "taskTitle": "[A concise and descriptive title for the task]",
+  "highLevelDescription": "[A brief overview of what the task entails]",
+  "detailedImplementationSteps": [
+    {
+      "stepNumber": 1,
+      "stepDescription": "[A specific, actionable step grounded in the Target System's documentation. **Include a reference to the relevant documentation within the description if possible.**]"
+    },
+    {
+      "stepNumber": 2,
+      "stepDescription": "[Another specific, actionable step grounded in the Target System's documentation. **Include a reference to the relevant documentation within the description if possible.**]"
+    },
+    // ... more steps as needed
+  ],
+  "relevantDocuments": [
+    {
+      "documentTitle": "[Title of the relevant document]",
+      "link": "[Link to the document or descriptive reference]"
+    },
+    {
+      "documentTitle": "[Title of another relevant document]",
+      "link": "[Link to the document or descriptive reference]"
+    }
+    // ... more relevant documents as needed
+  ]
+}

@@ -143,6 +143,8 @@ export async function generateImplementationTasks(
     const prompt = `
       You are an AI assistant tasked with generating detailed implementation tasks for a software migration project. Your responses should be grounded in the provided documentation of the Target System.
 
+      **Please use the following information to generate one implementation task:**
+
       **Project Description:** ${projectDescription || `Migration from ${sourceSystem} to ${targetSystem}`}
 
       **Target System:** ${targetSystem}
@@ -152,55 +154,50 @@ export async function generateImplementationTasks(
       **Acceptance Criteria:**
       ${formattedCriteria}
 
-      **Based on the above information and your understanding of the Target System, generate implementation tasks with the following structure, returned as a structured JSON array:**
+      **Based on the above information and your understanding of the Target System, generate a single implementation task with the following structure, returned as a structured JSON object:**
 
-      [
-        {
-          "title": "[A concise and descriptive title for the task]",
-          "description": "[A detailed overview of what the task entails, at least 50 words]",
-          "status": "pending",
-          "priority": "[high, medium, or low - derive from the requirement priority]",
-          "system": "[source, target, or both - what system is this task for]",
-          "requirementId": ${requirementId},
-          "estimatedHours": [reasonable hour estimate for the task],
-          "complexity": "[low, medium, or high]",
-          "taskType": "[data-mapping, workflow, ui, integration, security, testing, etc.]",
-          "implementationSteps": [
-            {
-              "stepNumber": 1,
-              "stepDescription": "[A specific, actionable step grounded in the Target System's documentation]",
-              "relevantDocumentationLinks": ["[Link 1]", "[Link 2]"]
-            },
-            {
-              "stepNumber": 2,
-              "stepDescription": "[Another specific, actionable step grounded in the Target System's documentation]",
-              "relevantDocumentationLinks": ["[Link 1]", "[Link 2]"]
-            }
-            // ... more steps as needed
-          ],
-          "sfDocumentationLinks": [
-            {
-              "title": "[Documentation Title]",
-              "url": "[Documentation URL]"
-            }
-          ],
-          "overallDocumentationLinks": ["[Link 1]", "[Link 2]"]
-        }
-      ]
-
-      Create at least one detailed implementation task for EACH acceptance criterion, but generate as many tasks as necessary to fully implement the requirement. Each task must be specifically focused on the target system implementation.
-
-      For each task:
-      1. Consider both source system analysis tasks and target system implementation tasks
-      2. Include specific target system features, objects, and components relevant to the implementation
-      3. Reference appropriate documentation URLs wherever possible
-      4. Include specific technical details about HOW to implement in the target system
-      5. Accurately estimate complexity (low, medium, high) and development hours
-      6. Task descriptions should include comprehensive implementation details
-      7. Provide detailed implementation steps with step numbers, descriptions, and relevant documentation links
-      8. Include overall documentation links that are relevant to the entire task
+      {
+        "title": "[A concise and descriptive title for the task]",
+        "description": "[A detailed overview of what the task entails, at least 50 words]",
+        "status": "pending",
+        "priority": "[high, medium, or low - derive from the requirement priority]",
+        "system": "[source, target, or both - what system is this task for]",
+        "requirementId": ${requirementId},
+        "estimatedHours": [reasonable hour estimate for the task],
+        "complexity": "[low, medium, or high]",
+        "taskType": "[data-mapping, workflow, ui, integration, security, testing, etc.]",
+        "implementationSteps": [
+          {
+            "stepNumber": 1,
+            "stepDescription": "[A specific, actionable step grounded in the Target System's documentation. Include a reference to the relevant documentation within the description if possible.]"
+          },
+          {
+            "stepNumber": 2,
+            "stepDescription": "[Another specific, actionable step grounded in the Target System's documentation. Include a reference to the relevant documentation within the description if possible.]"
+          }
+          // ... more steps as needed
+        ],
+        "relevantDocuments": [
+          {
+            "documentTitle": "[Title of the relevant document]",
+            "link": "[Link to the document or descriptive reference]"
+          },
+          {
+            "documentTitle": "[Title of another relevant document]",
+            "link": "[Link to the document or descriptive reference]"
+          }
+          // ... more relevant documents as needed
+        ],
+        "sfDocumentationLinks": [
+          {
+            "title": "[Documentation Title]",
+            "url": "[Documentation URL]"
+          }
+        ],
+        "overallDocumentationLinks": ["[Link 1]", "[Link 2]"]
+      }
       
-      Only output valid JSON with no additional text or explanations.
+      Only output valid JSON with no additional text or explanations. Focus on creating a single high-quality, detailed task rather than multiple tasks.
     `;
 
     // Generate content using Claude
@@ -228,6 +225,92 @@ export async function generateImplementationTasks(
       }
     }
     
+    // Helper function to validate and fix implementation tasks structure 
+    const validateAndFixImplementationTasks = (tasks: any[]): any[] => {
+      return tasks.map(task => {
+        // If the task has no implementation steps, add an empty array
+        if (!task.implementationSteps) {
+          task.implementationSteps = [];
+        }
+        
+        // Validate each implementation step
+        if (Array.isArray(task.implementationSteps)) {
+          task.implementationSteps = task.implementationSteps.map((step: any, index: number) => {
+            // Ensure each step has the required properties
+            const validStep: any = {
+              stepNumber: step.stepNumber || index + 1,
+              stepDescription: step.stepDescription || '',
+              relevantDocumentationLinks: []
+            };
+            
+            // Handle relevantDocumentationLinks
+            if (step.relevantDocumentationLinks) {
+              // Make sure it's an array
+              if (Array.isArray(step.relevantDocumentationLinks)) {
+                validStep.relevantDocumentationLinks = step.relevantDocumentationLinks;
+              } else if (typeof step.relevantDocumentationLinks === 'string') {
+                // If it's a string, try to parse it as JSON or make a single-item array
+                try {
+                  validStep.relevantDocumentationLinks = JSON.parse(step.relevantDocumentationLinks);
+                } catch (e) {
+                  validStep.relevantDocumentationLinks = [step.relevantDocumentationLinks];
+                }
+              }
+            }
+            
+            return validStep;
+          });
+        }
+        
+        // Handle relevantDocuments field (from the new prompt format)
+        if (task.relevantDocuments) {
+          // If we have relevantDocuments, add them to both sfDocumentationLinks and overallDocumentationLinks
+          const links: string[] = [];
+          const sfDocs: {title: string, url: string}[] = [];
+          
+          if (Array.isArray(task.relevantDocuments)) {
+            task.relevantDocuments.forEach((doc: any) => {
+              if (doc.link) {
+                links.push(doc.link);
+              }
+              if (doc.documentTitle && doc.link) {
+                sfDocs.push({
+                  title: doc.documentTitle,
+                  url: doc.link
+                });
+              }
+            });
+          }
+          
+          // Add to overallDocumentationLinks
+          if (!task.overallDocumentationLinks) {
+            task.overallDocumentationLinks = links;
+          } else {
+            task.overallDocumentationLinks = [...task.overallDocumentationLinks, ...links];
+          }
+          
+          // Add to sfDocumentationLinks
+          if (!task.sfDocumentationLinks) {
+            task.sfDocumentationLinks = sfDocs;
+          } else {
+            task.sfDocumentationLinks = [...task.sfDocumentationLinks, ...sfDocs];
+          }
+        }
+        
+        // If sfDocumentationLinks is missing, add an empty array
+        if (!task.sfDocumentationLinks) {
+          task.sfDocumentationLinks = [];
+        }
+        
+        // If overallDocumentationLinks is missing, add an empty array
+        if (!task.overallDocumentationLinks) {
+          task.overallDocumentationLinks = [];
+        }
+        
+        return task;
+      });
+    };
+
     try {
       // Try different strategies to extract valid JSON from the response
       
@@ -327,57 +410,6 @@ export async function generateImplementationTasks(
       console.error('Error in parsing process:', parseError);
       console.error('Raw response:', responseText);
       throw new Error('Failed to parse implementation tasks from Claude response');
-    }
-    
-    // Helper function to validate and fix implementation tasks structure
-    function validateAndFixImplementationTasks(tasks: any[]): any[] {
-      return tasks.map(task => {
-        // If the task has no implementation steps, add an empty array
-        if (!task.implementationSteps) {
-          task.implementationSteps = [];
-        }
-        
-        // Validate each implementation step
-        if (Array.isArray(task.implementationSteps)) {
-          task.implementationSteps = task.implementationSteps.map((step: any, index: number) => {
-            // Ensure each step has the required properties
-            const validStep: any = {
-              stepNumber: step.stepNumber || index + 1,
-              stepDescription: step.stepDescription || '',
-              relevantDocumentationLinks: []
-            };
-            
-            // Handle relevantDocumentationLinks
-            if (step.relevantDocumentationLinks) {
-              // Make sure it's an array
-              if (Array.isArray(step.relevantDocumentationLinks)) {
-                validStep.relevantDocumentationLinks = step.relevantDocumentationLinks;
-              } else if (typeof step.relevantDocumentationLinks === 'string') {
-                // If it's a string, try to parse it as JSON or make a single-item array
-                try {
-                  validStep.relevantDocumentationLinks = JSON.parse(step.relevantDocumentationLinks);
-                } catch (e) {
-                  validStep.relevantDocumentationLinks = [step.relevantDocumentationLinks];
-                }
-              }
-            }
-            
-            return validStep;
-          });
-        }
-        
-        // If sfDocumentationLinks is missing, add an empty array
-        if (!task.sfDocumentationLinks) {
-          task.sfDocumentationLinks = [];
-        }
-        
-        // If overallDocumentationLinks is missing, add an empty array
-        if (!task.overallDocumentationLinks) {
-          task.overallDocumentationLinks = [];
-        }
-        
-        return task;
-      });
     }
   } catch (error) {
     console.error('Error generating implementation tasks with Claude:', error);
