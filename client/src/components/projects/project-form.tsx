@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { CreateProjectFormData, Customer } from "@/lib/types";
+import { useLocation } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
+  const [location] = useLocation();
 
   // Fetch customers for the dropdown
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery<Customer[]>({
@@ -78,6 +80,20 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
     // Set the new customer as the selected customer
     form.setValue('customerId', newCustomer.id.toString());
   };
+
+  // Get customerId from URL query parameter
+  useEffect(() => {
+    if (isOpen && location) {
+      // Parse URL query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const customerId = urlParams.get('customerId');
+      
+      // If a customerId is provided and it's valid, set it in the form
+      if (customerId && customers.some(c => c.id.toString() === customerId)) {
+        form.setValue('customerId', customerId);
+      }
+    }
+  }, [isOpen, location, customers, form]);
 
   const createProject = useMutation({
     mutationFn: async (data: CreateProjectFormData) => {

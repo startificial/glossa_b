@@ -137,16 +137,7 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
               </p>
             </div>
             
-            {/* Projects section */}
-            <div className="flex justify-center my-8">
-              <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold mb-1">{projectCount}</div>
-                <div className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5" />
-                  Projects
-                </div>
-              </div>
-            </div>
+            {/* Removed project count section */}
             
             <Tabs defaultValue="about" className="mb-8">
               <TabsList className="mb-4">
@@ -272,7 +263,7 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
                     <p className="text-muted-foreground mb-4">
                       This customer doesn't have any projects.
                     </p>
-                    <Link href="/projects/new">
+                    <Link href={`/projects/new?customerId=${customer.id}`}>
                       <Button>Create a project</Button>
                     </Link>
                   </div>
@@ -335,7 +326,7 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
             </CardHeader>
             <CardContent className="space-y-2">
               <Button className="w-full justify-start" variant="outline" asChild>
-                <Link href="/projects/new">
+                <Link href={`/projects/new?customerId=${customer.id}`}>
                   <FileText className="mr-2 h-4 w-4" />
                   Create New Project
                 </Link>
