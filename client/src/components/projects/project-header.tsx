@@ -104,22 +104,7 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {project.description || "No description provided."}
             </p>
-            
-            {/* Customer information */}
-            {project.customer && (
-              <div className="mt-2 mb-1">
-                <div className="flex items-center">
-                  <span className="text-xs font-medium mr-1 text-gray-600 dark:text-gray-400">Customer:</span>
-                  <span className="text-xs px-2 py-1 rounded bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
-                    {typeof project.customer === 'object' && project.customer !== null && 'name' in project.customer 
-                      ? (project.customer as any).name 
-                      : typeof project.customer === 'string' 
-                        ? project.customer 
-                        : 'N/A'}
-                  </span>
-                </div>
-              </div>
-            )}
+
             
             {/* Systems information */}
             {(project.sourceSystem || project.targetSystem) && (

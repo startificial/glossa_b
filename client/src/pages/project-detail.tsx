@@ -9,6 +9,7 @@ import { InputDataList } from "@/components/input-data/input-data-list";
 import { InputDataUpload } from "@/components/input-data/input-data-upload";
 import { ProjectTasks } from "@/components/projects/project-tasks";
 import { DocumentGenerator } from "@/components/documentation/document-generator";
+import { CustomerInfoCard } from "@/components/customers/customer-info-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -192,7 +193,18 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
           </TabsList>
           
           <TabsContent value="dashboard" className="space-y-6">
-            <MetricsCard projectId={projectId} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2">
+                <MetricsCard projectId={projectId} />
+              </div>
+              
+              {/* Customer info card */}
+              {project.customerId && (
+                <div className="md:col-span-1">
+                  <CustomerInfoCard customerId={project.customerId} />
+                </div>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RecentActivity projectId={projectId} />
