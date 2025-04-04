@@ -1,5 +1,6 @@
 import { neon, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
+import { eq } from 'drizzle-orm';
 import * as schema from '@shared/schema';
 import { log } from './vite';
 
@@ -19,6 +20,35 @@ export { sql };
 
 // Create a Neon database connection with Drizzle ORM
 export const db = drizzle(sql, { schema });
+
+// Helper function to create a project in the database
+export async function createProjectInDb(projectData: schema.InsertProject) {
+  try {
+    const result = await db.insert(schema.projects).values(projectData).returning();
+    return result[0];
+  } catch (error) {
+    console.error('Error creating project in database:', error);
+    throw error;
+  }
+}
+
+// Helper function to update a project in the database
+export async function updateProjectInDb(projectId: number, projectData: Partial<schema.InsertProject>) {
+  try {
+    const result = await db.update(schema.projects)
+      .set({
+        ...projectData,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.projects.id, projectId))
+      .returning();
+    
+    return result[0];
+  } catch (error) {
+    console.error('Error updating project in database:', error);
+    throw error;
+  }
+}
 
 // Run migrations
 export async function runMigrations() {

@@ -2,6 +2,7 @@ import express, { type Express, Request, Response, NextFunction } from "express"
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
+import { createProjectInDb, updateProjectInDb } from "./database";
 import { 
   insertProjectSchema, 
   insertInputDataSchema, 
@@ -14,7 +15,7 @@ import {
   customers,
   projects
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { AcceptanceCriterion } from "@shared/types";
 import multer from "multer";
 import path from "path";
@@ -422,28 +423,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Project endpoints
   app.get("/api/projects", async (req: Request, res: Response) => {
-    // For demo, always use the demo user
-    const user = await storage.getUserByUsername("demo");
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    try {
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
 
-    const projects = await storage.getProjects(user.id);
-    res.json(projects);
+      // Query projects from the database
+      const projectsList = await db.query.projects.findMany({
+        where: eq(projects.userId, user.id),
+        orderBy: [desc(projects.updatedAt)]
+      });
+      
+      res.json(projectsList);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   app.get("/api/projects/:id", async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.id);
-    if (isNaN(projectId)) {
-      return res.status(400).json({ message: "Invalid project ID" });
-    }
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
 
-    const project = await storage.getProject(projectId);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
+      // Query project from the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
 
-    res.json(project);
+      // If the project has a customer ID, fetch the customer details
+      if (project.customerId) {
+        const customer = await db.query.customers.findFirst({
+          where: eq(customers.id, project.customerId)
+        });
+        
+        if (customer) {
+          // Return project with associated customer
+          return res.json({
+            ...project,
+            customer
+          });
+        }
+      }
+
+      res.json(project);
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   app.post("/api/projects", async (req: Request, res: Response) => {
@@ -473,7 +508,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user.id
       });
 
-      const project = await storage.createProject(validatedData);
+      // Use database to create project instead of in-memory storage
+      const project = await createProjectInDb(validatedData);
       
       // Add activity for project creation
       await storage.createActivity({
@@ -498,7 +534,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      const project = await storage.getProject(projectId);
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
@@ -534,12 +574,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Updating project with data:', updateData);
       
-      const updatedProject = await storage.updateProject(projectId, updateData);
+      // Use database to update project instead of in-memory storage
+      const updatedProject = await updateProjectInDb(projectId, updateData);
       
       // Add activity for project update
       await storage.createActivity({
         type: "updated_project",
-        description: `${user.username} updated project "${updatedProject!.name}"`,
+        description: `${user.username} updated project "${updatedProject.name}"`,
         userId: user.id,
         projectId: projectId,
         relatedEntityId: null
@@ -558,33 +599,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: "Invalid project ID" });
     }
 
-    const project = await storage.getProject(projectId);
+    // Check if project exists in the database
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId)
+    });
+    
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    // Delete the project
-    await storage.deleteProject(projectId);
-    
-    // In a real app, we would also delete related data (requirements, input data, etc.)
-    
-    res.status(204).end();
+    try {
+      // Delete from database (this will cascade delete related records since we defined CASCADE on FOREIGN KEYS)
+      await db.delete(projects).where(eq(projects.id, projectId));
+      
+      // In a real app, we might need additional cleanup for files or other resources
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ message: "Error deleting project" });
+    }
   });
 
   // Input data endpoints
   app.get("/api/projects/:projectId/input-data", async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.projectId);
-    if (isNaN(projectId)) {
-      return res.status(400).json({ message: "Invalid project ID" });
-    }
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
 
-    const project = await storage.getProject(projectId);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
 
-    const inputDataItems = await storage.getInputDataByProject(projectId);
-    res.json(inputDataItems);
+      const inputDataItems = await storage.getInputDataByProject(projectId);
+      res.json(inputDataItems);
+    } catch (error) {
+      console.error("Error fetching input data:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   app.post("/api/projects/:projectId/input-data", upload.single('file'), async (req: Request, res: Response) => {
