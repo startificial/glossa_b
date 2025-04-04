@@ -189,6 +189,8 @@ export const implementationTasks = pgTable("implementation_tasks", {
   assignee: text("assignee"), // Optional
   taskType: text("task_type"), // data-mapping, workflow, ui, integration, etc.
   sfDocumentationLinks: jsonb("sf_documentation_links").default([]), // Array of Salesforce documentation links
+  implementationSteps: jsonb("implementation_steps").default([]), // Array of detailed implementation steps
+  overallDocumentationLinks: jsonb("overall_documentation_links").default([]), // Array of general documentation links
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -205,6 +207,8 @@ export const insertImplementationTaskSchema = createInsertSchema(implementationT
   assignee: true,
   taskType: true,
   sfDocumentationLinks: true,
+  implementationSteps: true,
+  overallDocumentationLinks: true,
 });
 
 // Type exports

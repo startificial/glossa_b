@@ -35,6 +35,8 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
     assignee: '',
     taskType: '',
     sfDocumentationLinks: [],
+    implementationSteps: [],
+    overallDocumentationLinks: [],
   });
 
   // Get task data
@@ -132,6 +134,8 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
         assignee: task.assignee || '',
         taskType: task.taskType || 'implementation',
         sfDocumentationLinks: task.sfDocumentationLinks || [],
+        implementationSteps: task.implementationSteps || [],
+        overallDocumentationLinks: task.overallDocumentationLinks || [],
       });
     }
   }, [task]);
@@ -355,6 +359,74 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                     </div>
                   </div>
                   
+                  {task.implementationSteps && task.implementationSteps.length > 0 && (
+                    <div className="border rounded-md p-4 mb-4">
+                      <div className="text-sm font-medium mb-3">Implementation Steps</div>
+                      <div className="space-y-4">
+                        {task.implementationSteps.map((step: { stepNumber: number; stepDescription: string; relevantDocumentationLinks?: string[] }, index: number) => (
+                          <div key={index} className="flex gap-3">
+                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                              {step.stepNumber}
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm mb-1">{step.stepDescription}</div>
+                              {step.relevantDocumentationLinks && step.relevantDocumentationLinks.length > 0 && (
+                                <div className="mt-1 text-xs space-y-1">
+                                  {step.relevantDocumentationLinks.map((link, linkIndex) => (
+                                    <div key={linkIndex}>
+                                      <a 
+                                        href={link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-800 hover:underline flex items-center"
+                                      >
+                                        <div className="w-3 h-3 mr-1 flex-shrink-0">
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                            <polyline points="15 3 21 3 21 9"></polyline>
+                                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                                          </svg>
+                                        </div>
+                                        Documentation
+                                      </a>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {task.overallDocumentationLinks && task.overallDocumentationLinks.length > 0 && (
+                    <div className="border rounded-md p-4 mb-4">
+                      <div className="text-sm font-medium mb-2">Overall Documentation</div>
+                      <div className="space-y-2">
+                        {task.overallDocumentationLinks.map((link: string, index: number) => (
+                          <div key={index} className="flex items-start">
+                            <a 
+                              href={link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-sm flex items-center"
+                            >
+                              <div className="w-4 h-4 mr-2 flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                  <polyline points="15 3 21 3 21 9"></polyline>
+                                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                              </div>
+                              {link}
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {task.sfDocumentationLinks && task.sfDocumentationLinks.length > 0 && (
                     <div className="border rounded-md p-4">
                       <div className="text-sm font-medium mb-2">Salesforce Documentation</div>

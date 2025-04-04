@@ -141,65 +141,64 @@ export async function generateImplementationTasks(
 
     // Create a prompt for generating Salesforce-specific implementation tasks
     const prompt = `
-      You are a certified Salesforce technical architect, developer, and consultant specialized in migration projects and complex implementations.
-      
-      Project Name: ${projectName}
-      Project Description: ${projectDescription}
-      Source System: ${sourceSystem}
-      Target System: ${targetSystem}
-      
-      Requirement: ${requirementText}
-      
-      Acceptance Criteria:
+      You are an AI assistant tasked with generating detailed implementation tasks for a software migration project. Your responses should be grounded in the provided documentation of the Target System.
+
+      **Project Description:** ${projectDescription || `Migration from ${sourceSystem} to ${targetSystem}`}
+
+      **Target System:** ${targetSystem}
+
+      **Requirement Description:** ${requirementText}
+
+      **Acceptance Criteria:**
       ${formattedCriteria}
-      
-      Your task is to create detailed implementation tasks for this requirement. Generate at least one implementation task for EACH acceptance criterion, but create as many tasks as necessary to fully implement the requirement. Each task must be specifically focused on Salesforce implementation.
-      
-      For each task:
-      1. Consider both source system analysis tasks and Salesforce target implementation tasks
-      2. Include specific Salesforce features, objects, and components relevant to the implementation
-      3. Reference appropriate Salesforce documentation URLs wherever possible
-      4. Include specific technical details about HOW to implement in Salesforce
-      5. Accurately estimate complexity (low, medium, high) and development hours
-      6. Task descriptions should be at least 50 words and include comprehensive implementation details
-      7. Classify each task into a specific type (data-mapping, workflow, ui, integration, security, etc.)
-      
-      Format your response as a JSON array of implementation tasks, where each task has:
-      - title: Brief, clear task title
-      - description: Detailed and extensive description (minimum 50 words) including technical Salesforce implementation details
-      - status: Always "pending"
-      - priority: Derive from the requirement priority (high, medium, low)
-      - system: Either "source" or "target" (Salesforce would be "target")
-      - requirementId: ${requirementId}
-      - estimatedHours: Reasonable hour estimate for the task (number)
-      - complexity: "low", "medium", or "high"
-      - taskType: A specific categorization (data-mapping, workflow, ui, integration, security, testing, etc.)
-      - sfDocumentation: Array of documentation reference objects with title and url
-      
-      Example format:
+
+      **Based on the above information and your understanding of the Target System, generate implementation tasks with the following structure, returned as a structured JSON array:**
+
       [
         {
-          "title": "Create Custom Object for Product Catalog in Salesforce",
-          "description": "Design and implement a custom object in Salesforce to store product catalog data migrated from ManufacturePro. The custom object should incorporate all necessary fields including product code (text), name (text), description (long text area), category (picklist), pricing tiers (multi-picklist), and inventory status (picklist). Ensure proper field-level security configuration to restrict access based on user profiles. Develop comprehensive page layouts tailored to different user roles, with sales representatives seeing pricing and availability while product managers have access to detailed inventory metrics. Implement field history tracking on critical fields like price and inventory status. Establish proper object relationships with other entities such as Opportunities and Orders using lookup and master-detail relationships.",
+          "title": "[A concise and descriptive title for the task]",
+          "description": "[A detailed overview of what the task entails, at least 50 words]",
           "status": "pending",
-          "priority": "high",
-          "system": "target",
+          "priority": "[high, medium, or low - derive from the requirement priority]",
+          "system": "[source, target, or both - what system is this task for]",
           "requirementId": ${requirementId},
-          "estimatedHours": 5,
-          "complexity": "medium",
-          "taskType": "data-modeling",
-          "sfDocumentation": [
+          "estimatedHours": [reasonable hour estimate for the task],
+          "complexity": "[low, medium, or high]",
+          "taskType": "[data-mapping, workflow, ui, integration, security, testing, etc.]",
+          "implementationSteps": [
             {
-              "title": "Custom Object Creation in Salesforce",
-              "url": "https://help.salesforce.com/s/articleView?id=sf.dev_objectcreation.htm"
+              "stepNumber": 1,
+              "stepDescription": "[A specific, actionable step grounded in the Target System's documentation]",
+              "relevantDocumentationLinks": ["[Link 1]", "[Link 2]"]
             },
             {
-              "title": "Field Types Reference",
-              "url": "https://help.salesforce.com/s/articleView?id=sf.custom_field_types.htm"
+              "stepNumber": 2,
+              "stepDescription": "[Another specific, actionable step grounded in the Target System's documentation]",
+              "relevantDocumentationLinks": ["[Link 1]", "[Link 2]"]
             }
-          ]
+            // ... more steps as needed
+          ],
+          "sfDocumentationLinks": [
+            {
+              "title": "[Documentation Title]",
+              "url": "[Documentation URL]"
+            }
+          ],
+          "overallDocumentationLinks": ["[Link 1]", "[Link 2]"]
         }
       ]
+
+      Create at least one detailed implementation task for EACH acceptance criterion, but generate as many tasks as necessary to fully implement the requirement. Each task must be specifically focused on the target system implementation.
+
+      For each task:
+      1. Consider both source system analysis tasks and target system implementation tasks
+      2. Include specific target system features, objects, and components relevant to the implementation
+      3. Reference appropriate documentation URLs wherever possible
+      4. Include specific technical details about HOW to implement in the target system
+      5. Accurately estimate complexity (low, medium, high) and development hours
+      6. Task descriptions should include comprehensive implementation details
+      7. Provide detailed implementation steps with step numbers, descriptions, and relevant documentation links
+      8. Include overall documentation links that are relevant to the entire task
       
       Only output valid JSON with no additional text or explanations.
     `;
@@ -262,7 +261,7 @@ export async function generateImplementationTasks(
  * @param requirementId The requirement ID
  * @param sourceSystem The source system (e.g., Oracle)
  * @param targetSystem The target system (e.g., Salesforce)
- * @returns An array of mock implementation tasks
+ * @returns An array of mock implementation tasks with detailed implementation steps
  */
 function getMockImplementationTasks(
   requirementText: string, 
@@ -302,7 +301,25 @@ function getMockImplementationTasks(
         estimatedHours: 8,
         complexity: "medium",
         taskType: "analysis",
-        sfDocumentation: []
+        sfDocumentation: [],
+        implementationSteps: [
+          {
+            stepNumber: 1,
+            stepDescription: `Export a complete list of Account fields from ${sourceSystem} using the system's metadata API or schema explorer tool. Document field names, data types, and properties.`,
+            relevantDocumentationLinks: []
+          },
+          {
+            stepNumber: 2,
+            stepDescription: "Create a spreadsheet to categorize fields as standard, custom, system-generated, and formula fields. Include columns for source field name, API name, data type, length, required status, and business purpose.",
+            relevantDocumentationLinks: []
+          },
+          {
+            stepNumber: 3,
+            stepDescription: "Identify all relationship fields (lookup, master-detail) and document the related objects. Create a separate tab for relationship mapping.",
+            relevantDocumentationLinks: []
+          }
+        ],
+        overallDocumentationLinks: ["https://oracle.com/database/schema-reference"]
       },
       {
         title: `Create Field Mapping Document for Account Migration`,
