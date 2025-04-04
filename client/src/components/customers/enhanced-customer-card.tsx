@@ -54,10 +54,6 @@ export function EnhancedCustomerCard({ customer, compact = false }: EnhancedCust
   const [dialogOpen, setDialogOpen] = useState(false);
   const projectCount = customer.projects?.length || 0;
   
-  // Placeholder metrics - in a real app these would come from analytics/backend
-  const successRate = customer.successRate || Math.floor(70 + Math.random() * 25);
-  const collaboratorCount = customer.collaborators || Math.floor(3 + Math.random() * 8);
-  
   // Industries as tags
   const industries = customer.industry ? customer.industry.split(",").map(i => i.trim()) : [];
   
@@ -119,7 +115,7 @@ export function EnhancedCustomerCard({ customer, compact = false }: EnhancedCust
           <div className="mt-3">
             <div className="flex items-center gap-1.5">
               <h3 className="text-xl font-semibold">{customer.name}</h3>
-              {successRate > 85 && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
+              {projectCount > 0 && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
             </div>
             <p className="text-muted-foreground mt-0.5 flex items-center">
               <Building2 className="mr-1.5 h-3.5 w-3.5" />
@@ -128,31 +124,15 @@ export function EnhancedCustomerCard({ customer, compact = false }: EnhancedCust
             </p>
           </div>
           
-          {/* Metrics */}
+          {/* Projects Metric */}
           {!compact && (
-            <div className="grid grid-cols-3 gap-4 my-4 text-center">
-              <div>
+            <div className="flex items-center justify-center my-4">
+              <div className="text-center">
                 <div className="flex items-center justify-center gap-1 text-muted-foreground">
                   <FileText className="h-3.5 w-3.5" />
                   <span className="text-xs">Projects</span>
                 </div>
                 <p className="font-semibold mt-1">{projectCount}</p>
-              </div>
-              
-              <div>
-                <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                  <Users className="h-3.5 w-3.5" />
-                  <span className="text-xs">Team</span>
-                </div>
-                <p className="font-semibold mt-1">{collaboratorCount}</p>
-              </div>
-              
-              <div>
-                <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                  <PieChart className="h-3.5 w-3.5" />
-                  <span className="text-xs">Success</span>
-                </div>
-                <p className="font-semibold mt-1">{successRate}%</p>
               </div>
             </div>
           )}

@@ -69,8 +69,6 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
   
   // Project metrics
   const projectCount = customer.projects?.length || 0;
-  const successRate = customer.successRate || Math.floor(70 + Math.random() * 25);
-  const collaboratorCount = customer.collaborators || Math.floor(3 + Math.random() * 8);
   
   // Industries as tags
   const industries = customer.industry ? customer.industry.split(",").map(i => i.trim()) : [];
@@ -130,7 +128,7 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
             <div className="mt-3">
               <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-bold tracking-tight">{customer.name}</h2>
-                {successRate > 85 && <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />}
+                {projectCount > 0 && <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />}
               </div>
               <p className="text-muted-foreground mt-0.5 flex items-center gap-1.5">
                 <Building2 className="h-4 w-4" />
@@ -139,29 +137,13 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
               </p>
             </div>
             
-            {/* Stats section */}
-            <div className="grid grid-cols-3 gap-6 my-8">
+            {/* Projects section */}
+            <div className="flex justify-center my-8">
               <div className="flex flex-col items-center">
                 <div className="text-3xl font-bold mb-1">{projectCount}</div>
                 <div className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <FileText className="h-3.5 w-3.5" />
                   Projects
-                </div>
-              </div>
-              
-              <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold mb-1">{collaboratorCount}</div>
-                <div className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5" />
-                  Team Members
-                </div>
-              </div>
-              
-              <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold mb-1">{successRate}%</div>
-                <div className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <PieChart className="h-3.5 w-3.5" />
-                  Success Rate
                 </div>
               </div>
             </div>
@@ -328,7 +310,9 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
                                 </Badge>
                               )}
                               
-                              <Progress value={Math.floor(Math.random() * 100)} className="h-1.5 w-20" />
+                              <Badge variant="secondary" className="text-xs">
+                                {project.type || "Project"}
+                              </Badge>
                             </div>
                           </CardContent>
                         </Card>
@@ -341,43 +325,8 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
           </div>
         </Card>
         
-        {/* Stats and quick actions */}
+        {/* Quick actions */}
         <div className="space-y-6">
-          {/* Performance Stats */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Performance Stats</CardTitle>
-              <CardDescription>Customer project metrics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-1 text-sm">
-                    <span>Requirements Completion</span>
-                    <span className="font-medium">{Math.floor(60 + Math.random() * 30)}%</span>
-                  </div>
-                  <Progress value={Math.floor(60 + Math.random() * 30)} className="h-2" />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between mb-1 text-sm">
-                    <span>Task Allocation</span>
-                    <span className="font-medium">{Math.floor(40 + Math.random() * 50)}%</span>
-                  </div>
-                  <Progress value={Math.floor(40 + Math.random() * 50)} className="h-2" />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between mb-1 text-sm">
-                    <span>Timeline Adherence</span>
-                    <span className="font-medium">{Math.floor(70 + Math.random() * 20)}%</span>
-                  </div>
-                  <Progress value={Math.floor(70 + Math.random() * 20)} className="h-2" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
           {/* Quick Actions */}
           <Card>
             <CardHeader className="pb-2">
@@ -385,9 +334,11 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
               <CardDescription>Common tasks for this customer</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button className="w-full justify-start" variant="outline">
-                <FileText className="mr-2 h-4 w-4" />
-                Create New Project
+              <Button className="w-full justify-start" variant="outline" asChild>
+                <Link href="/projects/new">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Create New Project
+                </Link>
               </Button>
               
               <Button className="w-full justify-start" variant="outline">
