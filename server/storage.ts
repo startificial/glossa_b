@@ -569,10 +569,6 @@ export class MemStorage implements IStorage {
       assignee: task.assignee || null,
       taskType: task.taskType || null,
       sfDocumentationLinks: task.sfDocumentationLinks || [],
-      // New fields
-      highLevelDescription: task.highLevelDescription || null,
-      implementationSteps: task.implementationSteps || [],
-      documentationLinks: task.documentationLinks || [],
       createdAt: now, 
       updatedAt: now 
     };

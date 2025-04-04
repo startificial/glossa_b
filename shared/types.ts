@@ -1,24 +1,18 @@
-/**
- * This file contains common types used throughout the application
- */
-
-/**
- * Structure for storing Gherkin-format acceptance criteria
- */
+// Structured Gherkin components
 export interface GherkinStructure {
   scenario: string;
   given: string;
   when: string;
+  and: string[];
   then: string;
+  andThen: string[];
 }
 
-/**
- * Acceptance criterion with a title and Gherkin structure
- */
+// AcceptanceCriterion interface to be used across client and server
 export interface AcceptanceCriterion {
-  id?: string;
-  title: string;
-  description?: string;
-  status?: string;
-  gherkin: GherkinStructure;
+  id: string;
+  description: string; // Gherkin formatted text with Scenario, Given, When, Then structure
+  gherkin?: GherkinStructure; // Structured Gherkin components (optional for backward compatibility)
+  status: 'pending' | 'approved' | 'rejected';
+  notes?: string;
 }
