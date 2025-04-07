@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { Template as PDFMeTemplate } from "@pdfme/common";
 
 // User schema with extended profile information
 export const users = pgTable("users", {
@@ -235,3 +236,96 @@ export type InsertActivity = z.infer<typeof insertActivitySchema>;
 
 export type ImplementationTask = typeof implementationTasks.$inferSelect;
 export type InsertImplementationTask = z.infer<typeof insertImplementationTaskSchema>;
+
+// Document Template schema
+export const documentTemplates = pgTable("document_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").notNull(), // sow, implementation-plan, requirement-spec, etc.
+  isGlobal: boolean("is_global").default(true).notNull(), // true if template can be used by any project
+  userId: integer("user_id").notNull(),
+  projectId: integer("project_id"), // null if global template
+  template: jsonb("template").notNull(), // pdfme template structure
+  schema: jsonb("schema").notNull(), // schema for the template fields
+  thumbnail: text("thumbnail"), // base64 encoded thumbnail
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates).pick({
+  name: true,
+  description: true,
+  category: true,
+  isGlobal: true,
+  userId: true,
+  projectId: true,
+  template: true,
+  schema: true,
+  thumbnail: true,
+});
+
+// Document schema (generated documents based on templates)
+export const documents = pgTable("documents", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  templateId: integer("template_id").references(() => documentTemplates.id).notNull(),
+  projectId: integer("project_id").references(() => projects.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  data: jsonb("data").notNull(), // form data used to generate the document
+  pdfPath: text("pdf_path"), // path to the generated PDF
+  status: text("status").default("draft").notNull(), // draft, final, archived
+  version: integer("version").default(1).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDocumentSchema = createInsertSchema(documents).pick({
+  name: true,
+  description: true,
+  templateId: true,
+  projectId: true,
+  userId: true,
+  data: true,
+  pdfPath: true,
+  status: true,
+  version: true,
+});
+
+// Field Mapping schema (maps schema fields to AI or DB data sources)
+export const fieldMappings = pgTable("field_mappings", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type").notNull(), // database, ai-generated
+  templateId: integer("template_id").references(() => documentTemplates.id).notNull(),
+  fieldKey: text("field_key").notNull(), // the key in the template
+  dataSource: text("data_source"), // table name or AI prompt type
+  dataPath: text("data_path"), // JSON path or column name
+  prompt: text("prompt"), // AI prompt template if AI-generated
+  defaultValue: text("default_value"), // default value if data not found
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertFieldMappingSchema = createInsertSchema(fieldMappings).pick({
+  name: true,
+  description: true,
+  type: true,
+  templateId: true,
+  fieldKey: true,
+  dataSource: true,
+  dataPath: true,
+  prompt: true,
+  defaultValue: true,
+});
+
+export type DocumentTemplate = typeof documentTemplates.$inferSelect;
+export type InsertDocumentTemplate = z.infer<typeof insertDocumentTemplateSchema>;
+
+export type Document = typeof documents.$inferSelect;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+
+export type FieldMapping = typeof fieldMappings.$inferSelect;
+export type InsertFieldMapping = z.infer<typeof insertFieldMappingSchema>;

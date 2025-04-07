@@ -20,6 +20,11 @@ import NotFound from "@/pages/not-found";
 import Customers from "@/pages/customers";
 import CustomerDetail from "@/pages/customer-detail";
 import { SearchResults } from "@/pages/search-results";
+import TemplatesPage from "@/pages/TemplatesPage";
+import TemplateNewPage from "@/pages/TemplateNewPage";
+import TemplateEditPage from "@/pages/TemplateEditPage";
+import DocumentGeneratePage from "@/pages/DocumentGeneratePage";
+import DocumentViewPage from "@/pages/DocumentViewPage";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -184,6 +189,54 @@ function Router() {
           </Route>
         );
       }} />
+      
+      {/* Template Management Routes */}
+      <ProtectedRoute path="/templates" component={() => (
+        <ProtectedLayout>
+          <TemplatesPage />
+        </ProtectedLayout>
+      )} />
+      
+      <ProtectedRoute path="/templates/new" component={() => (
+        <ProtectedLayout>
+          <TemplateNewPage />
+        </ProtectedLayout>
+      )} />
+      
+      <ProtectedRoute path="/templates/edit/:id" component={() => {
+        return (
+          <Route path="/templates/edit/:id">
+            {params => (
+              <ProtectedLayout>
+                <TemplateEditPage />
+              </ProtectedLayout>
+            )}
+          </Route>
+        );
+      }} />
+      
+      {/* Document Generation Routes */}
+      <ProtectedRoute path="/projects/:projectId/documents/new" component={() => {
+        return (
+          <Route path="/projects/:projectId/documents/new">
+            {params => (
+              <ProtectedLayout>
+                <DocumentGeneratePage />
+              </ProtectedLayout>
+            )}
+          </Route>
+        );
+      }} />
+      
+      <ProtectedRoute path="/documents/:id" component={() => (
+        <Route path="/documents/:id">
+          {params => (
+            <ProtectedLayout>
+              <DocumentViewPage />
+            </ProtectedLayout>
+          )}
+        </Route>
+      )} />
       
       <ProtectedRoute path="/settings" component={() => (
         <ProtectedLayout>

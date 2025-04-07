@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { Settings, HelpCircle, FileText, ChevronLeft, ChevronRight, LogOut, LogIn, Building, Home } from "lucide-react";
+import { Settings, HelpCircle, FileText, ChevronLeft, ChevronRight, LogOut, LogIn, Building, Home, FileOutput } from "lucide-react";
 import { Project } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -170,6 +170,37 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
                   isCollapsed && "hidden"
                 )}>
                   Customers
+                </span>
+              </Link>
+            </div>
+            
+            <div>
+              <Link 
+                href="/templates"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavigate("/templates");
+                }}
+                className={cn(
+                  "group flex items-center px-2 md:px-3 py-2 text-sm font-medium rounded-md",
+                  location === "/templates" || location.startsWith("/templates/")
+                    ? "bg-primary text-white"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                )}
+                title={isCollapsed ? "Document Templates" : undefined}
+              >
+                <FileOutput
+                  className={cn(
+                    "flex-shrink-0 h-5 w-5",
+                    isCollapsed ? "mr-0" : "mr-2 md:mr-3",
+                    location === "/templates" || location.startsWith("/templates/") ? "" : "text-gray-500 dark:text-gray-400"
+                  )}
+                />
+                <span className={cn(
+                  "truncate",
+                  isCollapsed && "hidden"
+                )}>
+                  Document Templates
                 </span>
               </Link>
             </div>

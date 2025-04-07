@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { createProjectInDb, updateProjectInDb } from "./database";
+import documentTemplateRoutes from './routes/document-templates';
+import documentRoutes from './routes/documents';
 import { 
   insertProjectSchema, 
   insertInputDataSchema, 
@@ -12,12 +14,18 @@ import {
   insertUserSchema,
   insertInviteSchema,
   insertCustomerSchema,
+  insertDocumentTemplateSchema,
+  insertDocumentSchema,
+  insertFieldMappingSchema,
   customers,
   projects,
   requirements,
   activities,
   users,
-  implementationTasks
+  implementationTasks,
+  documentTemplates,
+  documents,
+  fieldMappings
 } from "@shared/schema";
 import { eq, asc, desc, and } from "drizzle-orm";
 import { AcceptanceCriterion } from "@shared/types";
@@ -2322,10 +2330,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Configure the upload directory serving (already created above)
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  
+  // Document template routes
+  app.use('/api/document-templates', documentTemplateRoutes);
+  
+  // Documents routes
+  app.use('/api/documents', documentRoutes);
+  
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Unhandled error:", err);
     res.status(500).json({ message: "An unexpected error occurred", error: err.message });
   });
-
+  
   return httpServer;
 }
