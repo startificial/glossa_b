@@ -298,9 +298,21 @@ export class VideoProcessor {
    * 
    * In production, consider advanced NLP with embeddings, etc.
    */
-  private calculateRelevance(sceneTranscript: string, requirementText: string): number {
+  private calculateRelevance(sceneTranscript: string | undefined | null, requirementText: string | undefined | null): number {
+    // If either input is missing, there's no relevance
+    if (!sceneTranscript || !requirementText) {
+      console.log('Missing input for relevance calculation:', 
+        !sceneTranscript ? 'transcript is empty' : 'requirement text is empty');
+      return 0;
+    }
+    
     const sceneTokens = this.tokenize(sceneTranscript);
     const requirementTokens = this.tokenize(requirementText);
+    
+    // If either has no tokens, there's no relevance
+    if (sceneTokens.length === 0 || requirementTokens.length === 0) {
+      return 0;
+    }
 
     const freqScene = this.buildFrequencyMap(sceneTokens);
     const freqReq   = this.buildFrequencyMap(requirementTokens);
@@ -308,7 +320,12 @@ export class VideoProcessor {
     return this.cosineSimilarity(freqScene, freqReq);
   }
 
-  private tokenize(text: string): string[] {
+  private tokenize(text: string | undefined | null): string[] {
+    // Handle undefined or null text input
+    if (!text) {
+      return [];
+    }
+    
     return text
       .toLowerCase()
       .split(/\W+/)

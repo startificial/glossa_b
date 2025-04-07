@@ -27,21 +27,37 @@ export interface AudioTimestamp {
  * @param requirement The requirement text
  * @returns A score between 0 and 1 representing the relevance
  */
-function calculateAudioRelevance(transcript: string, requirement: string): number {
+function calculateAudioRelevance(transcript: string | undefined | null, requirement: string | undefined | null): number {
+  // Handle undefined or null inputs
+  if (!transcript || !requirement) {
+    console.log('Missing input for audio relevance calculation:', 
+      !transcript ? 'transcript is empty' : 'requirement text is empty');
+    return 0;
+  }
+
+  // Declare variables outside of try-catch with default empty values
+  let requirementWords: Set<string> = new Set();
+  let transcriptWords: string[] = [];
+  
   // Simple word matching algorithm (in a real implementation, use more sophisticated NLP)
-  const requirementWords = new Set(
-    requirement.toLowerCase()
+  try {
+    requirementWords = new Set(
+      requirement.toLowerCase()
+        .replace(/[^\w\s]/g, '')
+        .split(/\s+/)
+        .filter(word => word.length > 3) // Only consider words longer than 3 chars
+    );
+    
+    transcriptWords = transcript.toLowerCase()
       .replace(/[^\w\s]/g, '')
       .split(/\s+/)
-      .filter(word => word.length > 3) // Only consider words longer than 3 chars
-  );
-  
-  const transcriptWords = transcript.toLowerCase()
-    .replace(/[^\w\s]/g, '')
-    .split(/\s+/)
-    .filter(word => word.length > 3);
-  
-  if (requirementWords.size === 0 || transcriptWords.length === 0) {
+      .filter(word => word.length > 3);
+    
+    if (requirementWords.size === 0 || transcriptWords.length === 0) {
+      return 0;
+    }
+  } catch (error) {
+    console.error('Error processing text for relevance calculation:', error);
     return 0;
   }
   
@@ -53,8 +69,13 @@ function calculateAudioRelevance(transcript: string, requirement: string): numbe
     }
   }
   
-  // Calculate relevance score
-  const relevance = matches / Math.min(transcriptWords.length, requirementWords.size);
+  // Calculate relevance score (ensure denominator is not zero)
+  const denominator = Math.min(transcriptWords.length, requirementWords.size);
+  if (denominator === 0) {
+    return 0;
+  }
+  
+  const relevance = matches / denominator;
   return Math.min(1, relevance * 1.5); // Scale a bit
 }
 
