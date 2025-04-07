@@ -9,7 +9,7 @@ import connectPgSimple from "connect-pg-simple";
 import path from "path";
 import os from "os";
 import fs from "fs";
-import { setupGoogleCredentials } from "./google-credentials";
+import { setupGoogleCredentials, cleanupCredentials } from "./google-credentials";
 import { VideoProcessor } from "./video-processor";
 
 // Always use PostgreSQL database if available
@@ -143,13 +143,35 @@ app.use((req, res, next) => {
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
     const port = 5000;
-    server.listen({
+    const serverInstance = server.listen({
       port,
       host: "0.0.0.0",
       reusePort: true,
     }, () => {
       log(`serving on port ${port}`);
       log(`Database: ${process.env.USE_POSTGRES === 'true' ? 'PostgreSQL' : 'In-Memory'}`);
+    });
+    
+    // Set up proper cleanup when the process exits
+    ['SIGINT', 'SIGTERM', 'SIGHUP'].forEach(signal => {
+      process.on(signal, () => {
+        log(`Received ${signal}, cleaning up resources...`, 'shutdown');
+        
+        // Clean up credentials
+        cleanupCredentials();
+        
+        // Close the server
+        serverInstance.close(() => {
+          log('Server closed, exiting gracefully', 'shutdown');
+          process.exit(0);
+        });
+        
+        // Force exit after 3 seconds if server doesn't close gracefully
+        setTimeout(() => {
+          log('Server forcefully closed after timeout', 'shutdown');
+          process.exit(1);
+        }, 3000);
+      });
     });
   } catch (error) {
     log(`Server initialization error: ${error}`, 'error');

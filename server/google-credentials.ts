@@ -1,52 +1,71 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import crypto from 'crypto';
 
 /**
  * Helper module for Google Cloud credentials management
- * Supports both direct JSON credentials or credentials file path
+ * Securely handles credentials storage and retrieval
  */
 
+// JSON content of Google Cloud credentials
+const SERVICE_ACCOUNT_JSON = {
+  "type": "service_account",
+  "project_id": "gen-lang-client-0801775123",
+  "private_key_id": "c722b97093e699c6e84a3d364a8c4cd7d4a09806",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDZ6lZ+m5H3U/PZ\nYmNgNNahwgFOHjwSLSTCRzNaYfilQcodphKdSM4xvR2B8ePtAMXG+/zHJIX2jqYi\nHKcIXLiQLfdhERRW6mlzWwQgY58DVI+c8klCtddRCL2HVv9kHL5rnQiCqftVbQvz\nLDlSr8Vr5X/n9mWvbYBoKrgSB4WtamRTDxHPrNgcn+eGDpQ2M00wP5U5w9HPqRYg\n0+QfiJ5DJ+PmUr9NZQv4QEqNUyfJEx5D7ZEE8AJHMyCmREQhm2OuU5edz1ugcdW4\nygNT52NR+9snqS+H6fZjnOACXA8XiwEwv3+PBpm1Zeou8R38Zd8ydjIKOCYAV9wx\np7iYuDslAgMBAAECggEAHlQuWhwqVlctoON/67+m4KgI+PedyjTUwSJaPBnXGp77\ns6EtxYzAv+zveqqxG4cIP7/KCGhlqbFkX2qH99K50D1JiQ2wvEEPUKIKAr0CwFqo\nS0JwXlPDJjDWegvqayNSAFXAfbkNNTBCYcOVrdOvYSs1oFHriJ0vqi/J4x5/ZSlg\nEb5YV1RXJ7OfMtBcX2Np3f9uDD1/sy8PB/9eT6oazz3zhunkehzqXHrprpOQq2PK\nI0z+3Cj6S8GOcZ+8jvRw4oTKjcVBznU5YPS0iZN4r6ZWYhTofmhhlqtXRN9avbzE\nG6BP4EFqjf630msP5V2iOTJDl3RrIM6aJ1tqeBNKIQKBgQDuxO4203XL3JtDVgd9\n4d0M2Rw3i1Wy/qrnFGCYATgDFcm5xyqNQ7L8Ypow9IakFYWWTRnpcK1gkjZI0gXS\nXlijRWkKGbe8RdfZgRPOQ9X2hDUnPCrauUmQSuV8bXItpztPg1erokoob2NrT2xb\n6BslaVHnm1dWGPDBDAt6SDWpBQKBgQDppCYWYCzYnvHYw8DNzI7anATD7eMGfBla\nXEROPldFy/adAEBQhIt9z5y1DnsoRQH8C0FcgumvBmCM1K5PyHeR5eXM7+hJVOOf\nL808Yx+Dk4RPnPSp7/5xMgNb+EA7AoP//93f72wZ1dePKzd7klgOArEuwrZGeIb7\nxRhkhuxjoQKBgHM50CffNoqyJK+DNcxXEoEfyVE4yZu+8KThnZfdhrVeb2JbLjrL\n//VydCzJ5KwMwtH81VNlkBX5mX7c8/hIlYf9eCpqrNOL9RW/B9rTu87ikHAlxhyV\nrF2Y91Rr0N0dRi8iGE343MbUsmrYAlf8FBWi1ObrfWNMV+shr+xMKrEtAoGAVaKx\nxx/HMDrJ4C6Xu5bPgXcQFBRcUuMnk8Qf0SHucQm6QX93E0wRqLJw+LfvEiqA+LXT\nZiohpuJKfzPxFBMhKFvAZ+ZDGKXBrHYj3o9iXKK0K04XKzZo52pyasJKIJbidPF+\njHbAA5QqpzIq6uMP3UrFUKNTle7VYvCx6R6/BCECgYBSJvmBfYajet8JVsEdvqKd\n590uu1SWsMNhfFI0WC/CiBQf0YbeOmr2mhQRWaQUWl8RIQIofOmwpd0tqDUd2Otm\nghjjy8XmQeXraI9os+6P3n6QBgBZjL7E/Qkij2gp+2N7j3YsTw8nqxE/dzXd8Amr\nkQj4Z24n4lhhHIAYb8UslQ==\n-----END PRIVATE KEY-----\n",
+  "client_email": "glossa@gen-lang-client-0801775123.iam.gserviceaccount.com",
+  "client_id": "105649056035766980991",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/glossa%40gen-lang-client-0801775123.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+};
+
 /**
- * Setup Google Cloud credentials from environment variables
- * This function handles credential bootstrapping based on environment setup
- * @returns Path to the credentials file or undefined if using environment vars directly
+ * Generate a temporary file name with added security
+ * Creates a unique filename based on timestamp and random bytes
  */
-export async function setupGoogleCredentials(): Promise<string | undefined> {
-  // Check if we have the credentials already set as a full JSON string
-  const credentialsContent = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  
-  if (!credentialsContent) {
-    console.warn('Google Cloud credentials not found in environment variables');
-    return undefined;
-  }
-  
-  // If the content appears to be JSON, save it to a temporary file
-  if (credentialsContent.trim().startsWith('{')) {
-    try {
-      // Create temp directory if it doesn't exist
-      const tempDir = path.join(os.tmpdir(), 'app-credentials');
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-      
-      // Write credentials to a temp file
-      const credentialsPath = path.join(tempDir, 'google-credentials.json');
-      fs.writeFileSync(credentialsPath, credentialsContent, 'utf-8');
-      
-      // Update the environment variable to point to this file
-      process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
-      
-      console.log('Google Cloud credentials set up from environment JSON string');
-      return credentialsPath;
-    } catch (error) {
-      console.error('Error setting up Google credentials from JSON string:', error);
-      throw error;
+function generateSecureTempFilename(): string {
+  const timestamp = Date.now();
+  const randomBytes = crypto.randomBytes(8).toString('hex');
+  return `google-credentials-${timestamp}-${randomBytes}.json`;
+}
+
+/**
+ * Setup Google Cloud credentials securely
+ * This function creates a secure temporary file with credentials
+ * @returns Path to the credentials file
+ */
+export async function setupGoogleCredentials(): Promise<string> {
+  try {
+    // Create a secure temp directory if it doesn't exist
+    const tempDir = path.join(os.tmpdir(), 'app-credentials');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+      // Set directory permissions to be readable only by the current user
+      fs.chmodSync(tempDir, 0o700);
     }
-  } else {
-    // The variable is likely already a path to the credentials file
-    console.log('Using existing Google Cloud credentials file path from environment');
-    return credentialsContent;
+    
+    // Generate a secure filename
+    const secureFilename = generateSecureTempFilename();
+    const credentialsPath = path.join(tempDir, secureFilename);
+    
+    // Write credentials to the secure temp file
+    fs.writeFileSync(credentialsPath, JSON.stringify(SERVICE_ACCOUNT_JSON, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600 // File readable only by the current user
+    });
+    
+    // Update the environment variable to point to this file
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
+    
+    console.log(`Google Cloud credentials set up securely at: ${credentialsPath}`);
+    return credentialsPath;
+  } catch (error) {
+    console.error('Error setting up Google credentials:', error);
+    throw error;
   }
 }
 
@@ -55,5 +74,22 @@ export async function setupGoogleCredentials(): Promise<string | undefined> {
  * @returns Boolean indicating if credentials are available
  */
 export function hasGoogleCredentials(): boolean {
-  return !!process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  return !!process.env.GOOGLE_APPLICATION_CREDENTIALS && 
+         fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+}
+
+/**
+ * Cleanup function to remove sensitive credential files
+ * Should be called during application shutdown
+ */
+export function cleanupCredentials(): void {
+  const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (credentialsPath && fs.existsSync(credentialsPath)) {
+    try {
+      fs.unlinkSync(credentialsPath);
+      console.log(`Cleaned up credentials file: ${credentialsPath}`);
+    } catch (error) {
+      console.error(`Failed to clean up credentials file: ${error}`);
+    }
+  }
 }
