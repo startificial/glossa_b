@@ -6,10 +6,13 @@ import {
   inputData, type InputData, type InsertInputData,
   requirements, type Requirement, type InsertRequirement,
   activities, type Activity, type InsertActivity,
-  implementationTasks, type ImplementationTask, type InsertImplementationTask
+  implementationTasks, type ImplementationTask, type InsertImplementationTask,
+  documentTemplates, type DocumentTemplate, type InsertDocumentTemplate,
+  documents, type Document, type InsertDocument,
+  fieldMappings, type FieldMapping, type InsertFieldMapping
 } from "@shared/schema";
 import { ExtendedImplementationTask } from './extended-types';
-import { and, desc, eq, or, like, sql as drizzleSql, gte, lte } from 'drizzle-orm';
+import { and, desc, eq, or, like, sql as drizzleSql, gte, lte, inArray } from 'drizzle-orm';
 import { db, sql } from './db';
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -375,7 +378,39 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProject(id: number): Promise<boolean> {
     try {
+      // Step 1: Delete related documents
+      await db.delete(documents).where(eq(documents.projectId, id));
+      
+      // Step 2: Delete related field mappings (via document templates related to this project)
+      const projectTemplates = await db.select().from(documentTemplates).where(eq(documentTemplates.projectId, id));
+      if (projectTemplates.length > 0) {
+        const templateIds = projectTemplates.map(template => template.id);
+        await db.delete(fieldMappings).where(inArray(fieldMappings.templateId, templateIds));
+        
+        // Delete the project-specific templates
+        await db.delete(documentTemplates).where(eq(documentTemplates.projectId, id));
+      }
+      
+      // Step 3: Delete implementation tasks
+      // First, get all requirements for this project
+      const projectRequirements = await db.select().from(requirements).where(eq(requirements.projectId, id));
+      if (projectRequirements.length > 0) {
+        const requirementIds = projectRequirements.map(req => req.id);
+        await db.delete(implementationTasks).where(inArray(implementationTasks.requirementId, requirementIds));
+      }
+      
+      // Step 4: Delete project requirements 
+      await db.delete(requirements).where(eq(requirements.projectId, id));
+      
+      // Step 5: Delete input data
+      await db.delete(inputData).where(eq(inputData.projectId, id));
+      
+      // Step 6: Delete activities
+      await db.delete(activities).where(eq(activities.projectId, id));
+      
+      // Step 7: Finally delete the project itself
       await db.delete(projects).where(eq(projects.id, id));
+      
       return true;
     } catch (error) {
       console.error('Error deleting project:', error);

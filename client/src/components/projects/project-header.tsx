@@ -6,8 +6,9 @@ import { downloadJSON } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportData, Project } from "@/lib/types";
-import { Plus, Download, MoreHorizontal, ArrowRightIcon } from "lucide-react";
+import { Plus, Download, MoreHorizontal, ArrowRightIcon, Trash2 } from "lucide-react";
 import { ProjectEditDialog } from "./project-edit-dialog";
+import { useLocation } from "wouter";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +17,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ProjectHeaderProps {
   projectId: number;
@@ -26,6 +37,8 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
   const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [_, setLocation] = useLocation();
 
   const { data: project, isLoading } = useQuery<Project>({
     queryKey: [`/api/projects/${projectId}`],
@@ -52,6 +65,31 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
     },
     onSettled: () => {
       setIsExporting(false);
+    }
+  });
+  
+  const deleteProjectMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", `/api/projects/${projectId}`);
+      if (!response.ok) {
+        throw new Error("Failed to delete project");
+      }
+      return true;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Project deleted",
+        description: "The project and all its data have been deleted successfully.",
+      });
+      // Redirect to projects list
+      setLocation("/");
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to delete project: ${error.message}`,
+        variant: "destructive",
+      });
     }
   });
 
@@ -166,7 +204,11 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
                 <DropdownMenuItem>Duplicate Project</DropdownMenuItem>
                 <DropdownMenuItem>Archive Project</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600 dark:text-red-400">
+                <DropdownMenuItem 
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  className="text-red-600 dark:text-red-400"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
                   Delete Project
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -182,6 +224,28 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
           onClose={() => setIsEditDialogOpen(false)}
         />
       )}
+      
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this project? This action cannot be undone.
+              All related requirements, input data, implementation tasks, and documentation will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteProjectMutation.mutate()}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={deleteProjectMutation.isPending}
+            >
+              {deleteProjectMutation.isPending ? "Deleting..." : "Delete Project"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
