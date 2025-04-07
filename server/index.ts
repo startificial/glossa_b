@@ -9,6 +9,8 @@ import connectPgSimple from "connect-pg-simple";
 import path from "path";
 import os from "os";
 import fs from "fs";
+import { setupGoogleCredentials } from "./google-credentials";
+import { VideoProcessor } from "./video-processor";
 
 // Always use PostgreSQL database if available
 // This ensures consistent data retrieval and proper handling of complex fields like acceptanceCriteria
@@ -102,6 +104,20 @@ app.use((req, res, next) => {
       await runMigrations();
     } else {
       log('Using in-memory storage', 'database');
+    }
+    
+    // Setup Google Cloud credentials
+    try {
+      const credentialsPath = await setupGoogleCredentials();
+      if (credentialsPath) {
+        log(`Google Cloud credentials initialized at: ${credentialsPath}`, 'credentials');
+        // Initialize VideoProcessor class with credentials
+        await VideoProcessor.setupCredentials();
+      } else {
+        log('Google Cloud credentials not found or invalid', 'credentials');
+      }
+    } catch (credError) {
+      log(`Error setting up Google Cloud credentials: ${credError}`, 'error');
     }
 
     const server = await registerRoutes(app);

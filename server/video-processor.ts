@@ -4,7 +4,8 @@ import { promisify } from 'util';
 import { exec } from 'child_process';
 import ffmpeg from 'fluent-ffmpeg';
 import crypto from 'crypto';
-import { SpeechClient } from '@google-cloud/speech';  // <-- Install via `npm i @google-cloud/speech`
+import { SpeechClient } from '@google-cloud/speech';
+import { setupGoogleCredentials, hasGoogleCredentials } from './google-credentials';
 
 export interface VideoScene {
   id: string;
@@ -37,8 +38,21 @@ export class VideoProcessor {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // Initialize Google Cloud Speech client
-    this._speechClient = new SpeechClient();  // uses default credentials/environment
+    // Initialize Google Cloud Speech client using environment credentials
+    if (hasGoogleCredentials()) {
+      this._speechClient = new SpeechClient();
+    } else {
+      console.warn('Google Cloud Speech credentials not found. Transcription will not be available.');
+      this._speechClient = null as any;
+    }
+  }
+  
+  /**
+   * Setup credentials for Google Cloud services
+   * Call this before using any Google Cloud services
+   */
+  static async setupCredentials(): Promise<void> {
+    await setupGoogleCredentials();
   }
 
   /**
@@ -217,6 +231,14 @@ export class VideoProcessor {
    * then send it to Google Cloud Speech for transcription.
    */
   private async getSceneTranscript(scene: VideoScene): Promise<string> {
+    // If Speech client is not available, return empty transcript
+    if (!this._speechClient) {
+      console.log(`Google Cloud Speech client not initialized. Scene ${scene.id} will use basic relevance.`);
+      
+      // Return the scene ID and timecodes as pseudo-transcript for testing
+      return `Scene ${scene.id} from ${scene.startTime} to ${scene.endTime}`;
+    }
+    
     const audioFilename = `scene_${scene.id}_audio.wav`;
     const audioPath = path.join(this._outputDir, audioFilename);
     const duration = scene.endTime - scene.startTime;
@@ -253,7 +275,7 @@ export class VideoProcessor {
       
       // 3) Parse out the transcript
       let transcript = '';
-      if (response.results && response.results.length > 0) {
+      if (response && response.results && response.results.length > 0) {
         transcript = response.results
           .map((r) => r.alternatives && r.alternatives[0]?.transcript)
           .join('\n');
@@ -305,7 +327,8 @@ export class VideoProcessor {
     freq1: Record<string, number>,
     freq2: Record<string, number>
   ): number {
-    const allTokens = new Set([...Object.keys(freq1), ...Object.keys(freq2)]);
+    // Combine keys from both frequency maps without using Set iteration
+    const allTokens = Array.from(new Set([...Object.keys(freq1), ...Object.keys(freq2)]));
     
     let dotProduct = 0;
     let mag1 = 0;
