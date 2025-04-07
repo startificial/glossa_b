@@ -6,13 +6,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
+import { Document } from '@shared/schema';
 
 export default function DocumentViewer() {
   const params = useParams();
   const documentId = params.id ? parseInt(params.id) : null;
   
   // Fetch document
-  const { data: document, isLoading, error } = useQuery({
+  const { data: document, isLoading, error } = useQuery<Document>({
     queryKey: [`/api/documents/${documentId}`],
     enabled: !!documentId,
   });
