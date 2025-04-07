@@ -56,7 +56,7 @@ export default function DocumentGenerator() {
   });
   
   // Fetch template
-  const templateQuery = useQuery({
+  const templateQuery = useQuery<DocumentTemplate>({
     queryKey: [`/api/document-templates/${templateId}`],
     enabled: !!templateId,
     onSuccess: (data) => {

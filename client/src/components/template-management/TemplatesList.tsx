@@ -11,7 +11,7 @@ export default function TemplatesList() {
   const [, setLocation] = useLocation();
   
   // Fetch templates
-  const { data: templates, isLoading, error } = useQuery({
+  const { data: templates, isLoading, error } = useQuery<DocumentTemplate[]>({
     queryKey: ['/api/document-templates/global'],
   });
   
