@@ -41,6 +41,13 @@ if (!fs.existsSync(videoScenesDir)) {
 }
 app.use('/media/video-scenes', express.static(videoScenesDir));
 
+// Create and serve the audio timestamps directory
+const audioTimestampsDir = path.join(os.tmpdir(), 'audio-timestamps');
+if (!fs.existsSync(audioTimestampsDir)) {
+  fs.mkdirSync(audioTimestampsDir, { recursive: true });
+}
+app.use('/media/audio-timestamps', express.static(audioTimestampsDir));
+
 // Determine which session store to use
 const usePostgres = process.env.DATABASE_URL && process.env.USE_POSTGRES === 'true';
 const sessionStore = usePostgres

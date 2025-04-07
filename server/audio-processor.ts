@@ -99,8 +99,14 @@ export class AudioProcessor {
     this._inputDataId = inputDataId;
     
     // Create output directory if it doesn't exist
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
+    try {
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+        console.log(`Created output directory for audio processing: ${outputDir}`);
+      }
+    } catch (dirError) {
+      console.error(`Failed to create output directory for audio processing ${outputDir}:`, dirError);
+      throw dirError;
     }
   }
   
@@ -167,6 +173,17 @@ export class AudioProcessor {
    * @returns Promise resolving to the path of the extracted clip
    */
   async extractClip(timestamp: AudioTimestamp): Promise<string> {
+    // Ensure output directory exists
+    try {
+      if (!fs.existsSync(this._outputDir)) {
+        fs.mkdirSync(this._outputDir, { recursive: true });
+        console.log(`Created output directory for audio clips: ${this._outputDir}`);
+      }
+    } catch (dirError) {
+      console.error(`Failed to create output directory for audio clips ${this._outputDir}:`, dirError);
+      throw dirError;
+    }
+    
     const outputFilename = `clip_${timestamp.id}.mp3`;
     const outputPath = path.join(this._outputDir, outputFilename);
     
@@ -175,7 +192,16 @@ export class AudioProcessor {
         .setStartTime(timestamp.startTime)
         .setDuration(timestamp.endTime - timestamp.startTime)
         .output(outputPath)
-        .on('end', () => resolve(outputPath))
+        .on('end', () => {
+          // Verify the clip was created
+          if (fs.existsSync(outputPath)) {
+            // Create a web-accessible URL path instead of file system path
+            const webPath = `/media/audio-timestamps/${this._inputDataId}/${outputFilename}`;
+            resolve(webPath);
+          } else {
+            reject(new Error(`Audio clip was not created at ${outputPath}`));
+          }
+        })
         .on('error', (err) => reject(err))
         .run();
     });
@@ -301,8 +327,30 @@ export async function processAudioFileForRequirement(
   inputDataId: number
 ): Promise<AudioTimestamp[]> {
   try {
-    // Create output directory
+    // Validate inputs
+    if (!filePath) {
+      throw new Error('Missing audio file path');
+    }
+    
+    if (!requirement) {
+      throw new Error('Missing requirement text');
+    }
+    
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Audio file not found at path: ${filePath}`);
+    }
+    
+    // Create output directory with nested path
     const outputDir = path.join(os.tmpdir(), 'audio-timestamps', inputDataId.toString());
+    try {
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+        console.log(`Created parent output directory: ${outputDir}`);
+      }
+    } catch (dirError) {
+      console.error(`Failed to create output directory ${outputDir}:`, dirError);
+      throw dirError;
+    }
     
     // Create processor
     const processor = new AudioProcessor(filePath, outputDir, inputDataId);

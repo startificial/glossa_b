@@ -533,9 +533,16 @@ export async function processVideoFile(
           uniqueRequirements.map(async (req) => {
             try {
               // Find relevant scenes for this requirement
+              // Use description as the requirement text (falls back to text if available)
+              const requirementText = req.description || req.text;
+              if (!requirementText) {
+                console.warn(`Skipping scene matching for requirement with missing text: ${req.title}`);
+                return req;
+              }
+              
               // Use the same processor instance
               const processor = new VideoProcessor(filePath, path.join(os.tmpdir(), 'video-scenes'), videoScenes[0].inputDataId);
-              const matchedScenes = await processor.processScenes(videoScenes, req.text);
+              const matchedScenes = await processor.processScenes(videoScenes, requirementText);
               
               // Add the scenes to the requirement
               return {
@@ -543,7 +550,9 @@ export async function processVideoFile(
                 videoScenes: matchedScenes.length > 0 ? matchedScenes : undefined
               };
             } catch (error) {
-              console.error(`Error matching scenes for requirement: ${req.text.substring(0, 50)}...`, error);
+              // Use available text (description or text) for error message
+              const textExcerpt = (req.description || req.text)?.substring(0, 50) || req.title || 'unknown';
+              console.error(`Error matching scenes for requirement: ${textExcerpt}...`, error);
               return req; // Return the original requirement without scenes
             }
           })
@@ -560,9 +569,16 @@ export async function processVideoFile(
             requirementsWithScenes.map(async (req) => {
               try {
                 // Find relevant audio timestamps for this requirement
+                // Use description as the requirement text (falls back to text if available)
+                const requirementText = req.description || req.text;
+                if (!requirementText) {
+                  console.warn(`Skipping audio timestamp extraction for requirement with missing text: ${req.title}`);
+                  return req;
+                }
+                
                 const audioTimestamps = await processAudioFileForRequirement(
                   filePath,
-                  req.text,
+                  requirementText,
                   inputDataId
                 );
                 
@@ -572,7 +588,9 @@ export async function processVideoFile(
                   audioTimestamps: audioTimestamps.length > 0 ? audioTimestamps : undefined
                 };
               } catch (error) {
-                console.error(`Error finding audio timestamps for requirement: ${req.text.substring(0, 50)}...`, error);
+                // Use available text (description or text) for error message
+                const textExcerpt = (req.description || req.text)?.substring(0, 50) || req.title || 'unknown';
+                console.error(`Error finding audio timestamps for requirement: ${textExcerpt}...`, error);
                 return req; // Return the original requirement without timestamps
               }
             })
@@ -593,9 +611,16 @@ export async function processVideoFile(
           uniqueRequirements.map(async (req) => {
             try {
               // Find relevant audio timestamps for this requirement
+              // Use description as the requirement text (falls back to text if available)
+              const requirementText = req.description || req.text;
+              if (!requirementText) {
+                console.warn(`Skipping audio timestamp extraction for requirement with missing text: ${req.title}`);
+                return req;
+              }
+              
               const audioTimestamps = await processAudioFileForRequirement(
                 filePath,
-                req.text,
+                requirementText,
                 inputDataId
               );
               
@@ -605,7 +630,9 @@ export async function processVideoFile(
                 audioTimestamps: audioTimestamps.length > 0 ? audioTimestamps : undefined
               };
             } catch (error) {
-              console.error(`Error finding audio timestamps for requirement: ${req.text.substring(0, 50)}...`, error);
+              // Use available text (description or text) for error message
+              const textExcerpt = (req.description || req.text)?.substring(0, 50) || req.title || 'unknown';
+              console.error(`Error finding audio timestamps for requirement: ${textExcerpt}...`, error);
               return req; // Return the original requirement without timestamps
             }
           })

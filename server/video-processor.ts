@@ -39,10 +39,17 @@ export class VideoProcessor {
     }
 
     // Initialize Google Cloud Speech client using environment credentials
-    if (hasGoogleCredentials()) {
-      this._speechClient = new SpeechClient();
-    } else {
-      console.warn('Google Cloud Speech credentials not found. Transcription will not be available.');
+    try {
+      if (hasGoogleCredentials()) {
+        console.log('Initializing Google Cloud Speech client with credentials');
+        this._speechClient = new SpeechClient();
+        console.log('Successfully initialized Google Cloud Speech client');
+      } else {
+        console.warn('Google Cloud Speech credentials not found. Transcription will not be available.');
+        this._speechClient = null as any;
+      }
+    } catch (error) {
+      console.error('Failed to initialize Google Cloud Speech client:', error);
       this._speechClient = null as any;
     }
   }
@@ -84,6 +91,17 @@ export class VideoProcessor {
     minSceneDuration: number = 3
   ): Promise<VideoScene[]> {
     try {
+      // Ensure output directory exists
+      try {
+        if (!fs.existsSync(this._outputDir)) {
+          fs.mkdirSync(this._outputDir, { recursive: true });
+          console.log(`Created output directory for scene detection: ${this._outputDir}`);
+        }
+      } catch (dirError) {
+        console.error(`Failed to create output directory for scene detection ${this._outputDir}:`, dirError);
+        throw dirError;
+      }
+      
       const metadata = await this.getMetadata();
       const videoDuration = metadata.format.duration;
       
@@ -158,25 +176,56 @@ export class VideoProcessor {
    * Parse ffmpeg scene detection output
    */
   private parseSceneData(sceneData: string): number[] {
-    const timestamps: number[] = [];
-    const lines = sceneData.split('\n');
-    
-    for (const line of lines) {
-      if (line.includes('pts_time:')) {
-        const match = line.match(/pts_time:([\d.]+)/);
-        if (match && match[1]) {
-          timestamps.push(parseFloat(match[1]));
+    try {
+      const timestamps: number[] = [];
+      
+      if (!sceneData) {
+        console.warn('Empty scene data received, cannot parse timestamps');
+        return timestamps;
+      }
+      
+      const lines = sceneData.split('\n');
+      
+      for (const line of lines) {
+        if (line.includes('pts_time:')) {
+          const match = line.match(/pts_time:([\d.]+)/);
+          if (match && match[1]) {
+            const timestamp = parseFloat(match[1]);
+            if (!isNaN(timestamp)) {
+              timestamps.push(timestamp);
+            }
+          }
         }
       }
+      
+      if (timestamps.length === 0) {
+        console.warn('No timestamps found in scene data');
+      } else {
+        console.log(`Parsed ${timestamps.length} scene change timestamps`);
+      }
+      
+      return timestamps;
+    } catch (error) {
+      console.error('Error parsing scene data:', error);
+      return [];
     }
-    
-    return timestamps;
   }
 
   /**
    * Generate a thumbnail for the scene
    */
   async generateThumbnail(scene: VideoScene): Promise<string> {
+    // Ensure output directory exists
+    try {
+      if (!fs.existsSync(this._outputDir)) {
+        fs.mkdirSync(this._outputDir, { recursive: true });
+        console.log(`Created output directory for thumbnails: ${this._outputDir}`);
+      }
+    } catch (dirError) {
+      console.error(`Failed to create output directory for thumbnails ${this._outputDir}:`, dirError);
+      throw dirError;
+    }
+    
     const captureTime = scene.startTime + (scene.endTime - scene.startTime) / 3;
     const thumbnailFilename = `scene_${scene.id}_thumbnail.jpg`;
     const thumbnailPath = path.join(this._outputDir, thumbnailFilename);
@@ -190,8 +239,13 @@ export class VideoProcessor {
           size: '320x180'
         })
         .on('end', () => {
-          const webPath = `/media/video-scenes/${thumbnailFilename}`;
-          resolve(webPath);
+          // Verify the thumbnail was created
+          if (fs.existsSync(thumbnailPath)) {
+            const webPath = `/media/video-scenes/${thumbnailFilename}`;
+            resolve(webPath);
+          } else {
+            reject(new Error(`Thumbnail was not created at ${thumbnailPath}`));
+          }
         })
         .on('error', (err) => reject(err));
     });
@@ -201,6 +255,17 @@ export class VideoProcessor {
    * Extract a video clip for the scene
    */
   async extractClip(scene: VideoScene): Promise<string> {
+    // Ensure output directory exists
+    try {
+      if (!fs.existsSync(this._outputDir)) {
+        fs.mkdirSync(this._outputDir, { recursive: true });
+        console.log(`Created output directory for clips: ${this._outputDir}`);
+      }
+    } catch (dirError) {
+      console.error(`Failed to create output directory for clips ${this._outputDir}:`, dirError);
+      throw dirError;
+    }
+    
     const clipFilename = `scene_${scene.id}_clip.mp4`;
     const clipPath = path.join(this._outputDir, clipFilename);
     const duration = scene.endTime - scene.startTime;
@@ -218,8 +283,13 @@ export class VideoProcessor {
           '-b:a 128k'
         ])
         .on('end', () => {
-          const webPath = `/media/video-scenes/${clipFilename}`;
-          resolve(webPath);
+          // Verify the clip was created
+          if (fs.existsSync(clipPath)) {
+            const webPath = `/media/video-scenes/${clipFilename}`;
+            resolve(webPath);
+          } else {
+            reject(new Error(`Clip was not created at ${clipPath}`));
+          }
         })
         .on('error', (err) => reject(err))
         .run();
@@ -239,55 +309,102 @@ export class VideoProcessor {
       return `Scene ${scene.id} from ${scene.startTime} to ${scene.endTime}`;
     }
     
+    // Ensure output directory exists
+    try {
+      if (!fs.existsSync(this._outputDir)) {
+        fs.mkdirSync(this._outputDir, { recursive: true });
+        console.log(`Created output directory: ${this._outputDir}`);
+      }
+    } catch (dirError) {
+      console.error(`Failed to create output directory ${this._outputDir}:`, dirError);
+      return ''; // Return empty transcript if we can't create the directory
+    }
+    
     const audioFilename = `scene_${scene.id}_audio.wav`;
     const audioPath = path.join(this._outputDir, audioFilename);
     const duration = scene.endTime - scene.startTime;
 
-    // 1) Extract the audio only for that time range
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg(this._inputPath)
-        .setStartTime(scene.startTime)
-        .setDuration(duration)
-        .noVideo()
-        .audioCodec('pcm_s16le')   // 16-bit WAV
-        .audioChannels(1)         // mono
-        .audioFrequency(16000)    // 16 KHz is acceptable for speech-to-text
-        .output(audioPath)
-        .on('end', () => resolve())
-        .on('error', (err) => reject(err))
-        .run();
-    });
-
     try {
-      // 2) Transcribe the audio with Google Speech
-      const audioBytes = fs.readFileSync(audioPath);
-
-      const [response] = await this._speechClient.recognize({
-        audio: {
-          content: audioBytes.toString('base64'),
-        },
-        config: {
-          encoding: 'LINEAR16', 
-          sampleRateHertz: 16000,
-          languageCode: 'en-US', 
-        },
+      // 1) Extract the audio only for that time range
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg(this._inputPath)
+          .setStartTime(scene.startTime)
+          .setDuration(duration)
+          .noVideo()
+          .audioCodec('pcm_s16le')   // 16-bit WAV
+          .audioChannels(1)         // mono
+          .audioFrequency(16000)    // 16 KHz is acceptable for speech-to-text
+          .output(audioPath)
+          .on('end', () => resolve())
+          .on('error', (err) => reject(err))
+          .run();
       });
       
-      // 3) Parse out the transcript
-      let transcript = '';
-      if (response && response.results && response.results.length > 0) {
-        transcript = response.results
-          .map((r) => r.alternatives && r.alternatives[0]?.transcript)
-          .join('\n');
+      // Verify the audio file exists before reading it
+      if (!fs.existsSync(audioPath)) {
+        console.error(`Audio file was not created at ${audioPath}`);
+        return '';
       }
-      return transcript.trim();
+
+      // 2) Transcribe the audio with Google Speech
+      const audioBytes = fs.readFileSync(audioPath);
+      
+      // Log audio file size for debugging
+      console.log(`Audio file size for scene ${scene.id}: ${audioBytes.length} bytes`);
+      
+      // Check if we have actual audio content
+      if (!audioBytes || audioBytes.length === 0) {
+        console.error(`Audio file is empty for scene ${scene.id}`);
+        return '';
+      }
+      
+      // Create proper request object with correct type for the encoding
+      const request = {
+        audio: {
+          content: audioBytes.toString('base64')
+        },
+        config: {
+          encoding: 'LINEAR16' as const, // Use const assertion for proper type
+          sampleRateHertz: 16000,
+          languageCode: 'en-US',
+          audioChannelCount: 1
+        }
+      };
+      
+      // Log that we're sending request to Google Speech API
+      console.log(`Sending audio recognition request for scene ${scene.id}`);
+      
+      // Create a wrapped call to handle the API response properly
+      try {
+        // Use a Promise-based approach to handle the response
+        const speechResponse = await new Promise((resolve, reject) => {
+          this._speechClient.recognize(request)
+            .then(response => {
+              console.log(`Successfully received response from Speech API for scene ${scene.id}`);
+              resolve(response[0]); // First element of the response contains the actual result
+            })
+            .catch(error => {
+              console.error(`Error from Speech API for scene ${scene.id}:`, error);
+              reject(error);
+            });
+        });
+        
+        return this.parseTranscriptResponse(speechResponse);
+      } catch (recognizeError) {
+        console.error(`Error calling Google Speech API for scene ${scene.id}:`, recognizeError);
+        return '';
+      }
     } catch (speechError) {
       console.error(`Failed to transcribe scene ${scene.id}:`, speechError);
       return ''; // fallback
     } finally {
       // 4) Optionally clean up the temp audio file
-      if (fs.existsSync(audioPath)) {
-        fs.unlinkSync(audioPath);
+      try {
+        if (fs.existsSync(audioPath)) {
+          fs.unlinkSync(audioPath);
+        }
+      } catch (cleanupError) {
+        console.warn(`Failed to clean up audio file ${audioPath}:`, cleanupError);
       }
     }
   }
@@ -363,6 +480,34 @@ export class VideoProcessor {
       return 0; // If either is empty, there's no similarity
     }
     return dotProduct / (Math.sqrt(mag1) * Math.sqrt(mag2));
+  }
+  
+  /**
+   * Parse response from Google Speech API to extract transcript
+   * @param response The response from Google Speech API
+   * @returns The extracted transcript as a string
+   */
+  private parseTranscriptResponse(response: any): string {
+    if (!response || !response.results || response.results.length === 0) {
+      return '';
+    }
+    
+    try {
+      const transcript = response.results
+        .map((result: any) => {
+          if (result.alternatives && result.alternatives.length > 0) {
+            return result.alternatives[0].transcript;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join('\n');
+        
+      return transcript.trim();
+    } catch (parseError) {
+      console.error('Error parsing transcript response:', parseError);
+      return '';
+    }
   }
 
   /**
