@@ -58,14 +58,16 @@ export default function DocumentGenerator() {
   // Fetch template
   const templateQuery = useQuery<DocumentTemplate>({
     queryKey: [`/api/document-templates/${templateId}`],
-    enabled: !!templateId,
-    onSuccess: (data) => {
-      if (data) {
-        // Update form values
-        form.setValue('templateId', data.id);
-      }
-    }
+    enabled: !!templateId
   });
+  
+  // Effect to update form values when template data is loaded
+  useEffect(() => {
+    if (templateQuery.data) {
+      // Update form values
+      form.setValue('templateId', templateQuery.data.id);
+    }
+  }, [templateQuery.data, form]);
   
   // Generate data from template fields
   const generateDataMutation = useMutation({
@@ -311,9 +313,9 @@ export default function DocumentGenerator() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {template && template.schema && Object.keys(template.schema).length > 0 ? (
-                  Object.keys(template.schema).map((key) => {
-                    const field = template.schema[key];
+                {template && template.schema && typeof template.schema === 'object' && Object.keys(template.schema as Record<string, any>).length > 0 ? (
+                  Object.keys(template.schema as Record<string, any>).map((key) => {
+                    const field = (template.schema as Record<string, any>)[key];
                     return (
                       <div key={key} className="space-y-2">
                         <Label htmlFor={`field-${key}`}>

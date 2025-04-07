@@ -13,12 +13,12 @@ import { DocumentTemplate, FieldMapping } from '@shared/schema';
 import { Designer } from '@pdfme/ui';
 import { Template } from '@pdfme/common';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, FileIcon } from 'lucide-react';
 
-// Empty template definition with a base64 empty PDF
+// Empty template definition - we'll require upload of a PDF
 const emptyTemplate: Template = {
   schemas: [[]],
-  basePdf: 'data:application/pdf;base64,JVBERi0xLjcKJb/3ov4KMiAwIG9iago8PCAvTGluZWFyaXplZCAxIC9MIDcxMjMxIC9IIFsgNjg4IDEyNiBdIC9PIDYgL0UgNzA5MDYgL04gMSAvVCA3MDkzNSA+PgplbmRvYmoKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKMyAwIG9iago8PCAvVHlwZSAvWFJlZiAvTGVuZ3RoIDUwIC9GaWx0ZXIgL0ZsYXRlRGVjb2RlIC9EZWNvZGVQYXJtcyA8PCAvQ29sdW1ucyA0IC9QcmVkaWN0b3IgMTIgPj4gL1cgWyAxIDIgMSBdIC9JbmRleCBbIDIgMTUgXSAvSW5mbyAxMSAwIFIgL1Jvb3QgNCAwIFIgL1NpemUgMTcgL1ByZXYgNzA5MzYgICAgICAgICAgICAgICAgIC9JRCBbPGQxNDUyZTgwYzQ5ZGRkNDIyOTE2NzBjMTlkZjU1MWM5PjxkMTQ1MmU4MGM0OWRkZDQyMjkxNjcwYzE5ZGY1NTFjOT5dID4+CnN0cmVhbQp4nGNiZOBnYGJgOAkkmJaCWEZAgrEGRHMxMD3UfmACqb4IlJRbBiQm3QbJvvwPJCdDZZ++/w8AHeMIqQplbmRzdHJlYW0KZW5kb2JqCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKNCAwIG9iago8PCAvTWV0YWRhdGEgMSAwIFIgL091dGxpbmVzIDcgMCBSIC9QYWdlcyAzIDAgUiAvVHlwZSAvQ2F0YWxvZyA+PgplbmRvYmoKNSAwIG9iago8PCAvRmlsdGVyIC9GbGF0ZURlY29kZSAvSSAyNTQgL0xlbmd0aCAxNjQgL08gMjM4IC9TIDE2NiA+PgpzdHJlYW0KeJxjYGAQYmBgZmCRZ2BgZBNhZeCQ6RfcwNDADiTdQJiDhfUGI9O6RHadL28YGRi0GBi4+F+vkL++FcjB8YCJ5cOlgpAX7xnAAOM/B9P/V/6rkbdTj7ZvZX+2C8QSAEq6GzFUGPmWcP8TuFHZsOxYw9LZZhOZcqzufWd2FT/r3cL8ZMvkVH3OcAaz51UAsYwQxRgFplJImgUAbqcr3wplbmRzdHJlYW0KZW5kb2JqCjYgMCBvYmoKPDwgLENvbnRlbnRzIDEwIDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgMyAwIFIgL1Jlc291cmNlcyA8PCAvRXh0R1N0YXRlIDw8IC9HMyAxMiAwIFIgPj4gL0ZvbnQgPDwgL0Y0IDEzIDAgUiAvRjUgMTQgMCBSID4+IC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdIC9YT2JqZWN0IDw8IC9YNiA5IDAgUiA+PiA+PiAvU3RydWN0UGFyZW50cyAwIC9UeXBlIC9QYWdlID4+CmVuZG9iago3IDAgb2JqCjw8IC9Db3VudCAxIC9LaWRzIFsgOCAwIFIgXSAvVHlwZSAvT3V0bGluZXMgPj4KZW5kb2JqCjggMCBvYmoKPDwgL0NvdW50IDAgL1RpdGxlIChDYXDDrXR1bG8gMSkgL0Rlc3QgWyA2IDAgUiAvWFlaIDAgNzkyIDAgXSAvUGFyZW50IDcgMCBSID4+CmVuZG9iago5IDAgb2JqCjw8IC9CaXRzUGVyQ29tcG9uZW50IDggL0NvbG9yU3BhY2UgMTUgMCBSIC9GaWx0ZXIgL0ZsYXRlRGVjb2RlIC9IZWlnaHQgMTM4IC9MZW5ndGggMzE1MCAvU3VidHlwZSAvSW1hZ2UgL1R5cGUgL1hPYmplY3QgL1dpZHRoIDEzOCA+PgpzdHJlYW0KZUp3NTFlbFAxSmNlZVplZkdqbmZQbk51QXdyQjF5R3lFRWZHbWFGWFdRU3NIdEQ3KzB1YUwva0JFcFF6eVZnNEFtamxhNGNFeXBENlh0SERWcGlvSlpjVHE0R3FXd0ZiVnNMSUQyMXhCNXpGUWNRWEFkUDVVWkNPdGsrMm5FaFhXZE9VOXVyNEdpWXN2UDYxYXJPRWJVTXlrcUx5WUdFUmFGVkJ0ZUVibzVSRlA1VDYxSXNGcklKcUNwRU5nOEw1YlhJcGc5RnFPSlJDV3pXeXRDaU4yaDgycWpsdlUxbEJ4UkhSRndwK0VzSGNndGpGSEVvUTJKditMbzFJRnJ0eEVzRXlWOEUxR2NWR0NSTFhyZDJ5NmFNVCtRNzBhU0hjMUxVeWR4djlKS1B6NkdiV3hJOWVNbUhJaW42bnBHU3RrZ0ZRZEhSYkZ6SkIvd2o5WlZZc25ielNadFhLMldlSzE4dmhBQXBMRW9ueWJyTWtqb2IzSkZLeUhNejZ5SnZ0NFduQWtyZ29Jdm9KQkdHODJLbEZwZGJBYW02Tngzb2JyWDZYUHRKVlNiVEZWUjhIVWFFZjY0cTFHWVhqTGtQbmJSS09TRWc5L0JvT2ZpQVNnRlkvNjVxWDJJLzBLMXlsKzNrOG5odW95eTZPMUZOcnhCTkV0UklQYW8vZU1XNFI1ZHl0bUs3VCtxaUc5ck5YQ0cwcE1RRS96M3JzQW84OTZkbjJPTFdMbkdvREZTSnE2QXF4TzZ2dCtOVTVrQU55MlQ1TkNMNE1PNnVJdDVza0JsNVdoR0dLT2RNUkJiMGNxMTZrUkd5OEFrb25idlgvM29LcmNXOHdYemErc1hrRnJZUDd5S1JLYklxRFYzVktzajNQQmMwL2x3V3I0QlNxbXdVMm5qMnF1Y1lsTXlvQlNIRkNSQXU5YURlYzZMdVNGTHI0ZW5xKzNrUk45ZmlZNENTNmpvbGwwQ2EvV2toQUhRcVJndnEvWGg0bXpaaHN6T0lwbnc1QW9zaTlKR3NDdEg5RVNKUHFoeklXYnNpQUZ3N2ZJc2MydnpQR29VbUNNQ2M2YlV2RXN3M3RRN3c1dUdESGpQbCtyZkJ3WThTZ2hqZ21KSlpmaHJoQWZGWGJzbEZxU0tVL0dKR3RJY20xVlZaME02WklnY3ZCTTNBVFhuS2hGUkdlQUpzT09KSDdRYnZ0S29ZazM0ZklnL0lDSUZVWndrdlZiQWdFUktLc3JMcC9NNVY3dVZxbjBKNjFiTlZXdDJHMDcxMm1CUVgwR1hmZktzRW1pVDMvRis4VGNQYy9JZlk2emo3T3gyVENBUXRiVUdkdzlYMWVvWVVwckFPWHJuc0xJWkhSWlJINVprMWFpS0gxZ2Nja1ZNOXRJMzVmdXZlQjNBYWtqeHhJTkFlQWh2bkx4NWRDY0xrNE9xTVRwNFRZV3VPR2pFRjVucU9SQTZNeUp5d1VYRkNvdjRNeUtaSGZjZEZRVTdXYjEvRjc1OTk0L3M4UmJqUXhta1ZweHowYXNLaWVWRzJMYitXeUpYUUJ0MjRHOU5tTlRnYkdFSE9Ud2I5R0Z1aUFTRXpwVUlrWHRkYllkQzJoZXRKU0pTUVhFQXBTNS9lZEFoM0tuU2ZkRWd5UTdpWDhvMlNKUUYxdXJ0eWdkUStxeVYzSVFnYnhpZGEyN1ZCRjN5dHZUTDhrSUJMTStURHlXRldkcnRSSWRneEEzYVNpVVE4T2JrQ1JHeXg0clI0b21QRldpWVViTFZNdWo2R2JoZTBuZDVRakM1L0F2RWRuTTZLdTIzRksrNHBYazlRekRwbEJFS2tQZ2JoUFRzbXNHeURLK3pIQkdyQnhhTjcxWWVkRlN5VXNzTHd2ODRyTTBFem83emtneERUVzIvdklEdXJRdVcwSnJkak81UjloNm9YZU82bUZqZFBCTGF1UWhSTGlnYm5QVzh1UTVjZ1lGT0NJZnA3NUFsT0YvRUlvaW9VdTdpZk8xbWZ3R2t6c240Mmg3dXA0V1NGdzJJd0ZPK3A5eGJlS3c0MXdPd2xqUHBFMldwTVJtVWUvbUhUQ0RQcUhibFpFRlhiaVIwaHRhekg4S1hUVmhVU1VXVFZzbVNRcUdWWEJVdjVUZms0N1dYZWlKaDV2QXhmbUR6eVAzRVlIZjZVWE81OEJweEtFZURmcXNlZzRMdTJWKzcwZWE3dC9PMGtuWHZ2R2taSDZYSzBvUkRpazZVSitnUkhDTjJQVG1jdVlVU2RNVzVMYVFpZnRCaTE3c2Z1Y005VllpYWtXdG5NbWJGUGU1TGJURGUzY09Jd2IrK09xWDY4WTlXZWFxdkd3RnJqTzlWT0RXVXJZSGJVWVJwQk9qU2sxa2xiWlZ2ZU5HNkx0N3FYTFdmNFlGcHZ6cDVER0R4SGk1ZG9kRzRlaUoxMVB5UnBGOCtwbWRrcGd0MkYxR0w3bnIralVxSzFXRUV0eElkMzB6N1U5NGw3cHZIR0hEM0Y0QllUTEYyMWxTZlJMTHRvUFhaaFc2WUYxMDFWcjA0UFRnbUZFdmRUNWRhRHRqQXMvOWdDc1Y1NTZJMHJOaDVoZWUzMlltQWlRTXJQbW9wY2UxWEZxeVRRbXBzc3FKU3JlVXl0SmJTcnYyalRJRGlGQlhtRzYvMUxuS1A5bEJteDFVWXNFYTN3MWZvWU5YZE9heUJuZFkyck5Wa25sQXZ2M3ZoOFErb09ZT25zNW9YM0ZvQ04rdkNNZGYvcytqUUNsM0ZodVpmeDAyYyt3c1VEY0tQbndXQVN2UmZyOXNta1IvOWIyZGM0Q1ZZL2JrQkNMeHZBUGNoTGJPc0hrbi9OUFBwRkdYQ0o3bE8xNXNrZWQ0TExWRnlHaThJdWlOK3BhTlJsdXpSWlZuN3FscWd5RGlEbDdpektRZkQxZUVVVE5pWnNEUkozRXZ3aU1KR3ZhZnMxLzA0azlCcmdta294dVlVZWl5VmxZSSt1Wi9rcDRiVUwxZW93L0JITGpmNytLSWZlWW42UFM3YTlmK0FhYWp2MWlQSzB0bGs4Zm1pMkpXajRhclg3a2FJMzkvd0J3Ui9ybjF5cURqSUtteFplY05CRk5xYmJQQWN5WWV0emNiZ2NvdlJiNkdRT0xaMHViazVMaTUvUzFMVllDL2FXWEdpVWhuSm9CUFBFVWN0M2pwbUtNekpQdjBFc2kyM0JERXE1OGFObzBQQzJ2empIa2pCVjNKNUNQVnZmNkNrODhVRDZuUDdwYmswK3JUTzhCMmlWTkd0MUlBbXh0a1I3Nk9ZQ3FDOWRzYVpsUnhrRGZLaGJ6WmdtZnVEMDF5cjR0VXdnNjRJQ2s3SE90RldtajBDeWtzZ1VhcmsxWFNEVVNpakRxS2l1RWMyMExQMFYrdmNTZWUwalVXUTZZYVdiV1dXUFFmQnV5cHZidFEzdzBTa3BlajZ3R290R3BVZFV2dkdhcVo2cEltRXJwS3dkM2d5SkU5cHFLekRIN2FoZUFOdzRLaWlGeVUyNUd3SUM4Y3diTmF4WXFxZDdPS0JZMUR0N1ZZNGczRHVqNzhoRGN6TVg3ODl4WkJsY256N2lQdGUwVVJXT0lldnZSRXIyVzRQQnZDMTN0NThiazNmZnZ2dEc3REphUndYeFd1UndVeXlzMCs2MHBSTzU1dXVOeHVoRXJNam9YdTg2aFJqNXpUR21hM0djdnljS0hJYm9aOXRmdExnVDUwaDVnOEFqVWF3UGlFY1FHd0VaQXlweGxzVnlBNVowRmRUUVZHSG1vMThDc1gzeWdkSlFwUkRpN1NmZ1BQRGx2Yk5JT3RZc2lXOWR1anBaV0RtS1VqdXdQMTRoV014WlZSWVk2U2gxRUFVdHlLMnJSZWtRdllPSmhPeThhVWJaZC9MS3l2VGFrYXJyOFlrTWZZOVlyS1kwL3hMdXJuY3lkdWYrOGVFQjc0ckpxNFcvQlJVUCtodU1ETnR6a0hCUktEY0lxNnhuc3VPRFBUcnc1aXVsYzR3dFJ2bTU0L1lrYWpRWFpQaXZ3Y3NYT2ZpSnEzQUZ5UXRKRHBpSXp0UHVrb3BkcWVHaWxyWTNRWWUzZUorVk5aZG1oMk1Xem90UXgxRlZBa3A0U1RQUzYrZmZlTzQyNmZMaTRuYXJBaEZaUTRKTnZYUVVvVnJvUWI0NUp5c0M2QXkrMjRwVzdMRnM5YUQwbllTU3RZdUltUW41eGw2Yitjb2QzZTU5OEZFdDVGM3ljZm9HWlErVGtGSG9jOUwwaWdGc0dTczU2VzZ5WVNEelF5a2Z2WDRHUW9XRkhCL2xJNHV3UlRnYnlDT0pBZnZQbGdOdHZrSE16RWxhVUE3RWg5RER1aURzS1ZyL2l0VVJ5bTJOZHdNYmdjMktRWUxYSnN5SFROVGJDeURQZzFySVB3ZzN0dXJSVDhFcHJFWnNXMTlHZlMyT2VwelQ1RklVRDZpTTJyZ2NOaXgvQVVMWEdwRzBscWprMm9WdTRIOHdpQVprbmxKSTNRbGc1cUVIanVKY1ZxV3UvZzFrM1l5aGR6YkdFNnlrcDlpQWpWV0g3Vk1lYjl5bjhjK3FoK0d1SmEzbWJQRDNjdHdmWVZVQlRGeU1QSFBOM1A1SXB2U0hCeFV6cFBMUzMwMFArUkl4elB5S0V3S3BwUzVhN0tiODBnVjVkalhwdVN0ek5lVFdpQ1lRc01aL01FbmoxOHZ6MktrUExvU09QZUFQcnlJWUNLOHpuSDBHTXJnZnlqQW9ualFQeFBiUktuTG56Y2pOcUpHdldoOHU5enM9Cn0=',
+  basePdf: '',
   sampledata: [{}],
 };
 
@@ -38,7 +38,7 @@ export default function TemplateDesigner() {
     description: '',
     category: 'sow', // default category
     isGlobal: true,
-    projectId: null,
+    projectId: null as number | null,
     userId: 1, // default user ID (should be set from auth context in a real app)
   });
   
@@ -55,29 +55,43 @@ export default function TemplateDesigner() {
   // Fetch template data if in edit mode
   const templateQuery = useQuery<DocumentTemplate>({
     queryKey: [`/api/document-templates/${templateId}`],
-    enabled: isEditMode,
-    onSuccess: (data) => {
-      if (data) {
-        // Set template data
-        setTemplateData({
-          name: data.name,
-          description: data.description || '',
-          category: data.category,
-          isGlobal: data.isGlobal,
-          projectId: data.projectId,
-          userId: data.userId,
-        });
-        
-        // Set template
-        if (data.template) {
-          setTemplate(data.template as Template);
-        }
-        
-        // Set field mappings
-        setFieldMappings(data.fieldMappings || []);
-      }
-    }
+    enabled: isEditMode
   });
+  
+  // Effect to set template data when fetch is complete
+  useEffect(() => {
+    if (templateQuery.data) {
+      const data = templateQuery.data;
+      // Set template data
+      setTemplateData({
+        name: data.name,
+        description: data.description || '',
+        category: data.category,
+        isGlobal: data.isGlobal,
+        projectId: data.projectId,
+        userId: data.userId,
+      });
+      
+      // Set template
+      if (data.template) {
+        setTemplate(data.template as Template);
+      }
+      
+      // Set field mappings - we'd typically fetch these separately in a real app
+      // For now, we'll use an empty array as a placeholder
+      setFieldMappings([]);
+      
+      // In a real implementation, we would fetch field mappings for this template
+      // const fetchFieldMappings = async () => {
+      //   const response = await fetch(`/api/document-templates/${data.id}/field-mappings`);
+      //   if (response.ok) {
+      //     const fieldMappingsData = await response.json();
+      //     setFieldMappings(fieldMappingsData);
+      //   }
+      // };
+      // fetchFieldMappings();
+    }
+  }, [templateQuery.data]);
   
   // Initialize designer when component mounts
   useEffect(() => {
@@ -85,7 +99,7 @@ export default function TemplateDesigner() {
       import('@pdfme/ui').then(({ Designer }) => {
         const designerInstance = new Designer({
           domContainer: designerRef.current!,
-          template: template,
+          template: template as any, // Cast to any to avoid type issues with pdfme
           options: {
             useVirtualization: true,
             autoSave: true,
@@ -93,7 +107,7 @@ export default function TemplateDesigner() {
         });
         
         designerInstance.onSaveTemplate(updatedTemplate => {
-          setTemplate(updatedTemplate);
+          setTemplate(updatedTemplate as Template);
         });
         
         setDesigner(designerInstance);
@@ -241,16 +255,20 @@ export default function TemplateDesigner() {
     const schema: Record<string, any> = {};
     
     // Process all pages and fields
-    template.schemas.forEach((page, pageIndex) => {
-      page.forEach((field) => {
-        if (field.name) {
-          schema[field.name] = {
-            type: field.type || 'text',
-            defaultValue: field.defaultValue || '',
-          };
+    if (template.schemas && Array.isArray(template.schemas)) {
+      (template.schemas as any[][]).forEach((page: any[], pageIndex: number) => {
+        if (Array.isArray(page)) {
+          page.forEach((field: any) => {
+            if (field && field.name) {
+              schema[field.name] = {
+                type: field.type || 'text',
+                defaultValue: field.defaultValue || '',
+              };
+            }
+          });
         }
       });
-    });
+    }
     
     return schema;
   };
@@ -417,14 +435,26 @@ export default function TemplateDesigner() {
                   />
                 </div>
                 
-                <div 
-                  ref={designerRef} 
-                  style={{ 
-                    height: '800px', 
-                    width: '100%', 
-                    border: '1px solid #ccc' 
-                  }}
-                />
+                {!template.basePdf ? (
+                  <div className="h-[400px] flex items-center justify-center border-2 border-dashed border-gray-300 rounded-md text-center p-12">
+                    <div>
+                      <FileIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Please upload a PDF first</h3>
+                      <p className="text-gray-500 mb-4">
+                        The template designer will appear once you've uploaded a PDF document.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    ref={designerRef} 
+                    style={{ 
+                      height: '800px', 
+                      width: '100%', 
+                      border: '1px solid #ccc' 
+                    }}
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
