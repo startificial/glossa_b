@@ -4,6 +4,7 @@ import { promisify } from 'util';
 import { exec } from 'child_process';
 import ffmpeg from 'fluent-ffmpeg';
 import crypto from 'crypto';
+import { SpeechClient } from '@google-cloud/speech';  // <-- Install via `npm i @google-cloud/speech`
 
 export interface VideoScene {
   id: string;
@@ -18,25 +19,26 @@ export interface VideoScene {
 
 const execPromise = promisify(exec);
 
-/**
- * Video processing utility class for extracting scenes from videos
- * and generating thumbnails/clips for requirements
- */
 export class VideoProcessor {
   private _inputPath: string;
   private _outputDir: string;
   private _inputDataId: number;
   private _metadataCache: any = null;
+  
+  // Create a single SpeechClient instance for the entire class
+  private _speechClient: SpeechClient;
 
   constructor(inputPath: string, outputDir: string, inputDataId: number) {
     this._inputPath = inputPath;
     this._outputDir = outputDir;
     this._inputDataId = inputDataId;
-    
-    // Create output directory if it doesn't exist
+
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
+
+    // Initialize Google Cloud Speech client
+    this._speechClient = new SpeechClient();  // uses default credentials/environment
   }
 
   /**
@@ -61,11 +63,12 @@ export class VideoProcessor {
   }
 
   /**
-   * Detect video scene changes using ffmpeg scene detection
-   * @param threshold Threshold for scene change detection (0.0 to 1.0)
-   * @param minSceneDuration Minimum duration of a scene in seconds
+   * Detect video scene changes using ffmpeg
    */
-  async detectScenes(threshold: number = 0.4, minSceneDuration: number = 3): Promise<VideoScene[]> {
+  async detectScenes(
+    threshold: number = 0.4,
+    minSceneDuration: number = 3
+  ): Promise<VideoScene[]> {
     try {
       const metadata = await this.getMetadata();
       const videoDuration = metadata.format.duration;
@@ -92,8 +95,7 @@ export class VideoProcessor {
       // Parse scene data file
       const sceneData = fs.readFileSync(sceneDataPath, 'utf-8');
       const sceneTimestamps = this.parseSceneData(sceneData);
-      
-      // Filter short scenes and create scene objects
+
       const scenes: VideoScene[] = [];
       
       // Always include the start of the video
@@ -106,38 +108,31 @@ export class VideoProcessor {
         const duration = endTime - startTime;
         
         if (duration >= minSceneDuration) {
-          const scene: VideoScene = {
+          scenes.push({
             id: crypto.randomUUID(),
             inputDataId: this._inputDataId,
             startTime,
             endTime,
             label: `Scene ${i + 1}`,
-            relevance: 0.5 // Default relevance score that will be updated later
-          };
-          
-          scenes.push(scene);
+            relevance: 0.0
+          });
         }
       }
       
       // Handle the last scene (to the end of the video)
       const lastStartTime = sceneTimestamps[sceneTimestamps.length - 1];
-      
       if (videoDuration - lastStartTime >= minSceneDuration) {
-        const scene: VideoScene = {
+        scenes.push({
           id: crypto.randomUUID(),
           inputDataId: this._inputDataId,
           startTime: lastStartTime,
           endTime: videoDuration,
           label: `Scene ${sceneTimestamps.length}`,
-          relevance: 0.5 // Default relevance score
-        };
-        
-        scenes.push(scene);
+          relevance: 0.0
+        });
       }
-      
-      // Clean up temp file
+
       fs.unlinkSync(sceneDataPath);
-      
       return scenes;
     } catch (error) {
       console.error('Error detecting scenes:', error);
@@ -165,11 +160,9 @@ export class VideoProcessor {
   }
 
   /**
-   * Generate thumbnail for a scene
-   * @param scene The video scene to generate thumbnail for
+   * Generate a thumbnail for the scene
    */
   async generateThumbnail(scene: VideoScene): Promise<string> {
-    // Capture frame at 1/3 into the scene for better representation
     const captureTime = scene.startTime + (scene.endTime - scene.startTime) / 3;
     const thumbnailFilename = `scene_${scene.id}_thumbnail.jpg`;
     const thumbnailPath = path.join(this._outputDir, thumbnailFilename);
@@ -183,7 +176,6 @@ export class VideoProcessor {
           size: '320x180'
         })
         .on('end', () => {
-          // Return the web-accessible URL path rather than the filesystem path
           const webPath = `/media/video-scenes/${thumbnailFilename}`;
           resolve(webPath);
         })
@@ -192,8 +184,7 @@ export class VideoProcessor {
   }
 
   /**
-   * Extract a clip from the video for a specific scene
-   * @param scene The video scene to extract a clip for
+   * Extract a video clip for the scene
    */
   async extractClip(scene: VideoScene): Promise<string> {
     const clipFilename = `scene_${scene.id}_clip.mp4`;
@@ -213,7 +204,6 @@ export class VideoProcessor {
           '-b:a 128k'
         ])
         .on('end', () => {
-          // Return the web-accessible URL path rather than the filesystem path
           const webPath = `/media/video-scenes/${clipFilename}`;
           resolve(webPath);
         })
@@ -223,19 +213,120 @@ export class VideoProcessor {
   }
 
   /**
-   * Calculate scene relevance to a requirement using text similarity
-   * This is a placeholder for a more sophisticated algorithm that would use
-   * text analysis, speech-to-text, and other methods to determine relevance
+   * Extract audio (WAV) for the scene's time range,
+   * then send it to Google Cloud Speech for transcription.
    */
-  calculateRelevance(scene: VideoScene, requirementText: string): number {
-    // This is a placeholder - in a real implementation, this would use
-    // more sophisticated text analysis, speech-to-text conversion of the scene audio,
-    // and potentially video content analysis
-    return Math.random() * 0.5 + 0.5; // Random value between 0.5 and 1.0 for demonstration
+  private async getSceneTranscript(scene: VideoScene): Promise<string> {
+    const audioFilename = `scene_${scene.id}_audio.wav`;
+    const audioPath = path.join(this._outputDir, audioFilename);
+    const duration = scene.endTime - scene.startTime;
+
+    // 1) Extract the audio only for that time range
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg(this._inputPath)
+        .setStartTime(scene.startTime)
+        .setDuration(duration)
+        .noVideo()
+        .audioCodec('pcm_s16le')   // 16-bit WAV
+        .audioChannels(1)         // mono
+        .audioFrequency(16000)    // 16 KHz is acceptable for speech-to-text
+        .output(audioPath)
+        .on('end', () => resolve())
+        .on('error', (err) => reject(err))
+        .run();
+    });
+
+    try {
+      // 2) Transcribe the audio with Google Speech
+      const audioBytes = fs.readFileSync(audioPath);
+
+      const [response] = await this._speechClient.recognize({
+        audio: {
+          content: audioBytes.toString('base64'),
+        },
+        config: {
+          encoding: 'LINEAR16', 
+          sampleRateHertz: 16000,
+          languageCode: 'en-US', 
+        },
+      });
+      
+      // 3) Parse out the transcript
+      let transcript = '';
+      if (response.results && response.results.length > 0) {
+        transcript = response.results
+          .map((r) => r.alternatives && r.alternatives[0]?.transcript)
+          .join('\n');
+      }
+      return transcript.trim();
+    } catch (speechError) {
+      console.error(`Failed to transcribe scene ${scene.id}:`, speechError);
+      return ''; // fallback
+    } finally {
+      // 4) Optionally clean up the temp audio file
+      if (fs.existsSync(audioPath)) {
+        fs.unlinkSync(audioPath);
+      }
+    }
   }
 
   /**
-   * Process scenes for a requirement, generating thumbnails and calculating relevance
+   * Compute a simple textual relevance for demonstration.
+   * Uses bag-of-words + cosine similarity.
+   * 
+   * In production, consider advanced NLP with embeddings, etc.
+   */
+  private calculateRelevance(sceneTranscript: string, requirementText: string): number {
+    const sceneTokens = this.tokenize(sceneTranscript);
+    const requirementTokens = this.tokenize(requirementText);
+
+    const freqScene = this.buildFrequencyMap(sceneTokens);
+    const freqReq   = this.buildFrequencyMap(requirementTokens);
+
+    return this.cosineSimilarity(freqScene, freqReq);
+  }
+
+  private tokenize(text: string): string[] {
+    return text
+      .toLowerCase()
+      .split(/\W+/)
+      .filter(Boolean);
+  }
+
+  private buildFrequencyMap(tokens: string[]): Record<string, number> {
+    const freq: Record<string, number> = {};
+    for (const token of tokens) {
+      freq[token] = (freq[token] || 0) + 1;
+    }
+    return freq;
+  }
+
+  private cosineSimilarity(
+    freq1: Record<string, number>,
+    freq2: Record<string, number>
+  ): number {
+    const allTokens = new Set([...Object.keys(freq1), ...Object.keys(freq2)]);
+    
+    let dotProduct = 0;
+    let mag1 = 0;
+    let mag2 = 0;
+
+    for (const token of allTokens) {
+      const val1 = freq1[token] || 0;
+      const val2 = freq2[token] || 0;
+      dotProduct += val1 * val2;
+      mag1 += val1 * val1;
+      mag2 += val2 * val2;
+    }
+
+    if (mag1 === 0 || mag2 === 0) {
+      return 0; // If either is empty, there's no similarity
+    }
+    return dotProduct / (Math.sqrt(mag1) * Math.sqrt(mag2));
+  }
+
+  /**
+   * Process scenes for a requirement, generating thumbnails & calculating real transcripts
    */
   async processScenes(scenes: VideoScene[], requirementText: string): Promise<VideoScene[]> {
     const processedScenes: VideoScene[] = [];
@@ -244,32 +335,31 @@ export class VideoProcessor {
       try {
         // Generate thumbnail
         const thumbnailPath = await this.generateThumbnail(scene);
-        
+
+        // Get the actual transcript from Google Cloud
+        const transcript = await this.getSceneTranscript(scene);
+
         // Calculate relevance
-        const relevance = this.calculateRelevance(scene, requirementText);
+        const relevance = this.calculateRelevance(transcript, requirementText);
         
-        // Process only scenes with sufficient relevance
+        // Only extract a clip if it meets our relevance threshold
         if (relevance > 0.3) {
-          // Extract clip for relevant scenes
           const clipPath = await this.extractClip(scene);
-          
-          // Create processed scene
           const processedScene: VideoScene = {
             ...scene,
             thumbnailPath,
             clipPath,
             relevance
           };
-          
           processedScenes.push(processedScene);
         }
       } catch (error) {
         console.error(`Error processing scene ${scene.id}:`, error);
-        // Continue with other scenes
+        // Continue with next scene
       }
     }
-    
-    // Sort by relevance
+
+    // Sort scenes by relevance in descending order
     return processedScenes.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
   }
 }
