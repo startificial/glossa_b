@@ -146,6 +146,69 @@ async function pushSchema() {
     `;
     console.log('- Session table created/verified');
 
+    // Document Templates table
+    await sql`
+      CREATE TABLE IF NOT EXISTS "document_templates" (
+        "id" SERIAL PRIMARY KEY,
+        "name" VARCHAR(255) NOT NULL,
+        "description" TEXT,
+        "category" VARCHAR(100) NOT NULL,
+        "is_global" BOOLEAN NOT NULL DEFAULT TRUE,
+        "user_id" INTEGER NOT NULL,
+        "project_id" INTEGER,
+        "template" JSONB NOT NULL,
+        "schema" JSONB NOT NULL,
+        "thumbnail" TEXT,
+        "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE,
+        FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE CASCADE
+      )
+    `;
+    console.log('- Document Templates table created/verified');
+
+    // Documents table
+    await sql`
+      CREATE TABLE IF NOT EXISTS "documents" (
+        "id" SERIAL PRIMARY KEY,
+        "name" VARCHAR(255) NOT NULL,
+        "description" TEXT,
+        "template_id" INTEGER NOT NULL,
+        "project_id" INTEGER NOT NULL,
+        "user_id" INTEGER NOT NULL,
+        "data" JSONB NOT NULL,
+        "pdf_path" TEXT,
+        "status" VARCHAR(50) NOT NULL DEFAULT 'draft',
+        "version" INTEGER NOT NULL DEFAULT 1,
+        "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("template_id") REFERENCES "document_templates" ("id") ON DELETE CASCADE,
+        FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE CASCADE,
+        FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
+      )
+    `;
+    console.log('- Documents table created/verified');
+
+    // Field Mappings table
+    await sql`
+      CREATE TABLE IF NOT EXISTS "field_mappings" (
+        "id" SERIAL PRIMARY KEY,
+        "name" VARCHAR(255) NOT NULL,
+        "description" TEXT,
+        "type" VARCHAR(50) NOT NULL,
+        "template_id" INTEGER NOT NULL,
+        "field_key" VARCHAR(255) NOT NULL,
+        "data_source" VARCHAR(255),
+        "data_path" VARCHAR(255),
+        "prompt" TEXT,
+        "default_value" TEXT,
+        "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("template_id") REFERENCES "document_templates" ("id") ON DELETE CASCADE
+      )
+    `;
+    console.log('- Field Mappings table created/verified');
+
     console.log('All tables created/verified successfully!');
   } catch (error) {
     console.error('Error pushing schema to database:', error);
