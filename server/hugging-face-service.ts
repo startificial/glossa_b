@@ -28,9 +28,22 @@ export async function isHuggingFaceAvailable(): Promise<boolean> {
 }
 
 /**
- * Helper function to make a request to the Hugging Face API with retry logic
+ * Wait with exponential backoff
+ * @param attempt Current attempt number (starting from 0)
+ * @param baseDelay Base delay in milliseconds
+ * @returns Promise that resolves after the delay
  */
-async function makeHuggingFaceRequest(url: string, body: any, maxRetries = 3, retryDelay = 1000): Promise<any> {
+const waitWithBackoff = async (attempt: number, baseDelay: number = 1000): Promise<void> => {
+  const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+  const jitter = Math.random() * 0.1 * delay; // Add 0-10% jitter
+  console.log(`Waiting ${Math.round((delay + jitter) / 1000)}s before retry...`);
+  await new Promise(resolve => setTimeout(resolve, delay + jitter));
+};
+
+/**
+ * Helper function to make a request to the Hugging Face API with improved retry logic
+ */
+async function makeHuggingFaceRequest(url: string, body: any, maxRetries = 5, baseRetryDelay = 1000): Promise<any> {
   const apiKey = process.env.HUGGINGFACE_API_KEY;
   
   if (!apiKey) {
@@ -38,13 +51,14 @@ async function makeHuggingFaceRequest(url: string, body: any, maxRetries = 3, re
   }
   
   let lastError;
+  const modelName = url.split('/models/')[1] || 'unknown';
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      // If this isn't the first attempt, wait before retrying
+      // If this isn't the first attempt, wait with exponential backoff before retrying
       if (attempt > 0) {
-        console.log(`Retrying request (attempt ${attempt + 1}/${maxRetries})...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+        console.log(`Retrying request to ${modelName} (attempt ${attempt + 1}/${maxRetries})...`);
+        await waitWithBackoff(attempt, baseRetryDelay);
       }
       
       const response = await fetch(url, {
@@ -53,35 +67,35 @@ async function makeHuggingFaceRequest(url: string, body: any, maxRetries = 3, re
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
       });
       
       if (!response.ok) {
         // Check for specific error codes
         if (response.status === 503) {
           // Service unavailable - likely model is loading or busy
-          console.log(`Model service unavailable (503), will retry...`);
+          console.log(`Model ${modelName} service unavailable (503), will retry...`);
           lastError = new Error(`HuggingFace model service unavailable (503)`);
-          continue; // Retry
+          // Don't need explicit continue as the loop will continue anyway
         } else if (response.status === 429) {
           // Too many requests - rate limited
-          console.log(`Rate limited (429), will retry after delay...`);
+          console.log(`Rate limited (429) for model ${modelName}, will retry with longer backoff...`);
           lastError = new Error(`HuggingFace API rate limit reached (429)`);
-          // For rate limiting, use a longer delay
-          await new Promise(resolve => setTimeout(resolve, retryDelay * 3));
-          continue; // Retry
+          // More aggressive backoff for rate limits
+          await waitWithBackoff(attempt + 2, baseRetryDelay);
         } else {
           // For other errors, just log a clean message without the HTML
-          const errorMessage = `HuggingFace API error: ${response.status}`;
+          const errorMessage = `HuggingFace API error for model ${modelName}: ${response.status}`;
           console.error(errorMessage);
           throw new Error(errorMessage);
         }
+      } else {
+        // Successful response - parse and return JSON
+        return await response.json();
       }
-      
-      return await response.json();
     } catch (error) {
       lastError = error;
-      console.error(`Request attempt ${attempt + 1} failed:`, error);
+      console.error(`Request attempt ${attempt + 1} to ${modelName} failed:`, error);
       // If it's the last attempt, don't wait, just throw the error outside the loop
       if (attempt === maxRetries - 1) {
         break;
@@ -90,7 +104,7 @@ async function makeHuggingFaceRequest(url: string, body: any, maxRetries = 3, re
   }
   
   // If we get here, all retries failed
-  throw lastError || new Error('Maximum retries exceeded for HuggingFace API request');
+  throw lastError || new Error(`Maximum retries (${maxRetries}) exceeded for HuggingFace API request to ${modelName}`);
 }
 
 /**

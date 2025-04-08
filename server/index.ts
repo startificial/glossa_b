@@ -11,6 +11,7 @@ import os from "os";
 import fs from "fs";
 import { setupGoogleCredentials, cleanupCredentials } from "./google-credentials";
 import { VideoProcessor } from "./video-processor";
+import { warmAllModels, scheduleModelWarming } from "./model-warming-service";
 
 // Always use PostgreSQL database if available
 // This ensures consistent data retrieval and proper handling of complex fields like acceptanceCriteria
@@ -125,6 +126,25 @@ app.use((req, res, next) => {
       }
     } catch (credError) {
       log(`Error setting up Google Cloud credentials: ${credError}`, 'error');
+    }
+    
+    // Warm up HuggingFace models to prevent cold start issues
+    if (process.env.HUGGINGFACE_API_KEY) {
+      log('HuggingFace API key found, warming up models...', 'models');
+      try {
+        // Start model warming in the background (don't await)
+        warmAllModels().catch(err => {
+          log(`Error during initial model warming: ${err}`, 'error');
+        });
+        
+        // Schedule regular model warming every 60 minutes to keep models hot
+        scheduleModelWarming(60);
+        log('Model warming scheduled successfully', 'models');
+      } catch (modelError) {
+        log(`Error setting up model warming service: ${modelError}`, 'error');
+      }
+    } else {
+      log('HuggingFace API key not found, skipping model warming', 'models');
     }
 
     const server = await registerRoutes(app);
