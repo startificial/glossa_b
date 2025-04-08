@@ -236,17 +236,25 @@ export default function TemplateDesigner() {
   
   // Initialize designer when template changes or we switch to editor tab
   useEffect(() => {
+    // Run when the tab is 'editor', we have a PDF, and we haven't initialized the designer yet
     if (activeTab === 'editor' && template.basePdf && !designerInitialized) {
-      // Only initialize when on editor tab with a PDF and not already initialized
-      initializeDesigner();
+      console.log("Attempting to initialize designer");
+      
+      // Short delay to ensure DOM is fully loaded
+      setTimeout(() => {
+        if (designerRef.current) {
+          initializeDesigner();
+        } else {
+          console.error("Designer container ref is not available");
+        }
+      }, 500);
     }
     
-    // Clean up when the component unmounts or when leaving the editor tab
+    // Clean up when the component unmounts
     return () => {
-      if (activeTab !== 'editor' && designer && designerInitialized) {
-        // Only clean up when changing away from editor tab
+      if (designer && designerInitialized) {
         try {
-          console.log("Cleaning up designer on tab change");
+          console.log("Cleaning up designer");
           if (typeof designer.destroy === 'function') {
             designer.destroy();
           }
@@ -257,7 +265,7 @@ export default function TemplateDesigner() {
         }
       }
     };
-  }, [activeTab, template.basePdf, designer, designerInitialized, initializeDesigner]);
+  }, [activeTab, template.basePdf, designerInitialized, initializeDesigner]);
   
   // Create template mutation
   const createTemplateMutation = useMutation({
@@ -808,6 +816,25 @@ export default function TemplateDesigner() {
                       <h3 className="font-medium mb-2">PDF Template Information</h3>
                       <p>Your PDF has been uploaded successfully.</p>
                       <p className="text-sm text-gray-500 mt-2">Size: {template.basePdf ? Math.round((template.basePdf as string).length / 1024) : 0} KB</p>
+                    </div>
+                    
+                    {/* PDF Template Designer Container */}
+                    <div className="border rounded-md overflow-hidden">
+                      <h3 className="font-medium p-4 border-b">PDF Template Designer</h3>
+                      <div 
+                        ref={designerRef} 
+                        className="h-[600px] w-full"
+                      >
+                        {/* The PDF Designer component will be mounted here */}
+                        {!designerInitialized && template.basePdf && (
+                          <div className="flex items-center justify-center h-full">
+                            <div className="text-center">
+                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+                              <p>Loading PDF designer...</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="p-4 border rounded-md">
