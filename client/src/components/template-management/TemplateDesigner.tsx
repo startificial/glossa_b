@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentTemplate, FieldMapping } from '@shared/schema';
-import { Designer } from '@pdfme/ui';
+// Only import the Template type, not the Designer class - we'll dynamically import that
 import { Template } from '@pdfme/common';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, FileIcon, Database, Search, Info } from 'lucide-react';
@@ -223,7 +223,7 @@ export default function TemplateDesigner() {
     return () => {
       safelyDestroyDesigner();
     };
-  }, [activeTab, template.basePdf, designer, safelyDestroyDesigner]);
+  }, [activeTab, template.basePdf, designer]);
   
   // Create template mutation
   const createTemplateMutation = useMutation({
@@ -682,45 +682,38 @@ export default function TemplateDesigner() {
         onValueChange={(value) => {
           console.log(`Tab switching from ${activeTab} to ${value}`);
           
-          // Create a variable to hold the new template state if we save it
-          let savedTemplate: Template | null = null;
-          
           // Only try to save if we're leaving the editor tab
-          if (activeTab === 'editor' && designer) {
+          if (activeTab === 'editor') {
+            // Wrap in try/catch for safety
             try {
-              console.log("Saving template state during tab switch");
-              
-              // Get the current template if possible
-              if (typeof designer.getTemplate === 'function') {
+              // First, check if designer exists and is valid
+              if (designer && typeof designer === 'object') {
                 try {
-                  const currentTemplate = designer.getTemplate();
-                  if (currentTemplate) {
-                    // Create a deep copy and save it
-                    savedTemplate = JSON.parse(JSON.stringify(currentTemplate));
-                    
-                    // Log details for debugging
-                    if (savedTemplate && typeof savedTemplate === 'object') {
-                      const templateKeys = Object.keys(savedTemplate);
-                      console.log(`Template data being saved: ${templateKeys.join(', ')}`);
-                      console.log(`PDF length: ${
-                        savedTemplate && savedTemplate.basePdf ? (savedTemplate.basePdf as string).length : 0
-                      }`);
+                  // Check if getTemplate method exists before calling it
+                  if (typeof designer.getTemplate === 'function') {
+                    try {
+                      // Get the current template
+                      const currentTemplate = designer.getTemplate();
+                      
+                      // Make sure we got a valid template object back
+                      if (currentTemplate && typeof currentTemplate === 'object') {
+                        // Create a deep copy to avoid reference issues
+                        const templateCopy = JSON.parse(JSON.stringify(currentTemplate));
+                        
+                        // Update the template state
+                        setTemplate(templateCopy as Template);
+                        console.log("Template state saved during tab switch");
+                      }
+                    } catch (e) {
+                      console.error("Error getting template from designer:", e);
                     }
-                    
-                    // Update the template state right away
-                    setTemplate(savedTemplate as Template);
-                    console.log("✓ Template state saved when switching tabs");
-                  } else {
-                    console.warn("Designer returned null template");
                   }
-                } catch (getTemplateError) {
-                  console.error("Error getting template during tab switch:", getTemplateError);
+                } catch (e) {
+                  console.error("Error accessing designer methods:", e);
                 }
-              } else {
-                console.warn("Designer.getTemplate is not a function");
               }
             } catch (error) {
-              console.error("General error during tab switch template saving:", error);
+              console.error("Error during tab switch template saving:", error);
             }
           }
           
