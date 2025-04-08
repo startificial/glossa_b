@@ -93,24 +93,45 @@ export default function TemplateDesigner() {
     }
   }, [templateQuery.data]);
   
-  // Initialize designer when component mounts
+  // Initialize designer when component mounts or when template.basePdf changes
   useEffect(() => {
-    if (designerRef.current && !designer) {
+    // Clean up old designer instance if it exists
+    if (designer) {
+      console.log("Destroying old designer instance");
+      designer.destroy();
+      setDesigner(null);
+    }
+    
+    // Only initialize the designer if we have a PDF and the container is available
+    if (designerRef.current && template.basePdf) {
+      console.log("Initializing PDF designer with basePdf");
+      
       import('@pdfme/ui').then(({ Designer }) => {
-        const designerInstance = new Designer({
-          domContainer: designerRef.current!,
-          template: template as any, // Cast to any to avoid type issues with pdfme
-          options: {
-            useVirtualization: true,
-            autoSave: true,
-          },
-        });
-        
-        designerInstance.onSaveTemplate(updatedTemplate => {
-          setTemplate(updatedTemplate as Template);
-        });
-        
-        setDesigner(designerInstance);
+        try {
+          const designerInstance = new Designer({
+            domContainer: designerRef.current!,
+            template: template as any, // Cast to any to avoid type issues with pdfme
+            options: {
+              useVirtualization: true,
+              autoSave: true,
+            },
+          });
+          
+          designerInstance.onSaveTemplate(updatedTemplate => {
+            console.log("Template saved from designer");
+            setTemplate(updatedTemplate as Template);
+          });
+          
+          setDesigner(designerInstance);
+          console.log("Designer initialized successfully");
+        } catch (error: any) {
+          console.error("Error initializing designer:", error);
+          toast({
+            variant: 'destructive',
+            title: 'Error initializing designer',
+            description: 'There was a problem setting up the template designer. Please try again.',
+          });
+        }
       });
     }
     
@@ -120,7 +141,7 @@ export default function TemplateDesigner() {
         designer.destroy();
       }
     };
-  }, [designerRef, designer]);
+  }, [designerRef, template.basePdf]);
   
   // Create template mutation
   const createTemplateMutation = useMutation({
@@ -223,24 +244,42 @@ export default function TemplateDesigner() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!designer) {
+    // Make sure we have a PDF
+    if (!template.basePdf) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Template editor is not initialized.',
+        description: 'Please upload a PDF file first.',
       });
       return;
     }
     
-    // Get the current template from the designer
-    const currentTemplate = designer.getTemplate();
+    // Get the current template - either from designer or use the state
+    let currentTemplate = template;
+    let schemaData = {};
+    
+    if (designer) {
+      try {
+        // If designer is initialized, get template from it
+        currentTemplate = designer.getTemplate();
+        schemaData = extractSchemaFromTemplate(currentTemplate);
+      } catch (error: any) {
+        console.error("Error getting template from designer:", error);
+        // Fall back to state template
+        schemaData = {};
+      }
+    } else {
+      console.log("Designer not initialized, using state template");
+    }
     
     // Prepare data for submission
     const submissionData = {
       ...templateData,
       template: currentTemplate,
-      schema: extractSchemaFromTemplate(currentTemplate),
+      schema: schemaData,
     };
+    
+    console.log("Submitting template:", submissionData);
     
     // Create or update template
     if (isEditMode) {
@@ -304,13 +343,72 @@ export default function TemplateDesigner() {
   
   // Save field mappings
   const saveFieldMappings = async () => {
-    if (!templateId) return;
+    if (!templateId) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Template must be saved before mappings can be added.',
+      });
+      return;
+    }
     
-    // TODO: Implement API call to save field mappings
-    toast({
-      title: 'Field mappings saved',
-      description: 'The field mappings have been saved successfully.',
-    });
+    try {
+      // Remove any field mappings without field keys
+      const validMappings = fieldMappings.filter(mapping => mapping.fieldKey?.trim());
+      
+      if (validMappings.length === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'No valid field mappings to save. Ensure all mappings have field keys.',
+        });
+        return;
+      }
+      
+      // First delete existing mappings
+      const deleteResponse = await fetch(`/api/document-templates/${templateId}/field-mappings`, {
+        method: 'DELETE',
+      });
+      
+      if (!deleteResponse.ok) {
+        throw new Error('Failed to clear existing field mappings');
+      }
+      
+      // Add mappings one by one
+      for (const mapping of validMappings) {
+        const mappingData = {
+          ...mapping,
+          templateId,
+        };
+        
+        const response = await fetch(`/api/document-templates/${templateId}/field-mappings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(mappingData),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to save field mapping "${mapping.name}"`);
+        }
+      }
+      
+      toast({
+        title: 'Field mappings saved',
+        description: `${validMappings.length} field mappings have been saved successfully.`,
+      });
+      
+      // Refresh template data
+      queryClient.invalidateQueries({ queryKey: [`/api/document-templates/${templateId}`] });
+    } catch (error: any) {
+      console.error('Error saving field mappings:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error saving field mappings',
+        description: error.message || 'Unknown error occurred',
+      });
+    }
   };
   
   // Handle template data change
@@ -324,32 +422,44 @@ export default function TemplateDesigner() {
   // Handle file upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !designer) return;
+    
+    // Debug logs
+    console.log("File selected:", file ? file.name : "No file");
+    console.log("Designer initialized:", designer ? "Yes" : "No");
+    
+    if (!file) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Please select a PDF file.',
+      });
+      return;
+    }
     
     const reader = new FileReader();
     reader.onload = async () => {
       const basePdf = reader.result;
+      console.log("PDF loaded as data URL, length:", basePdf ? (basePdf as string).length : 0);
       
       try {
-        await designer.updateTemplate({
-          ...template,
-          basePdf,
-        });
-        
+        // Update the template state first - this will trigger the useEffect to initialize the designer
         setTemplate({
           ...template,
           basePdf,
         });
         
+        console.log("Template state updated with new PDF");
+        
         toast({
           title: 'PDF uploaded',
           description: 'The PDF has been uploaded successfully.',
         });
-      } catch (error) {
+      } catch (error: any) {
+        console.error("Error updating template:", error);
         toast({
           variant: 'destructive',
           title: 'Error uploading PDF',
-          description: 'Failed to load the PDF. Please try another file.',
+          description: error.message || 'Failed to load the PDF. Please try another file.',
         });
       }
     };
@@ -652,7 +762,6 @@ export default function TemplateDesigner() {
                   <Button 
                     variant="outline" 
                     onClick={saveFieldMappings}
-                    disabled={!isEditMode}
                   >
                     Save Mappings
                   </Button>

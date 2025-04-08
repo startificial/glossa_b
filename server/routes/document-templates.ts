@@ -244,4 +244,30 @@ router.delete('/field-mappings/:id', async (req, res) => {
   }
 });
 
+// Delete all field mappings for a template
+router.delete('/:templateId/field-mappings', async (req, res) => {
+  try {
+    const templateId = parseInt(req.params.templateId);
+    
+    // Verify the template exists
+    const template = await db.query.documentTemplates.findFirst({
+      where: eq(schema.documentTemplates.id, templateId),
+    });
+    
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    // Delete all field mappings for this template
+    await db
+      .delete(schema.fieldMappings)
+      .where(eq(schema.fieldMappings.templateId, templateId));
+    
+    return res.json({ message: 'All field mappings deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting field mappings:', error);
+    return res.status(500).json({ error: 'Failed to delete field mappings' });
+  }
+});
+
 export default router;
