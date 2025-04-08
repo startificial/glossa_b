@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentTemplate, FieldMapping } from '@shared/schema';
-// Only import the Template type, not the Designer class - we'll dynamically import that
+// Using only the Template type, not the direct Designer import
 import { Template } from '@pdfme/common';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, FileIcon, Database, Search, Info } from 'lucide-react';
@@ -32,7 +32,7 @@ import {
 
 // Empty template definition - we'll require upload of a PDF
 const emptyTemplate: Template = {
-  schemas: [[]],
+  schemas: [[]] as any[][],
   basePdf: '',
   sampledata: [{}],
 };
@@ -71,6 +71,7 @@ export default function TemplateDesigner() {
   // Designer instance ref
   const designerRef = React.useRef<HTMLDivElement>(null);
   const [designer, setDesigner] = useState<any>(null);
+  const [designerInitialized, setDesignerInitialized] = useState(false);
   
   // Fetch template data if in edit mode
   const templateQuery = useQuery<DocumentTemplate>({
@@ -141,89 +142,122 @@ export default function TemplateDesigner() {
     }
   }, [designer, setTemplate]);
 
-  // Initialize or reinitialize the designer when the active tab changes to editor or PDF changes
-  useEffect(() => {
-    // Only handle designer initialization/reinitialization if we are on the editor tab
-    if (activeTab !== 'editor') {
-      console.log("Not on editor tab, skipping designer initialization");
+  // Function to initialize the designer
+  const initializeDesigner = useCallback(async () => {
+    // Only proceed if we have a PDF and a container
+    if (!template.basePdf || !designerRef.current) {
+      console.log("Cannot initialize designer - missing PDF or container");
       return;
     }
     
-    // Don't initialize if no PDF is available
-    if (!template.basePdf || !designerRef.current) {
-      console.log("No PDF or container available, skipping designer initialization");
+    // If we're already initialized, don't recreate
+    if (designerInitialized && designer) {
+      console.log("Designer already initialized, skipping");
       return;
     }
 
-    console.log("Initializing PDF designer with basePdf");
-    
-    // Create a new designer instance
-    const initializeDesigner = async () => {
-      // Safely destroy any existing designer first
+    try {
+      // Clean up any previous instance first
       if (designer) {
+        // Try to save state before destroying
         try {
-          console.log("Destroying existing designer before creating new one");
-          safelyDestroyDesigner();
-        } catch (error) {
-          console.error("Error destroying existing designer:", error);
+          if (typeof designer.getTemplate === 'function') {
+            const currentTemplate = designer.getTemplate();
+            if (currentTemplate) {
+              setTemplate(JSON.parse(JSON.stringify(currentTemplate)));
+            }
+          }
+        } catch (e) {
+          console.log("Could not save template state before reinitializing");
+        }
+        
+        // Now destroy the instance
+        try {
+          designer.destroy();
+          setDesigner(null);
+          setDesignerInitialized(false);
+          console.log("Cleaned up previous designer instance");
+          
+          // Short delay to ensure DOM is ready
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (e) {
+          console.error("Error destroying previous designer:", e);
+          // Continue anyway as we'll create a new instance
         }
       }
-
-      try {
-        // Small delay to ensure prior instance is fully cleaned up
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Import the Designer component
-        const { Designer } = await import('@pdfme/ui');
-        
-        // Create a deep copy of the template to avoid reference issues
-        const templateCopy = JSON.parse(JSON.stringify(template));
-        
-        console.log("Creating new designer with template", 
-          templateCopy ? `(basePdf length: ${templateCopy.basePdf.length})` : 'no template');
-        
-        // Create a new designer instance
-        const designerInstance = new Designer({
-          domContainer: designerRef.current!,
-          template: templateCopy as any, // Cast to any to avoid type issues with pdfme
-          options: {
-            useVirtualization: true,
-            autoSave: true,
-          },
-        });
-        
-        // Set up the onSaveTemplate callback to update our state
-        designerInstance.onSaveTemplate((updatedTemplate: any) => {
-          console.log("Template saved from designer automatically");
+      
+      // Dynamically import the Designer to avoid conflicts
+      const PDFmeUI = await import('@pdfme/ui');
+      
+      // Create a deep copy of the template to avoid reference issues
+      const templateCopy = JSON.parse(JSON.stringify(template));
+      
+      console.log("Creating new designer instance with PDF length:", 
+        templateCopy.basePdf.length);
+      
+      // Create a new instance
+      const newDesigner = new PDFmeUI.Designer({
+        domContainer: designerRef.current,
+        template: templateCopy as any,
+        options: { 
+          useVirtualization: true,
+          autoSave: false // Set to false to manually control saving
+        }
+      });
+      
+      // Setup save handler
+      if (typeof newDesigner.onSaveTemplate === 'function') {
+        newDesigner.onSaveTemplate((updatedTemplate: any) => {
           try {
-            const templateCopy = JSON.parse(JSON.stringify(updatedTemplate));
-            setTemplate(templateCopy as Template);
-          } catch (error) {
-            console.error("Error saving template:", error);
+            console.log("Template saved by designer");
+            setTemplate(JSON.parse(JSON.stringify(updatedTemplate)));
+          } catch (e) {
+            console.error("Error saving template from designer:", e);
           }
         });
-        
-        // Update our designer state
-        setDesigner(designerInstance);
-        console.log("Designer initialized successfully");
-      } catch (error) {
-        console.error("Error initializing designer:", error);
-        toast({
-          variant: 'destructive',
-          title: 'Error initializing designer',
-          description: 'There was a problem setting up the template designer. Please try again.',
-        });
+      }
+      
+      // Update state
+      setDesigner(newDesigner);
+      setDesignerInitialized(true);
+      console.log("Designer successfully initialized");
+      
+    } catch (error) {
+      console.error("Error initializing designer:", error);
+      setDesignerInitialized(false);
+      setDesigner(null);
+      toast({
+        variant: 'destructive',
+        title: 'Error initializing PDF editor',
+        description: 'There was a problem with the PDF editor. Please try again or use a different PDF.'
+      });
+    }
+  }, [template.basePdf, designer, designerInitialized, designerRef]);
+  
+  // Initialize designer when template changes or we switch to editor tab
+  useEffect(() => {
+    if (activeTab === 'editor' && template.basePdf && !designerInitialized) {
+      // Only initialize when on editor tab with a PDF and not already initialized
+      initializeDesigner();
+    }
+    
+    // Clean up when the component unmounts or when leaving the editor tab
+    return () => {
+      if (activeTab !== 'editor' && designer && designerInitialized) {
+        // Only clean up when changing away from editor tab
+        try {
+          console.log("Cleaning up designer on tab change");
+          if (typeof designer.destroy === 'function') {
+            designer.destroy();
+          }
+          setDesigner(null);
+          setDesignerInitialized(false);
+        } catch (e) {
+          console.error("Error cleaning up designer:", e);
+        }
       }
     };
-    
-    // Initialize the designer
-    initializeDesigner();
-    
-    // Cleanup function to run when the component unmounts or dependencies change
-    return () => {
-      safelyDestroyDesigner();
-    };
-  }, [activeTab, template.basePdf, designer]);
+  }, [activeTab, template.basePdf, designer, designerInitialized, initializeDesigner]);
   
   // Create template mutation
   const createTemplateMutation = useMutation({
@@ -384,10 +418,16 @@ export default function TemplateDesigner() {
     
     // Process all pages and fields
     if (template.schemas && Array.isArray(template.schemas)) {
-      (template.schemas as any[][]).forEach((page: any[], pageIndex: number) => {
+      // Ensure we treat schemas as a properly typed array
+      const schemas = template.schemas as any[][];
+      
+      // Process each page of schemas
+      schemas.forEach((page: any[], pageIndex: number) => {
         if (Array.isArray(page)) {
+          // Process each field in the page
           page.forEach((field: any) => {
             if (field && field.name) {
+              // Add the field to our schema with its type and default value
               schema[field.name] = {
                 type: field.type || 'text',
                 defaultValue: field.defaultValue || '',
@@ -582,13 +622,9 @@ export default function TemplateDesigner() {
     });
   };
   
-  // Handle file upload
+  // Handle file upload with a simpler approach
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    
-    // Debug logs
-    console.log("File selected:", file ? file.name : "No file");
-    console.log("Designer initialized:", designer ? "Yes" : "No");
     
     if (!file) {
       toast({
@@ -599,32 +635,40 @@ export default function TemplateDesigner() {
       return;
     }
     
+    if (!file.type.includes('pdf')) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid file type',
+        description: 'Please select a PDF file.',
+      });
+      return;
+    }
+    
+    // Read the PDF file as data URL
     const reader = new FileReader();
-    reader.onload = async () => {
+    
+    reader.onload = () => {
       const basePdf = reader.result;
-      console.log("PDF loaded as data URL, length:", basePdf ? (basePdf as string).length : 0);
       
-      try {
-        // Update the template state first - this will trigger the useEffect to initialize the designer
-        setTemplate({
-          ...template,
-          basePdf,
-        });
-        
-        console.log("Template state updated with new PDF");
-        
-        toast({
-          title: 'PDF uploaded',
-          description: 'The PDF has been uploaded successfully.',
-        });
-      } catch (error: any) {
-        console.error("Error updating template:", error);
-        toast({
-          variant: 'destructive',
-          title: 'Error uploading PDF',
-          description: error.message || 'Failed to load the PDF. Please try another file.',
-        });
-      }
+      // Create a new template with the PDF
+      setTemplate({
+        basePdf,
+        schemas: [[]] as any[][],
+        sampledata: [{}],
+      });
+      
+      toast({
+        title: 'PDF uploaded',
+        description: 'The PDF has been uploaded successfully.',
+      });
+    };
+    
+    reader.onerror = () => {
+      toast({
+        variant: 'destructive',
+        title: 'Error uploading PDF',
+        description: 'Failed to read the PDF file. Please try again.',
+      });
     };
     
     reader.readAsDataURL(file);
@@ -759,14 +803,132 @@ export default function TemplateDesigner() {
                     </div>
                   </div>
                 ) : (
-                  <div 
-                    ref={designerRef} 
-                    style={{ 
-                      height: '800px', 
-                      width: '100%', 
-                      border: '1px solid #ccc' 
-                    }}
-                  />
+                  <div className="space-y-6">
+                    <div className="p-4 border rounded-md bg-gray-50">
+                      <h3 className="font-medium mb-2">PDF Template Information</h3>
+                      <p>Your PDF has been uploaded successfully.</p>
+                      <p className="text-sm text-gray-500 mt-2">Size: {template.basePdf ? Math.round((template.basePdf as string).length / 1024) : 0} KB</p>
+                    </div>
+                    
+                    <div className="p-4 border rounded-md">
+                      <h3 className="font-medium mb-4">Template Form Fields</h3>
+                      <div className="space-y-4">
+                        {template.schemas && 
+                         Array.isArray(template.schemas) && 
+                         template.schemas.length > 0 && 
+                         Array.isArray(template.schemas[0]) && 
+                         template.schemas[0].length > 0 ? (
+                          (template.schemas[0] as any[]).map((field: any, index: number) => (
+                            <div key={index} className="p-3 border rounded-md">
+                              <div className="flex justify-between items-center mb-2">
+                                <Label className="font-medium">{field.name}</Label>
+                                <span className="text-xs bg-gray-100 px-2 py-1 rounded">{field.type || 'text'}</span>
+                              </div>
+                              <Input
+                                type="text"
+                                placeholder={`Value for ${field.name}`}
+                                defaultValue={field.defaultValue || ''}
+                                onChange={(e) => {
+                                  // Update field default value
+                                  const schemas = template.schemas as any[][];
+                                  const newSchemas = [...schemas];
+                                  if (newSchemas[0] && newSchemas[0][index]) {
+                                    newSchemas[0][index].defaultValue = e.target.value;
+                                    setTemplate({
+                                      ...template,
+                                      schemas: newSchemas
+                                    });
+                                  }
+                                }}
+                              />
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center p-4 border border-dashed rounded-md">
+                            <p>No form fields defined yet. Add form fields below.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 border rounded-md">
+                      <h3 className="font-medium mb-4">Add New Form Field</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="new-field-name">Field Name</Label>
+                          <Input
+                            id="new-field-name"
+                            placeholder="Enter field name"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="new-field-type">Field Type</Label>
+                          <Select defaultValue="text">
+                            <SelectTrigger id="new-field-type">
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="text">Text</SelectItem>
+                              <SelectItem value="number">Number</SelectItem>
+                              <SelectItem value="date">Date</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-end">
+                          <Button 
+                            className="w-full"
+                            onClick={() => {
+                              const fieldNameInput = document.getElementById('new-field-name') as HTMLInputElement;
+                              const fieldName = fieldNameInput?.value;
+                              
+                              if (!fieldName) {
+                                toast({
+                                  variant: 'destructive',
+                                  title: 'Error',
+                                  description: 'Please enter a field name.',
+                                });
+                                return;
+                              }
+                              
+                              // Get the field type from the select
+                              const fieldTypeSelect = document.getElementById('new-field-type') as HTMLSelectElement;
+                              const fieldType = fieldTypeSelect?.value || 'text';
+                              
+                              // Add the new field to the schema
+                              const schemas = template.schemas as any[][];
+                              const newSchemas = [...schemas];
+                              if (!Array.isArray(newSchemas[0])) {
+                                newSchemas[0] = [];
+                              }
+                              
+                              newSchemas[0].push({
+                                name: fieldName,
+                                type: fieldType,
+                                defaultValue: '',
+                              });
+                              
+                              setTemplate({
+                                ...template,
+                                schemas: newSchemas
+                              });
+                              
+                              // Clear the input
+                              if (fieldNameInput) {
+                                fieldNameInput.value = '';
+                              }
+                              
+                              toast({
+                                title: 'Field added',
+                                description: `Added field "${fieldName}" to the template.`,
+                              });
+                            }}
+                          >
+                            Add Field
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </CardContent>
