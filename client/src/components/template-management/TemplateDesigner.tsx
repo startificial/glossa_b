@@ -195,13 +195,34 @@ export default function TemplateDesigner() {
       console.log("Creating new designer instance with PDF length:", 
         templateCopy.basePdf.length);
       
-      // Create a new instance
+      // Make sure we have a properly initialized schemas array
+      if (!templateCopy.schemas || !Array.isArray(templateCopy.schemas) || templateCopy.schemas.length === 0) {
+        templateCopy.schemas = [[]] as any[][];
+      }
+      
+      // Make sure we have properly initialized sample data
+      if (!templateCopy.sampledata || !Array.isArray(templateCopy.sampledata)) {
+        templateCopy.sampledata = [{}];
+      }
+      
+      // Create a new instance with better configuration
       const newDesigner = new PDFmeUI.Designer({
         domContainer: designerRef.current,
         template: templateCopy as any,
         options: { 
           useVirtualization: true,
-          autoSave: false // Set to false to manually control saving
+          autoSave: true, // Auto-save changes to make field additions more responsive
+          font: { 
+            default: 'Arial',
+            available: ['Arial', 'Courier', 'Helvetica', 'Times-Roman'] 
+          },
+          grid: true, // Enable grid for easier positioning
+          snapToGrid: true, // Snap items to grid for cleaner layouts
+          theme: {
+            primary: '#3B82F6', // Blue to match our UI
+            text: '#1F2937',
+            background: '#F9FAFB'
+          }
         }
       });
       
@@ -879,7 +900,7 @@ export default function TemplateDesigner() {
                     </div>
                     
                     <div className="p-4 border rounded-md">
-                      <h3 className="font-medium mb-4">Add New Form Field</h3>
+                      <h3 className="font-medium mb-4">Add Field to PDF Template</h3>
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <Label htmlFor="new-field-name">Field Name</Label>
@@ -898,6 +919,8 @@ export default function TemplateDesigner() {
                               <SelectItem value="text">Text</SelectItem>
                               <SelectItem value="number">Number</SelectItem>
                               <SelectItem value="date">Date</SelectItem>
+                              <SelectItem value="qrcode">QR Code</SelectItem>
+                              <SelectItem value="image">Image</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -921,38 +944,77 @@ export default function TemplateDesigner() {
                               const fieldTypeSelect = document.getElementById('new-field-type') as HTMLSelectElement;
                               const fieldType = fieldTypeSelect?.value || 'text';
                               
-                              // Add the new field to the schema
-                              const schemas = template.schemas as any[][];
-                              const newSchemas = [...schemas];
-                              if (!Array.isArray(newSchemas[0])) {
-                                newSchemas[0] = [];
+                              try {
+                                // First check if the designer is available
+                                if (!designer || !designerInitialized) {
+                                  toast({
+                                    variant: 'destructive',
+                                    title: 'Designer not ready',
+                                    description: 'Please wait for the PDF designer to initialize fully.',
+                                  });
+                                  return;
+                                }
+                                
+                                // Get the current template from the designer
+                                const currentTemplate = designer.getTemplate();
+                                
+                                // Add the new field to the first page schema
+                                if (!currentTemplate.schemas[0]) {
+                                  currentTemplate.schemas[0] = [];
+                                }
+                                
+                                const newField = {
+                                  name: fieldName,
+                                  type: fieldType,
+                                  position: { x: 0, y: 0 }, // Default position
+                                  width: 100,  // Default width
+                                  height: 20,  // Default height
+                                  value: `{{ ${fieldName} }}`, // Template syntax
+                                  defaultValue: '',
+                                };
+                                
+                                // Add the field to the template schema
+                                currentTemplate.schemas[0].push(newField);
+                                
+                                // Update the designer with the new template
+                                designer.updateTemplate(currentTemplate);
+                                
+                                // Update our state
+                                setTemplate(JSON.parse(JSON.stringify(currentTemplate)));
+                                
+                                // Clear the input
+                                if (fieldNameInput) {
+                                  fieldNameInput.value = '';
+                                }
+                                
+                                toast({
+                                  title: 'Field added',
+                                  description: `Added field "${fieldName}" to the template. Drag it to position on the PDF.`,
+                                });
+                              } catch (error: any) {
+                                console.error("Error adding field to PDF template:", error);
+                                toast({
+                                  variant: 'destructive',
+                                  title: 'Error adding field',
+                                  description: error.message || 'An unknown error occurred.',
+                                });
                               }
-                              
-                              newSchemas[0].push({
-                                name: fieldName,
-                                type: fieldType,
-                                defaultValue: '',
-                              });
-                              
-                              setTemplate({
-                                ...template,
-                                schemas: newSchemas
-                              });
-                              
-                              // Clear the input
-                              if (fieldNameInput) {
-                                fieldNameInput.value = '';
-                              }
-                              
-                              toast({
-                                title: 'Field added',
-                                description: `Added field "${fieldName}" to the template.`,
-                              });
                             }}
                           >
-                            Add Field
+                            Add to Template
                           </Button>
                         </div>
+                      </div>
+                      <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm">
+                        <p className="font-medium text-blue-700">How to use the PDF template designer:</p>
+                        <ol className="list-decimal pl-5 mt-2 text-blue-600 space-y-1">
+                          <li>Enter a field name and select its type above</li>
+                          <li>Click "Add to Template" to create the field</li>
+                          <li>The field will appear in the designer area - drag to position it</li>
+                          <li>Resize by dragging the corners of the field</li>
+                          <li>Click on a field to edit its properties</li>
+                          <li>Fields added here will be available for mapping in the Mappings tab</li>
+                        </ol>
                       </div>
                     </div>
                   </div>
@@ -1043,11 +1105,34 @@ export default function TemplateDesigner() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {/* Template fields reference */}
+                <div className="p-4 bg-slate-50 rounded-md mb-6">
+                  <h3 className="font-medium mb-2">Template Fields Available</h3>
+                  <div className="space-y-1">
+                    {template.schemas && 
+                     Array.isArray(template.schemas) && 
+                     template.schemas.length > 0 && 
+                     Array.isArray(template.schemas[0]) && 
+                     template.schemas[0].length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {(template.schemas[0] as any[]).map((field: any, idx: number) => (
+                          <div key={idx} className="text-sm p-2 bg-white border rounded-md flex items-center">
+                            <span className="font-medium text-blue-600">{field.name}</span>
+                            <span className="ml-2 text-xs bg-slate-100 px-1.5 py-0.5 rounded">{field.type || 'text'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">No fields defined yet. Go to the Editor tab and add fields to your template first.</p>
+                    )}
+                  </div>
+                </div>
+                
                 {fieldMappings.map((mapping, index) => (
                   <div key={index} className="border p-4 rounded-md space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor={`mapping-name-${index}`}>Name</Label>
+                        <Label htmlFor={`mapping-name-${index}`}>Mapping Name</Label>
                         <Input 
                           id={`mapping-name-${index}`} 
                           value={mapping.name} 
@@ -1056,7 +1141,7 @@ export default function TemplateDesigner() {
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor={`mapping-type-${index}`}>Type</Label>
+                        <Label htmlFor={`mapping-type-${index}`}>Data Source Type</Label>
                         <Select 
                           value={mapping.type} 
                           onValueChange={(value) => handleUpdateFieldMapping(index, 'type', value)}
@@ -1073,13 +1158,28 @@ export default function TemplateDesigner() {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor={`mapping-field-key-${index}`}>Field Key</Label>
-                      <Input 
-                        id={`mapping-field-key-${index}`} 
-                        value={mapping.fieldKey} 
-                        onChange={(e) => handleUpdateFieldMapping(index, 'fieldKey', e.target.value)} 
-                        placeholder="Enter field key to map to in the template" 
-                      />
+                      <Label htmlFor={`mapping-field-key-${index}`}>Template Field Key</Label>
+                      <Select
+                        value={mapping.fieldKey || ''}
+                        onValueChange={(value) => handleUpdateFieldMapping(index, 'fieldKey', value)}
+                      >
+                        <SelectTrigger id={`mapping-field-key-${index}`}>
+                          <SelectValue placeholder="Select field to map to" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {template.schemas && 
+                           Array.isArray(template.schemas) && 
+                           template.schemas.length > 0 && 
+                           Array.isArray(template.schemas[0]) ? 
+                            (template.schemas[0] as any[]).map((field: any, idx: number) => (
+                              <SelectItem key={idx} value={field.name}>
+                                {field.name} ({field.type || 'text'})
+                              </SelectItem>
+                            )) : 
+                            <SelectItem value="" disabled>No fields available</SelectItem>
+                          }
+                        </SelectContent>
+                      </Select>
                     </div>
                     
                     {mapping.type === 'database' && (
