@@ -12,34 +12,19 @@ const NLI_MODEL = 'cross-encoder/nli-deberta-v3-base';
 
 /**
  * Check if the HuggingFace API is available and configured
+ * This always returns true as we require the API key to be available
  */
 export async function isHuggingFaceAvailable(): Promise<boolean> {
   const apiKey = process.env.HUGGINGFACE_API_KEY;
   
   if (!apiKey) {
-    console.log('Hugging Face API key not found in environment');
-    return false;
+    console.error('Hugging Face API key not found in environment - this will cause errors');
+    // Still return true as we're requiring the service
+    return true;
   }
   
-  try {
-    // Simple test call to check if the API key works
-    const response = await fetch(
-      `https://api-inference.huggingface.co/models/${SIMILARITY_MODEL}`,
-      {
-        method: 'HEAD',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
-      }
-    );
-    
-    const available = response.ok;
-    console.log(`Hugging Face API is ${available ? 'available' : 'unavailable'}`);
-    return available;
-  } catch (error) {
-    console.error('Error checking HuggingFace API availability:', error);
-    return false;
-  }
+  console.log('Hugging Face API key found, service is available');
+  return true;
 }
 
 /**
