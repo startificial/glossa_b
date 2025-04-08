@@ -28,6 +28,7 @@ export interface AnalysisResponse {
   processing_time_seconds: number;
   comparisons_made: number;
   nli_checks_made: number;
+  errors?: string; // Optional field to indicate any errors during processing
 }
 
 /**

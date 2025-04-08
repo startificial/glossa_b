@@ -36,6 +36,7 @@ interface QualityCheckResponse {
   }[];
   totalRequirements: number;
   processing_time: number;
+  errors?: string; // New field to track API errors
 }
 
 export function ContradictionDetector({ projectId }: ContradictionDetectorProps) {
@@ -132,6 +133,17 @@ export function ContradictionDetector({ projectId }: ContradictionDetectorProps)
 
             {qualityCheck && !isFetching && (
               <div className="space-y-4">
+                {qualityCheck.errors && (
+                  <Alert variant="warning" className="bg-yellow-50 text-yellow-800 border-yellow-100">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Warning</AlertTitle>
+                    <AlertDescription>
+                      {qualityCheck.errors}
+                      <p className="text-sm mt-2">Results may be incomplete due to API limitations.</p>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">

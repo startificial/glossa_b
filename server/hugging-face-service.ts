@@ -28,43 +28,91 @@ export async function isHuggingFaceAvailable(): Promise<boolean> {
 }
 
 /**
- * Calculate semantic similarity between two text strings using HuggingFace model
+ * Helper function to make a request to the Hugging Face API with retry logic
  */
-export async function calculateSimilarity(text1: string, text2: string): Promise<number> {
+async function makeHuggingFaceRequest(url: string, body: any, maxRetries = 3, retryDelay = 1000): Promise<any> {
   const apiKey = process.env.HUGGINGFACE_API_KEY;
   
   if (!apiKey) {
     throw new Error('HuggingFace API key not found in environment');
   }
   
-  try {
-    const response = await fetch(
-      `https://api-inference.huggingface.co/models/${SIMILARITY_MODEL}`,
-      {
+  let lastError;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // If this isn't the first attempt, wait before retrying
+      if (attempt > 0) {
+        console.log(`Retrying request (attempt ${attempt + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+      }
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          inputs: {
-            source_sentence: text1,
-            sentences: [text2]
-          }
-        }),
+        body: JSON.stringify(body),
+      });
+      
+      if (!response.ok) {
+        // Check for specific error codes
+        if (response.status === 503) {
+          // Service unavailable - likely model is loading or busy
+          console.log(`Model service unavailable (503), will retry...`);
+          lastError = new Error(`HuggingFace model service unavailable (503)`);
+          continue; // Retry
+        } else if (response.status === 429) {
+          // Too many requests - rate limited
+          console.log(`Rate limited (429), will retry after delay...`);
+          lastError = new Error(`HuggingFace API rate limit reached (429)`);
+          // For rate limiting, use a longer delay
+          await new Promise(resolve => setTimeout(resolve, retryDelay * 3));
+          continue; // Retry
+        } else {
+          // For other errors, just log a clean message without the HTML
+          const errorMessage = `HuggingFace API error: ${response.status}`;
+          console.error(errorMessage);
+          throw new Error(errorMessage);
+        }
       }
-    );
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HuggingFace API error: ${response.status} ${errorText}`);
+      
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+      console.error(`Request attempt ${attempt + 1} failed:`, error);
+      // If it's the last attempt, don't wait, just throw the error outside the loop
+      if (attempt === maxRetries - 1) {
+        break;
+      }
     }
+  }
+  
+  // If we get here, all retries failed
+  throw lastError || new Error('Maximum retries exceeded for HuggingFace API request');
+}
+
+/**
+ * Calculate semantic similarity between two text strings using HuggingFace model
+ */
+export async function calculateSimilarity(text1: string, text2: string): Promise<number> {
+  try {
+    const result = await makeHuggingFaceRequest(
+      `https://api-inference.huggingface.co/models/${SIMILARITY_MODEL}`,
+      {
+        inputs: {
+          source_sentence: text1,
+          sentences: [text2]
+        }
+      }
+    ) as number[];
     
-    const result = await response.json() as number[];
     return result[0]; // The model returns similarity scores between 0 and 1
   } catch (error) {
     console.error('Error calculating similarity:', error);
-    throw error;
+    // Return a default value (0) to allow processing to continue
+    return 0;
   }
 }
 
@@ -73,34 +121,13 @@ export async function calculateSimilarity(text1: string, text2: string): Promise
  * Returns a contradiction score between 0 and 1
  */
 export async function detectContradiction(text1: string, text2: string): Promise<number> {
-  const apiKey = process.env.HUGGINGFACE_API_KEY;
-  
-  if (!apiKey) {
-    throw new Error('HuggingFace API key not found in environment');
-  }
-  
   try {
-    const response = await fetch(
+    const result = await makeHuggingFaceRequest(
       `https://api-inference.huggingface.co/models/${NLI_MODEL}`,
       {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          inputs: `${text1}\n${text2}`,
-        }),
+        inputs: `${text1}\n${text2}`,
       }
-    );
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HuggingFace API error: ${response.status} ${errorText}`);
-    }
-    
-    // The NLI model returns scores for entailment, neutral, and contradiction
-    const result = await response.json() as [
+    ) as [
       { label: 'entailment', score: number },
       { label: 'neutral', score: number },
       { label: 'contradiction', score: number }
@@ -111,7 +138,8 @@ export async function detectContradiction(text1: string, text2: string): Promise
     return contradictionResult ? contradictionResult.score : 0;
   } catch (error) {
     console.error('Error detecting contradiction:', error);
-    throw error;
+    // Return a default value (0) to allow processing to continue
+    return 0;
   }
 }
 
@@ -124,30 +152,54 @@ export async function analyzeContradictionsWithHuggingFace(
   const startTime = Date.now();
   const requirements = input.requirements;
   
+  // Apply default thresholds or use provided overrides
   const similarityThreshold = input.similarity_threshold_override ?? 0.5;
   const nliThreshold = input.nli_threshold_override ?? 0.6;
+  
+  // Limit the number of requirements to avoid timeouts or rate limits
+  const maxRequirements = 30;
+  const actualRequirements = requirements.length > maxRequirements 
+    ? requirements.slice(0, maxRequirements) 
+    : requirements;
+  
+  if (requirements.length > maxRequirements) {
+    console.log(`Limiting analysis to first ${maxRequirements} requirements out of ${requirements.length} total`);
+  }
   
   const contradictions: ContradictionResult[] = [];
   let comparisons = 0;
   let nliChecks = 0;
+  let apiErrors = 0;
   
   // Compare each pair of requirements
-  for (let i = 0; i < requirements.length; i++) {
-    const req1 = requirements[i];
+  for (let i = 0; i < actualRequirements.length; i++) {
+    const req1 = actualRequirements[i];
     
     // Skip very short requirements
-    if (req1.length < 10) continue;
+    if (!req1 || req1.length < 10) continue;
     
-    for (let j = i + 1; j < requirements.length; j++) {
-      const req2 = requirements[j];
+    for (let j = i + 1; j < actualRequirements.length; j++) {
+      const req2 = actualRequirements[j];
       comparisons++;
       
       // Skip very short requirements
-      if (req2.length < 10) continue;
+      if (!req2 || req2.length < 10) continue;
+      
+      // Skip if too many API errors have occurred
+      if (apiErrors > 5) {
+        console.log(`Stopping analysis after encountering ${apiErrors} API errors`);
+        break;
+      }
       
       try {
         // First check similarity
         const similarity = await calculateSimilarity(req1, req2);
+        
+        // If the similarity is 0, it may be due to API error, so skip
+        if (similarity === 0) {
+          apiErrors++;
+          continue;
+        }
         
         // If similar enough, check for contradiction
         if (similarity >= similarityThreshold) {
@@ -166,8 +218,15 @@ export async function analyzeContradictionsWithHuggingFace(
         }
       } catch (error) {
         console.error(`Error analyzing requirements ${i} and ${j}:`, error);
+        apiErrors++;
         // Continue with other comparisons if one fails
       }
+    }
+    
+    // If too many API errors, stop the analysis
+    if (apiErrors > 5) {
+      console.log(`Stopping analysis after encountering ${apiErrors} API errors`);
+      break;
     }
   }
   
@@ -177,6 +236,7 @@ export async function analyzeContradictionsWithHuggingFace(
     contradictions,
     processing_time_seconds: processingTime,
     comparisons_made: comparisons,
-    nli_checks_made: nliChecks
+    nli_checks_made: nliChecks,
+    errors: apiErrors > 0 ? `Encountered ${apiErrors} API errors during analysis` : undefined
   };
 }
