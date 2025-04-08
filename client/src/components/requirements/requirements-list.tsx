@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequirementCard } from "@/components/requirements/requirement-card";
 import { RequirementsFilter } from "@/components/requirements/requirements-filter";
 import { ContradictionDetector } from "@/components/requirements/contradiction-detector";
+import { AddRequirementDialog } from "@/components/requirements/add-requirement-dialog";
 import { Requirement, RequirementsFilter as FilterType } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -132,7 +133,10 @@ export function RequirementsList({ projectId }: RequirementsListProps) {
       
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Requirements List</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Requirements List</h3>
+            <AddRequirementDialog projectId={projectId} />
+          </div>
           
           {isLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
