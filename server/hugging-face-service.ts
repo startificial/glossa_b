@@ -217,8 +217,8 @@ export async function analyzeContradictionsWithHuggingFace(
   const requirements = input.requirements;
   
   // Apply default thresholds or use provided overrides
-  const similarityThreshold = input.similarity_threshold_override ?? 0.5;
-  const nliThreshold = input.nli_threshold_override ?? 0.6;
+  const similarityThreshold = input.similarity_threshold_override ?? 0.6;
+  const nliThreshold = input.nli_threshold_override ?? 0.55;
   
   // Limit the number of requirements to avoid timeouts or rate limits
   const maxRequirements = 30;
@@ -265,18 +265,33 @@ export async function analyzeContradictionsWithHuggingFace(
           continue;
         }
         
-        // If similar enough, check for contradiction
+        // If similar enough, check for contradiction in both directions
         if (similarity >= similarityThreshold) {
-          nliChecks++;
-          const contradictionScore = await detectContradiction(req1, req2);
+          nliChecks += 2; // We're making 2 checks now
           
-          // If contradiction score is high enough, add to results
-          if (contradictionScore >= nliThreshold) {
+          // Check contradiction in both directions (req1->req2 and req2->req1)
+          console.log(`Checking contradiction between requirements ${i} and ${j}`);
+          console.log(`Requirement 1: ${req1.substring(0, 50)}...`);
+          console.log(`Requirement 2: ${req2.substring(0, 50)}...`);
+          
+          const contradictionScore1 = await detectContradiction(req1, req2);
+          const contradictionScore2 = await detectContradiction(req2, req1);
+          
+          // Take the maximum of the two scores
+          const finalContradictionScore = Math.max(contradictionScore1, contradictionScore2);
+          
+          console.log(`Contradiction scores: ${contradictionScore1.toFixed(3)} / ${contradictionScore2.toFixed(3)}`);
+          console.log(`Final contradiction score: ${finalContradictionScore.toFixed(3)}`);
+          
+          // If contradiction score is high enough in either direction, add to results
+          if (finalContradictionScore >= nliThreshold) {
+            console.log(`Found contradiction between requirements ${i} and ${j} with score ${finalContradictionScore.toFixed(3)}`);
+            
             contradictions.push({
               requirement1: { index: i, text: req1 },
               requirement2: { index: j, text: req2 },
               similarity_score: similarity,
-              nli_contradiction_score: contradictionScore
+              nli_contradiction_score: finalContradictionScore
             });
           }
         }

@@ -67,8 +67,8 @@ export function ContradictionDetector({ projectId }: ContradictionDetectorProps)
 
   // Format contradiction severity based on score
   const getSeverityLevel = (score: number) => {
-    if (score >= 0.9) return { label: "High", color: "destructive" };
-    if (score >= 0.7) return { label: "Medium", color: "warning" };
+    if (score >= 0.80) return { label: "High", color: "destructive" };
+    if (score >= 0.65) return { label: "Medium", color: "warning" };
     return { label: "Low", color: "info" };
   };
 
