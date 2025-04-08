@@ -80,7 +80,7 @@ export default function TemplateDesigner() {
   
   // Fetch database schema
   const dbSchemaQuery = useQuery<{tables: Record<string, {columns: Record<string, {type: string}>}>}>({
-    queryKey: ['/api/document-templates/database-schema'],
+    queryKey: ['/api/database-schema'],
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
   
@@ -106,6 +106,16 @@ export default function TemplateDesigner() {
       // Set field mappings - we'd typically fetch these separately in a real app
       // For now, we'll use an empty array as a placeholder
       setFieldMappings([]);
+      
+      // In a real implementation, we would fetch field mappings for this template
+      // const fetchFieldMappings = async () => {
+      //   const response = await fetch(`/api/document-templates/${data.id}/field-mappings`);
+      //   if (response.ok) {
+      //     const fieldMappingsData = await response.json();
+      //     setFieldMappings(fieldMappingsData);
+      //   }
+      // };
+      // fetchFieldMappings();
     }
   }, [templateQuery.data]);
   
@@ -789,11 +799,9 @@ export default function TemplateDesigner() {
                                 <SelectValue placeholder="Select data source" />
                               </SelectTrigger>
                               <SelectContent>
-                                {dbSchemaQuery.data && Object.keys(dbSchemaQuery.data.tables).map((tableName) => (
-                                  <SelectItem key={tableName} value={tableName}>
-                                    {tableName}
-                                  </SelectItem>
-                                ))}
+                                <SelectItem value="projects">Project</SelectItem>
+                                <SelectItem value="customers">Customer</SelectItem>
+                                <SelectItem value="requirements">Requirements</SelectItem>
                               </SelectContent>
                             </Select>
                             <Button
@@ -801,40 +809,19 @@ export default function TemplateDesigner() {
                               size="icon"
                               variant="outline"
                               onClick={() => openColumnSelector(index)}
-                              title="Select database column"
                             >
                               <Database className="h-4 w-4" />
                             </Button>
-                          </div>
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor={`mapping-column-${index}`}>Database Column</Label>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              id={`mapping-column-${index}`}
-                              value={mapping.columnField || ''}
-                              readOnly
-                              placeholder="Select a column..."
-                              onClick={() => openColumnSelector(index)}
-                            />
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    type="button"
-                                    size="icon"
-                                    variant="ghost"
-                                  >
-                                    <Info className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Click on the input field or database icon to select a column</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
+                          <Label htmlFor={`mapping-path-${index}`}>Data Path</Label>
+                          <Input 
+                            id={`mapping-path-${index}`} 
+                            value={mapping.dataPath || ''} 
+                            onChange={(e) => handleUpdateFieldMapping(index, 'dataPath', e.target.value)} 
+                            placeholder="e.g. name, description, etc." 
+                          />
                         </div>
                       </div>
                     )}
@@ -889,71 +876,6 @@ export default function TemplateDesigner() {
           </Card>
         </TabsContent>
       </Tabs>
-      
-      {/* Column Selection Dialog */}
-      <Dialog open={showColumnSelector} onOpenChange={setShowColumnSelector}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Select Database Column</DialogTitle>
-            <DialogDescription>
-              Choose a column from the database to map to this field
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Search className="h-4 w-4 text-gray-500" />
-              <Input
-                placeholder="Search tables and columns..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1"
-              />
-            </div>
-            
-            <div className="max-h-[400px] overflow-y-auto border rounded-md p-2">
-              {dbSchemaQuery.isLoading ? (
-                <div className="py-4 text-center">Loading database schema...</div>
-              ) : dbSchemaQuery.isError ? (
-                <div className="py-4 text-center text-red-500">
-                  Error loading database schema: {dbSchemaQuery.error.message}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {Object.entries(getFilteredTables()).map(([tableName, tableData]) => (
-                    <div key={tableName} className="space-y-2">
-                      <div 
-                        className="font-medium text-sm bg-gray-100 p-2 rounded cursor-pointer hover:bg-gray-200"
-                        onClick={() => handleSelectTable(tableName)}
-                      >
-                        {tableName}
-                      </div>
-                      <div className="pl-4 space-y-1">
-                        {Object.keys(tableData.columns).map((columnName) => (
-                          <div 
-                            key={`${tableName}-${columnName}`}
-                            className="text-sm p-1 pl-2 rounded cursor-pointer hover:bg-gray-100 flex items-center justify-between"
-                            onClick={() => handleSelectColumn(tableName, columnName)}
-                          >
-                            <span>{columnName}</span>
-                            <span className="text-xs text-gray-500">{tableData.columns[columnName]?.type || 'unknown'}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

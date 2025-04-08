@@ -80,7 +80,7 @@ export default function TemplateDesigner() {
   
   // Fetch database schema
   const dbSchemaQuery = useQuery<{tables: Record<string, {columns: Record<string, {type: string}>}>}>({
-    queryKey: ['/api/document-templates/database-schema'],
+    queryKey: ['/api/database-schema'],
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
   

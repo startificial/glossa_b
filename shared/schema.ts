@@ -302,7 +302,8 @@ export const fieldMappings = pgTable("field_mappings", {
   templateId: integer("template_id").references(() => documentTemplates.id).notNull(),
   fieldKey: text("field_key").notNull(), // the key in the template
   dataSource: text("data_source"), // table name or AI prompt type
-  dataPath: text("data_path"), // JSON path or column name
+  dataPath: text("data_path"), // Legacy: JSON path or column name
+  columnField: text("column_field"), // Specific column name from the table
   prompt: text("prompt"), // AI prompt template if AI-generated
   defaultValue: text("default_value"), // default value if data not found
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -317,6 +318,7 @@ export const insertFieldMappingSchema = createInsertSchema(fieldMappings).pick({
   fieldKey: true,
   dataSource: true,
   dataPath: true,
+  columnField: true,
   prompt: true,
   defaultValue: true,
 });

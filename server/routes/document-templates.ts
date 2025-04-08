@@ -270,4 +270,130 @@ router.delete('/:templateId/field-mappings', async (req, res) => {
   }
 });
 
+// Get all database table schemas for field mappings
+router.get('/database-schema', async (req, res) => {
+  try {
+    // Define table metadata with friendly display names and available columns
+    // This is a static schema definition to avoid database relation errors
+    const tableSchema = {
+      users: {
+        displayName: 'Users',
+        description: 'System users information',
+        columns: {
+          id: { type: 'number', description: 'User ID' },
+          username: { type: 'string', description: 'Username' },
+          firstName: { type: 'string', description: 'First Name' },
+          lastName: { type: 'string', description: 'Last Name' },
+          email: { type: 'string', description: 'Email Address' },
+          company: { type: 'string', description: 'Company Name' },
+          role: { type: 'string', description: 'User Role' },
+        }
+      },
+      customers: {
+        displayName: 'Customers',
+        description: 'Customer organizations',
+        columns: {
+          id: { type: 'number', description: 'Customer ID' },
+          name: { type: 'string', description: 'Customer Name' },
+          description: { type: 'string', description: 'Description' },
+          industry: { type: 'string', description: 'Industry' },
+          backgroundInfo: { type: 'string', description: 'Background Information' },
+          website: { type: 'string', description: 'Website URL' },
+          contactEmail: { type: 'string', description: 'Contact Email' },
+          contactPhone: { type: 'string', description: 'Contact Phone' },
+        }
+      },
+      projects: {
+        displayName: 'Projects',
+        description: 'Projects information',
+        columns: {
+          id: { type: 'number', description: 'Project ID' },
+          name: { type: 'string', description: 'Project Name' },
+          description: { type: 'string', description: 'Description' },
+          type: { type: 'string', description: 'Project Type' },
+          customer: { type: 'string', description: 'Customer Name' },
+          sourceSystem: { type: 'string', description: 'Source System' },
+          targetSystem: { type: 'string', description: 'Target System' },
+        }
+      },
+      requirements: {
+        displayName: 'Requirements',
+        description: 'Project requirements',
+        columns: {
+          id: { type: 'number', description: 'Requirement ID' },
+          title: { type: 'string', description: 'Title' },
+          description: { type: 'string', description: 'Description' },
+          category: { type: 'string', description: 'Category' },
+          priority: { type: 'string', description: 'Priority' },
+          codeId: { type: 'string', description: 'Code ID' },
+          source: { type: 'string', description: 'Source' },
+        }
+      },
+      implementationTasks: {
+        displayName: 'Implementation Tasks',
+        description: 'Tasks for implementing requirements',
+        columns: {
+          id: { type: 'number', description: 'Task ID' },
+          title: { type: 'string', description: 'Title' },
+          description: { type: 'string', description: 'Description' },
+          status: { type: 'string', description: 'Status' },
+          priority: { type: 'string', description: 'Priority' },
+          system: { type: 'string', description: 'System' },
+          complexity: { type: 'string', description: 'Complexity' },
+          assignee: { type: 'string', description: 'Assignee' },
+          taskType: { type: 'string', description: 'Task Type' },
+        }
+      },
+      documentTemplates: {
+        displayName: 'Document Templates',
+        description: 'Templates for generating documents',
+        columns: {
+          id: { type: 'number', description: 'Template ID' },
+          name: { type: 'string', description: 'Template Name' },
+          description: { type: 'string', description: 'Description' },
+          category: { type: 'string', description: 'Category' },
+        }
+      },
+      documents: {
+        displayName: 'Documents',
+        description: 'Generated documents',
+        columns: {
+          id: { type: 'number', description: 'Document ID' },
+          name: { type: 'string', description: 'Document Name' },
+          description: { type: 'string', description: 'Description' },
+          status: { type: 'string', description: 'Status' },
+          version: { type: 'number', description: 'Version' },
+        }
+      },
+      activities: {
+        displayName: 'Activities',
+        description: 'User activities',
+        columns: {
+          id: { type: 'number', description: 'Activity ID' },
+          type: { type: 'string', description: 'Activity Type' },
+          description: { type: 'string', description: 'Description' },
+        }
+      },
+      inputData: {
+        displayName: 'Input Data',
+        description: 'Project input files and content',
+        columns: {
+          id: { type: 'number', description: 'Input Data ID' },
+          name: { type: 'string', description: 'Name' },
+          type: { type: 'string', description: 'Type' },
+          contentType: { type: 'string', description: 'Content Type' },
+          size: { type: 'number', description: 'Size (bytes)' },
+          status: { type: 'string', description: 'Status' },
+        }
+      }
+    };
+    
+    // Wrap the tableSchema in a 'tables' object to match the frontend's expected format
+    return res.json({ tables: tableSchema });
+  } catch (error) {
+    console.error('Error fetching database schema:', error);
+    return res.status(500).json({ error: 'Failed to fetch database schema information' });
+  }
+});
+
 export default router;
