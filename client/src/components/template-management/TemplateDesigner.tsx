@@ -195,35 +195,19 @@ export default function TemplateDesigner() {
       console.log("Creating new designer instance with PDF length:", 
         templateCopy.basePdf.length);
       
-      // Make sure we have a properly initialized schemas array
-      if (!templateCopy.schemas || !Array.isArray(templateCopy.schemas) || templateCopy.schemas.length === 0) {
-        templateCopy.schemas = [[]] as any[][];
-      }
+      // Create a properly formatted template object according to pdfme requirements
+      const properTemplate = {
+        basePdf: templateCopy.basePdf,
+        schemas: templateCopy.schemas && Array.isArray(templateCopy.schemas) ? 
+                 templateCopy.schemas : [[]],
+        sampledata: templateCopy.sampledata && Array.isArray(templateCopy.sampledata) ? 
+                    templateCopy.sampledata : [{}]
+      };
       
-      // Make sure we have properly initialized sample data
-      if (!templateCopy.sampledata || !Array.isArray(templateCopy.sampledata)) {
-        templateCopy.sampledata = [{}];
-      }
-      
-      // Create a new instance with better configuration
+      // Create a new instance with minimal configuration to avoid errors
       const newDesigner = new PDFmeUI.Designer({
         domContainer: designerRef.current,
-        template: templateCopy as any,
-        options: { 
-          useVirtualization: true,
-          autoSave: true, // Auto-save changes to make field additions more responsive
-          font: { 
-            default: 'Arial',
-            available: ['Arial', 'Courier', 'Helvetica', 'Times-Roman'] 
-          },
-          grid: true, // Enable grid for easier positioning
-          snapToGrid: true, // Snap items to grid for cleaner layouts
-          theme: {
-            primary: '#3B82F6', // Blue to match our UI
-            text: '#1F2937',
-            background: '#F9FAFB'
-          }
-        }
+        template: properTemplate
       });
       
       // Setup save handler
@@ -673,34 +657,56 @@ export default function TemplateDesigner() {
       return;
     }
     
-    // Read the PDF file as data URL
-    const reader = new FileReader();
-    
-    reader.onload = () => {
-      const basePdf = reader.result;
+    try {
+      // Read the PDF file as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
       
-      // Create a new template with the PDF
-      setTemplate({
-        basePdf,
-        schemas: [[]] as any[][],
-        sampledata: [{}],
+      // Convert to base64 string
+      let binary = '';
+      uint8Array.forEach(byte => {
+        binary += String.fromCharCode(byte);
       });
+      
+      const base64String = window.btoa(binary);
+      const basePdf = `data:application/pdf;base64,${base64String}`;
+      
+      // Create a new template with the PDF according to pdfme structure
+      const newTemplate = {
+        basePdf: basePdf,
+        schemas: [[]] as any[][],
+        sampledata: [{}] as any[],
+      };
+      
+      // Set the template
+      setTemplate(newTemplate);
+      
+      // If we're in editor mode, destroy any existing designer
+      if (designer && designerInitialized) {
+        try {
+          console.log("Cleaning up existing designer before loading new PDF");
+          if (typeof designer.destroy === 'function') {
+            designer.destroy();
+          }
+          setDesigner(null);
+          setDesignerInitialized(false);
+        } catch (e) {
+          console.error("Error cleaning up designer:", e);
+        }
+      }
       
       toast({
         title: 'PDF uploaded',
-        description: 'The PDF has been uploaded successfully.',
+        description: 'The PDF has been uploaded successfully. Switch to the Editor tab to add fields.',
       });
-    };
-    
-    reader.onerror = () => {
+    } catch (error) {
+      console.error('Error processing PDF:', error);
       toast({
         variant: 'destructive',
         title: 'Error uploading PDF',
-        description: 'Failed to read the PDF file. Please try again.',
+        description: 'Failed to process the PDF file. Please try again with a different file.',
       });
-    };
-    
-    reader.readAsDataURL(file);
+    }
   };
   
   if (isEditMode && templateQuery.isLoading) {
