@@ -2421,6 +2421,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Documents routes
   app.use('/api/documents', documentRoutes);
+
+  // Requirement contradiction analysis endpoint
+  app.post('/api/requirements/analyze-contradictions', async (req: Request, res: Response) => {
+    try {
+      // Import the contradiction service
+      const { analyzeContradictions, isContradictionServiceAvailable } = await import('./contradiction-service');
+      const requirementsInput = req.body;
+      
+      if (!requirementsInput.requirements || !Array.isArray(requirementsInput.requirements)) {
+        return res.status(400).json({ message: "Invalid input: requirements must be an array of strings" });
+      }
+      
+      // Get requirements from the request body
+      const requirements = requirementsInput.requirements;
+      
+      // Check if external ML service is available
+      const isServiceAvailable = await isContradictionServiceAvailable();
+      console.log(`Using ${isServiceAvailable ? 'external ML' : 'fallback'} contradiction detection service`);
+      
+      // Analyze contradictions
+      const analysisResult = await analyzeContradictions(requirementsInput);
+      
+      return res.status(200).json(analysisResult);
+    } catch (error: any) {
+      console.error("Error analyzing contradictions:", error);
+      return res.status(500).json({ message: error.message || "Error analyzing contradictions" });
+    }
+  });
+  
+  // Endpoint to check for duplicates and contradictions in a project's requirements
+  app.get('/api/projects/:projectId/requirements/quality-check', async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+      
+      // Get project requirements
+      const projectRequirements = await storage.getRequirementsByProject(projectId);
+      if (!projectRequirements || projectRequirements.length === 0) {
+        return res.status(200).json({ 
+          contradictions: [],
+          duplicates: [],
+          totalRequirements: 0
+        });
+      }
+      
+      // Import the contradiction service
+      const { analyzeContradictions } = await import('./contradiction-service');
+      
+      // Extract requirement descriptions for analysis
+      const requirementTexts = projectRequirements.map(req => req.description);
+      
+      // Analyze contradictions
+      const analysisResult = await analyzeContradictions({
+        requirements: requirementTexts
+      });
+      
+      // Map contradiction results to include requirement IDs
+      const contradictionsWithIds = analysisResult.contradictions.map(contradiction => {
+        return {
+          requirement1: {
+            id: projectRequirements[contradiction.requirement1.index].id,
+            text: contradiction.requirement1.text
+          },
+          requirement2: {
+            id: projectRequirements[contradiction.requirement2.index].id,
+            text: contradiction.requirement2.text
+          },
+          similarity_score: contradiction.similarity_score,
+          nli_contradiction_score: contradiction.nli_contradiction_score
+        };
+      });
+      
+      // Return the results
+      return res.status(200).json({
+        contradictions: contradictionsWithIds,
+        totalRequirements: projectRequirements.length,
+        processing_time: analysisResult.processing_time_seconds
+      });
+    } catch (error: any) {
+      console.error("Error checking requirement quality:", error);
+      return res.status(500).json({ message: error.message || "Error checking requirement quality" });
+    }
+  });
   
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Unhandled error:", err);

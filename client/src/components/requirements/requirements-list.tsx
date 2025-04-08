@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequirementCard } from "@/components/requirements/requirement-card";
 import { RequirementsFilter } from "@/components/requirements/requirements-filter";
+import { ContradictionDetector } from "@/components/requirements/contradiction-detector";
 import { Requirement, RequirementsFilter as FilterType } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -123,6 +124,11 @@ export function RequirementsList({ projectId }: RequirementsListProps) {
   return (
     <div className="space-y-6">
       <RequirementsFilter onFilterChange={handleFilterChange} />
+      
+      {/* Contradiction Detector */}
+      {!isLoading && totalRequirements > 1 && (
+        <ContradictionDetector projectId={projectId} />
+      )}
       
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
