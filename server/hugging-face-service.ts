@@ -152,9 +152,24 @@ export async function calculateSimilarity(text1: string, text2: string): Promise
 /**
  * Perform natural language inference (NLI) to detect contradictions
  * Returns a contradiction score between 0 and 1
+ * 
+ * This function now uses a custom HuggingFace inference endpoint for more reliability
  */
 export async function detectContradiction(text1: string, text2: string): Promise<number> {
   try {
+    // First check if we should use the custom endpoint
+    if (process.env.HF_ENDPOINT_API_KEY) {
+      // Import the custom endpoint service dynamically to avoid circular imports
+      const { detectContradictionWithEndpoint } = await import('./custom-inference-endpoint');
+      
+      // Use the custom endpoint for more reliable results
+      console.log('Using custom inference endpoint for contradiction detection');
+      return await detectContradictionWithEndpoint(text1, text2);
+    }
+    
+    // Fall back to standard HuggingFace API if no custom endpoint is configured
+    console.log('Using standard HuggingFace API for contradiction detection');
+    
     // For DeBERTa-v3 the expected format is {"inputs": "premise\nhypothesis"}
     const result = await makeHuggingFaceRequest(
       `https://api-inference.huggingface.co/models/${NLI_MODEL}`,

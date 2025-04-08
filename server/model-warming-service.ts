@@ -3,14 +3,16 @@
  * 
  * This service helps "warm up" HuggingFace models by sending initial requests
  * that will load the models into memory, reducing 503 errors during actual use.
+ * 
+ * It also checks the availability of the custom inference endpoint.
  */
 
 import fetch from 'node-fetch';
+import { log } from './vite';
 
 // Models that need warming
 const MODELS_TO_WARM = [
   'sentence-transformers/all-mpnet-base-v2', // Similarity model
-  'MoritzLaurer/DeBERTa-v3-base-mnli'        // NLI model
 ];
 
 /**
@@ -119,19 +121,56 @@ export async function warmModel(
 }
 
 /**
+ * Check if the custom inference endpoint is available
+ * @returns Promise<boolean> True if the endpoint is available and responsive
+ */
+export async function checkCustomEndpoint(): Promise<boolean> {
+  if (!process.env.HF_ENDPOINT_API_KEY) {
+    log('Custom endpoint API key not found, skipping check', 'models');
+    return false;
+  }
+
+  try {
+    // Import the endpoint service
+    const { isEndpointAvailable } = await import('./custom-inference-endpoint');
+    
+    // Check if the endpoint is available
+    const available = await isEndpointAvailable();
+    
+    if (available) {
+      log('✅ Custom inference endpoint is available and will be used for contradiction detection', 'models');
+    } else {
+      log('⚠️ Custom inference endpoint is not available, will fall back to standard API', 'models');
+    }
+    
+    return available;
+  } catch (error) {
+    log(`Error checking custom endpoint: ${error}`, 'error');
+    return false;
+  }
+}
+
+/**
  * Warm all models in parallel
  * @returns Promise resolving when all warming attempts are complete
  */
 export async function warmAllModels(): Promise<void> {
-  console.log(`Starting warm-up for ${MODELS_TO_WARM.length} HuggingFace models...`);
+  log(`Starting warm-up for ${MODELS_TO_WARM.length} HuggingFace models...`, 'models');
+  
+  // First check if we have a custom endpoint available
+  const customEndpointAvailable = await checkCustomEndpoint();
+  
+  // If we're using the custom endpoint for contradiction detection,
+  // we only need to warm up the similarity model
+  const modelsToWarm = MODELS_TO_WARM;
   
   // Warm models in parallel
   const results = await Promise.all(
-    MODELS_TO_WARM.map(model => warmModel(model))
+    modelsToWarm.map(model => warmModel(model))
   );
   
   const successCount = results.filter(Boolean).length;
-  console.log(`Model warming complete. ${successCount}/${MODELS_TO_WARM.length} models successfully warmed up.`);
+  log(`Model warming complete. ${successCount}/${modelsToWarm.length} models successfully warmed up.`, 'models');
 }
 
 /**
