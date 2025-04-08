@@ -306,6 +306,9 @@ export const fieldMappings = pgTable("field_mappings", {
   columnField: text("column_field"), // Specific column name from the table
   prompt: text("prompt"), // AI prompt template if AI-generated
   defaultValue: text("default_value"), // default value if data not found
+  selectionMode: text("selection_mode").default("single"), // single, all, or custom - how to handle multiple records
+  recordId: text("record_id"), // ID of specific record if selectionMode is single
+  selectionFilter: text("selection_filter"), // Filter expression if selectionMode is custom
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -321,6 +324,9 @@ export const insertFieldMappingSchema = createInsertSchema(fieldMappings).pick({
   columnField: true,
   prompt: true,
   defaultValue: true,
+  selectionMode: true,
+  recordId: true,
+  selectionFilter: true,
 });
 
 export type DocumentTemplate = typeof documentTemplates.$inferSelect;

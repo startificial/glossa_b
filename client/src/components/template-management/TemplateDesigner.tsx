@@ -109,8 +109,13 @@ export default function TemplateDesigner() {
     }
   }, [templateQuery.data]);
   
-  // Initialize designer when component mounts or when template.basePdf changes
+  // Initialize designer when component mounts, when template.basePdf changes, or when activeTab is 'editor'
   useEffect(() => {
+    // Only initialize designer when on 'editor' tab
+    if (activeTab !== 'editor') {
+      return;
+    }
+    
     // Clean up old designer instance if it exists
     if (designer) {
       console.log("Destroying old designer instance");
@@ -157,7 +162,7 @@ export default function TemplateDesigner() {
         designer.destroy();
       }
     };
-  }, [designerRef, template.basePdf]);
+  }, [designerRef, template.basePdf, activeTab]);
   
   // Create template mutation
   const createTemplateMutation = useMutation({
@@ -337,6 +342,10 @@ export default function TemplateDesigner() {
       dataSource: 'projects',
       dataPath: '',
       defaultValue: '',
+      // Add selection mode for handling multiple records
+      selectionMode: 'single', // 'single', 'all', or 'custom'
+      selectionFilter: '',    // Filter criteria for custom selection
+      recordId: null,         // For single record selection
     };
     
     setFieldMappings([...fieldMappings, newMapping as FieldMapping]);
@@ -836,6 +845,53 @@ export default function TemplateDesigner() {
                             </TooltipProvider>
                           </div>
                         </div>
+                      </div>
+                    )}
+                    
+                    {/* Data selection mode UI for handling multiple records */}
+                    {mapping.type === 'database' && (
+                      <div className="space-y-4 mt-4 border-t pt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={`mapping-selection-mode-${index}`}>Record Selection Mode</Label>
+                          <Select 
+                            value={mapping.selectionMode || 'single'} 
+                            onValueChange={(value) => handleUpdateFieldMapping(index, 'selectionMode', value)}
+                          >
+                            <SelectTrigger id={`mapping-selection-mode-${index}`}>
+                              <SelectValue placeholder="Select how records are selected" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="single">Single Record</SelectItem>
+                              <SelectItem value="all">All Records</SelectItem>
+                              <SelectItem value="custom">Custom Filter</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {mapping.selectionMode === 'single' && (
+                          <div className="space-y-2">
+                            <Label htmlFor={`mapping-record-id-${index}`}>Record ID</Label>
+                            <Input 
+                              id={`mapping-record-id-${index}`} 
+                              value={mapping.recordId || ''} 
+                              onChange={(e) => handleUpdateFieldMapping(index, 'recordId', e.target.value)} 
+                              placeholder="Enter ID of specific record to use" 
+                            />
+                          </div>
+                        )}
+                        
+                        {mapping.selectionMode === 'custom' && (
+                          <div className="space-y-2">
+                            <Label htmlFor={`mapping-filter-${index}`}>Filter Expression</Label>
+                            <Textarea 
+                              id={`mapping-filter-${index}`} 
+                              value={mapping.selectionFilter || ''} 
+                              onChange={(e) => handleUpdateFieldMapping(index, 'selectionFilter', e.target.value)} 
+                              placeholder="Enter filter criteria, e.g. status = 'active'" 
+                              rows={2}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                     

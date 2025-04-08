@@ -92,16 +92,126 @@ router.post('/generate-data/:templateId', async (req, res) => {
     
     for (const mapping of template.fieldMappings || []) {
       if (mapping.type === 'database') {
-        // Handle database mappings
+        // Handle database mappings according to selection mode
+        const selectionMode = mapping.selectionMode || 'single';
+        
         if (mapping.dataSource === 'projects') {
-          generatedData[mapping.fieldKey] = getNestedProperty(project, mapping.dataPath || '') || mapping.defaultValue || '';
+          if (selectionMode === 'single') {
+            // Single record mode - use the specific project if recordId matches, otherwise use the current project
+            if (mapping.recordId && mapping.recordId !== projectId.toString()) {
+              // Try to fetch the specific project by ID
+              try {
+                const specificProject = await db.query.projects.findFirst({
+                  where: eq(schema.projects.id, parseInt(mapping.recordId))
+                });
+                
+                if (specificProject) {
+                  generatedData[mapping.fieldKey] = getNestedProperty(specificProject, mapping.columnField || '') || mapping.defaultValue || '';
+                } else {
+                  generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+                }
+              } catch (error) {
+                console.error('Error fetching specific project:', error);
+                generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+              }
+            } else {
+              // Use the current project
+              generatedData[mapping.fieldKey] = getNestedProperty(project, mapping.columnField || '') || mapping.defaultValue || '';
+            }
+          } else if (selectionMode === 'all') {
+            // All records mode - for projects, this doesn't make much sense but we can list all project names
+            try {
+              const allProjects = await db.query.projects.findMany({
+                where: project.customer ? eq(schema.projects.customerId, project.customer.id) : undefined,
+              });
+              
+              const values = allProjects.map(p => getNestedProperty(p, mapping.columnField || ''));
+              generatedData[mapping.fieldKey] = values.filter(Boolean).join(', ') || mapping.defaultValue || '';
+            } catch (error) {
+              console.error('Error fetching all projects:', error);
+              generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+            }
+          } else if (selectionMode === 'custom' && mapping.selectionFilter) {
+            // Custom filter mode - not fully implemented yet, just use current project
+            // In a full implementation, we would parse the filter expression and query accordingly
+            generatedData[mapping.fieldKey] = getNestedProperty(project, mapping.columnField || '') || mapping.defaultValue || '';
+          } else {
+            generatedData[mapping.fieldKey] = getNestedProperty(project, mapping.columnField || '') || mapping.defaultValue || '';
+          }
         } 
         else if (mapping.dataSource === 'customers' && project.customer) {
-          generatedData[mapping.fieldKey] = getNestedProperty(project.customer, mapping.dataPath || '') || mapping.defaultValue || '';
+          if (selectionMode === 'single') {
+            // Single record mode - use the specific customer if recordId matches, otherwise use the current customer
+            if (mapping.recordId && mapping.recordId !== project.customer.id.toString()) {
+              // Try to fetch the specific customer by ID
+              try {
+                const specificCustomer = await db.query.customers.findFirst({
+                  where: eq(schema.customers.id, parseInt(mapping.recordId))
+                });
+                
+                if (specificCustomer) {
+                  generatedData[mapping.fieldKey] = getNestedProperty(specificCustomer, mapping.columnField || '') || mapping.defaultValue || '';
+                } else {
+                  generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+                }
+              } catch (error) {
+                console.error('Error fetching specific customer:', error);
+                generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+              }
+            } else {
+              // Use the current customer
+              generatedData[mapping.fieldKey] = getNestedProperty(project.customer, mapping.columnField || '') || mapping.defaultValue || '';
+            }
+          } else if (selectionMode === 'all') {
+            // All records mode - list all customers
+            try {
+              const allCustomers = await db.query.customers.findMany();
+              const values = allCustomers.map(c => getNestedProperty(c, mapping.columnField || ''));
+              generatedData[mapping.fieldKey] = values.filter(Boolean).join(', ') || mapping.defaultValue || '';
+            } catch (error) {
+              console.error('Error fetching all customers:', error);
+              generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+            }
+          } else if (selectionMode === 'custom' && mapping.selectionFilter) {
+            // Custom filter mode - not fully implemented yet
+            generatedData[mapping.fieldKey] = getNestedProperty(project.customer, mapping.columnField || '') || mapping.defaultValue || '';
+          } else {
+            generatedData[mapping.fieldKey] = getNestedProperty(project.customer, mapping.columnField || '') || mapping.defaultValue || '';
+          }
         }
         else if (mapping.dataSource === 'requirements') {
-          // For simplicity, we'll just count requirements for now
-          generatedData[mapping.fieldKey] = `${project.requirements?.length || 0} requirements` || mapping.defaultValue || '';
+          if (selectionMode === 'single' && mapping.recordId) {
+            // Single record mode - use the specific requirement if recordId matches
+            try {
+              const specificRequirement = await db.query.requirements.findFirst({
+                where: eq(schema.requirements.id, parseInt(mapping.recordId))
+              });
+              
+              if (specificRequirement) {
+                generatedData[mapping.fieldKey] = getNestedProperty(specificRequirement, mapping.columnField || '') || mapping.defaultValue || '';
+              } else {
+                generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+              }
+            } catch (error) {
+              console.error('Error fetching specific requirement:', error);
+              generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+            }
+          } else if (selectionMode === 'all') {
+            // All records mode - join all requirements based on the column field
+            if (project.requirements && project.requirements.length > 0) {
+              const values = project.requirements.map(r => getNestedProperty(r, mapping.columnField || ''));
+              generatedData[mapping.fieldKey] = values.filter(Boolean).join(', ') || mapping.defaultValue || '';
+            } else {
+              generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+            }
+          } else if (selectionMode === 'custom' && mapping.selectionFilter) {
+            // Custom filter mode - not fully implemented yet
+            // For requirements, we'll just count them for now
+            generatedData[mapping.fieldKey] = `${project.requirements?.length || 0} requirements` || mapping.defaultValue || '';
+          } else {
+            // Default behavior - count requirements
+            generatedData[mapping.fieldKey] = `${project.requirements?.length || 0} requirements` || mapping.defaultValue || '';
+          }
         }
         else {
           generatedData[mapping.fieldKey] = mapping.defaultValue || '';
