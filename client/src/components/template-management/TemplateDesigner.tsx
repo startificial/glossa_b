@@ -109,6 +109,38 @@ export default function TemplateDesigner() {
     }
   }, [templateQuery.data]);
   
+  // Function to safely destroy the designer instance
+  const safelyDestroyDesigner = useCallback(() => {
+    if (designer) {
+      try {
+        // Try to get the template before destroying the designer
+        if (typeof designer.getTemplate === 'function') {
+          try {
+            const currentTemplate = designer.getTemplate();
+            if (currentTemplate) {
+              // Create a deep copy to avoid reference issues
+              const templateCopy = JSON.parse(JSON.stringify(currentTemplate));
+              setTemplate(templateCopy as Template);
+              console.log("Template saved before destroying designer");
+            }
+          } catch (error) {
+            console.error("Error saving template state on cleanup:", error);
+          }
+        }
+        
+        // Then destroy the designer
+        try {
+          designer.destroy();
+          console.log("Designer destroyed successfully");
+        } catch (error) {
+          console.error("Error destroying designer:", error);
+        }
+      } catch (error) {
+        console.error("Error in safelyDestroyDesigner:", error);
+      }
+    }
+  }, [designer, setTemplate]);
+
   // Initialize or reinitialize the designer when the active tab changes to editor or PDF changes
   useEffect(() => {
     // Only handle designer initialization/reinitialization if we are on the editor tab
@@ -125,40 +157,27 @@ export default function TemplateDesigner() {
 
     console.log("Initializing PDF designer with basePdf");
     
-    // Save the current template state if designer exists
-    let savedTemplateState: Template | null = null;
-    
-    // Clean up any existing designer instance before creating a new one
-    if (designer) {
-      try {
-        // Try to save the template state before destroying
-        if (typeof designer.getTemplate === 'function') {
-          const currentTemplate = designer.getTemplate();
-          if (currentTemplate) {
-            // Create a deep copy to avoid reference issues
-            savedTemplateState = JSON.parse(JSON.stringify(currentTemplate));
-            console.log("Saved template state before reinitializing designer");
-          }
-        }
-        
-        // Destroy the existing designer
-        console.log("Destroying existing designer instance");
-        designer.destroy();
-      } catch (error) {
-        console.error("Error cleaning up existing designer:", error);
-      }
-    }
-    
     // Create a new designer instance
     const initializeDesigner = async () => {
+      // Safely destroy any existing designer first
+      if (designer) {
+        try {
+          console.log("Destroying existing designer before creating new one");
+          safelyDestroyDesigner();
+        } catch (error) {
+          console.error("Error destroying existing designer:", error);
+        }
+      }
+
       try {
+        // Small delay to ensure prior instance is fully cleaned up
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Import the Designer component
         const { Designer } = await import('@pdfme/ui');
         
-        // Use saved state if available, otherwise use current template
-        // Then create a deep copy to avoid reference issues
-        const templateToUse = savedTemplateState || template;
-        const templateCopy = JSON.parse(JSON.stringify(templateToUse));
+        // Create a deep copy of the template to avoid reference issues
+        const templateCopy = JSON.parse(JSON.stringify(template));
         
         console.log("Creating new designer with template", 
           templateCopy ? `(basePdf length: ${templateCopy.basePdf.length})` : 'no template');
@@ -176,8 +195,12 @@ export default function TemplateDesigner() {
         // Set up the onSaveTemplate callback to update our state
         designerInstance.onSaveTemplate((updatedTemplate: any) => {
           console.log("Template saved from designer automatically");
-          const templateCopy = JSON.parse(JSON.stringify(updatedTemplate));
-          setTemplate(templateCopy as Template);
+          try {
+            const templateCopy = JSON.parse(JSON.stringify(updatedTemplate));
+            setTemplate(templateCopy as Template);
+          } catch (error) {
+            console.error("Error saving template:", error);
+          }
         });
         
         // Update our designer state
@@ -198,28 +221,9 @@ export default function TemplateDesigner() {
     
     // Cleanup function to run when the component unmounts or dependencies change
     return () => {
-      if (designer) {
-        try {
-          // Try to get the template before destroying the designer
-          if (typeof designer.getTemplate === 'function') {
-            const currentTemplate = designer.getTemplate();
-            if (currentTemplate) {
-              // Create a deep copy to avoid reference issues
-              const templateCopy = JSON.parse(JSON.stringify(currentTemplate));
-              setTemplate(templateCopy as Template);
-              console.log("Template saved during cleanup");
-            }
-          }
-          
-          // Then destroy the designer
-          designer.destroy();
-          console.log("Designer destroyed during cleanup");
-        } catch (error) {
-          console.error("Error destroying designer:", error);
-        }
-      }
+      safelyDestroyDesigner();
     };
-  }, [activeTab, template.basePdf, designerRef.current]);
+  }, [activeTab, template.basePdf, designer, safelyDestroyDesigner]);
   
   // Create template mutation
   const createTemplateMutation = useMutation({
@@ -695,10 +699,13 @@ export default function TemplateDesigner() {
                     savedTemplate = JSON.parse(JSON.stringify(currentTemplate));
                     
                     // Log details for debugging
-                    console.log(`Template data being saved: ${Object.keys(savedTemplate).join(', ')}`);
-                    console.log(`PDF length: ${
-                      savedTemplate.basePdf ? (savedTemplate.basePdf as string).length : 0
-                    }`);
+                    if (savedTemplate && typeof savedTemplate === 'object') {
+                      const templateKeys = Object.keys(savedTemplate);
+                      console.log(`Template data being saved: ${templateKeys.join(', ')}`);
+                      console.log(`PDF length: ${
+                        savedTemplate && savedTemplate.basePdf ? (savedTemplate.basePdf as string).length : 0
+                      }`);
+                    }
                     
                     // Update the template state right away
                     setTemplate(savedTemplate as Template);
