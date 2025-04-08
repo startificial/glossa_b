@@ -129,9 +129,12 @@ export default function TemplateDesigner() {
       
       import('@pdfme/ui').then(({ Designer }) => {
         try {
+          // Create a deep copy of the template to avoid reference issues
+          const templateCopy = JSON.parse(JSON.stringify(template));
+          
           const designerInstance = new Designer({
             domContainer: designerRef.current!,
-            template: template as any, // Cast to any to avoid type issues with pdfme
+            template: templateCopy as any, // Cast to any to avoid type issues with pdfme
             options: {
               useVirtualization: true,
               autoSave: true,
@@ -159,7 +162,29 @@ export default function TemplateDesigner() {
     // Cleanup
     return () => {
       if (designer) {
-        designer.destroy();
+        // Save the current state before destroying the designer
+        try {
+          // Check if designer is still valid
+          if (typeof designer.getTemplate === 'function') {
+            const currentTemplate = designer.getTemplate();
+            if (currentTemplate) {
+              setTemplate(currentTemplate as Template);
+              console.log("Template state saved before designer cleanup");
+            }
+            // Safely destroy the designer
+            designer.destroy();
+          }
+        } catch (error) {
+          console.error("Error saving template state on cleanup:", error);
+          // Even if getting template fails, try to destroy the designer
+          try {
+            if (typeof designer.destroy === 'function') {
+              designer.destroy();
+            }
+          } catch (destroyError) {
+            console.error("Error destroying designer:", destroyError);
+          }
+        }
       }
     };
   }, [designerRef, template.basePdf, activeTab]);
@@ -279,18 +304,25 @@ export default function TemplateDesigner() {
     let currentTemplate = template;
     let schemaData = {};
     
-    if (designer) {
+    if (designer && activeTab === 'editor') {
       try {
-        // If designer is initialized, get template from it
-        currentTemplate = designer.getTemplate();
-        schemaData = extractSchemaFromTemplate(currentTemplate);
+        // If designer is initialized and we're on the editor tab, get template from it
+        if (typeof designer.getTemplate === 'function') {
+          currentTemplate = designer.getTemplate();
+          schemaData = extractSchemaFromTemplate(currentTemplate);
+        } else {
+          // If getTemplate is not available, fall back to state template
+          schemaData = extractSchemaFromTemplate(template);
+        }
       } catch (error: any) {
         console.error("Error getting template from designer:", error);
         // Fall back to state template
-        schemaData = {};
+        schemaData = extractSchemaFromTemplate(template);
       }
     } else {
-      console.log("Designer not initialized, using state template");
+      console.log("Designer not active or initialized, using state template");
+      // Make sure to extract schema from the state template
+      schemaData = extractSchemaFromTemplate(template);
     }
     
     // Prepare data for submission
@@ -611,7 +643,26 @@ export default function TemplateDesigner() {
       <Tabs 
         defaultValue="editor" 
         value={activeTab} 
-        onValueChange={setActiveTab}
+        onValueChange={(value) => {
+          // If we're leaving the editor tab, save the current template state
+          if (activeTab === 'editor' && designer) {
+            try {
+              // Check if designer is valid before trying to get the template
+              if (typeof designer.getTemplate === 'function') {
+                // Save the current state of the template before switching tabs
+                const currentTemplate = designer.getTemplate();
+                if (currentTemplate) {
+                  setTemplate(currentTemplate as Template);
+                  console.log("Template state saved when leaving editor tab");
+                }
+              }
+            } catch (error) {
+              console.error("Error saving template state on tab switch:", error);
+              // Don't throw here, just continue with the tab switch
+            }
+          }
+          setActiveTab(value);
+        }}
         className="w-full"
       >
         <TabsList className="grid grid-cols-3 w-[400px]">
