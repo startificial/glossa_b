@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -113,38 +113,58 @@ export default function TemplateDesigner() {
   useEffect(() => {
     // Only handle designer initialization/reinitialization if we are on the editor tab
     if (activeTab !== 'editor') {
+      console.log("Not on editor tab, skipping designer initialization");
       return;
     }
     
     // Don't initialize if no PDF is available
     if (!template.basePdf || !designerRef.current) {
+      console.log("No PDF or container available, skipping designer initialization");
       return;
     }
 
     console.log("Initializing PDF designer with basePdf");
-    let designerInstance: any = null;
     
-    // We'll use an async function to handle the designer initialization
-    const initializeDesigner = async () => {
+    // Save the current template state if designer exists
+    let savedTemplateState: Template | null = null;
+    
+    // Clean up any existing designer instance before creating a new one
+    if (designer) {
       try {
-        // Clean up any existing designer instance
-        if (designer) {
-          try {
-            console.log("Cleaning up existing designer instance");
-            designer.destroy();
-          } catch (error) {
-            console.error("Error destroying existing designer:", error);
+        // Try to save the template state before destroying
+        if (typeof designer.getTemplate === 'function') {
+          const currentTemplate = designer.getTemplate();
+          if (currentTemplate) {
+            // Create a deep copy to avoid reference issues
+            savedTemplateState = JSON.parse(JSON.stringify(currentTemplate));
+            console.log("Saved template state before reinitializing designer");
           }
         }
         
+        // Destroy the existing designer
+        console.log("Destroying existing designer instance");
+        designer.destroy();
+      } catch (error) {
+        console.error("Error cleaning up existing designer:", error);
+      }
+    }
+    
+    // Create a new designer instance
+    const initializeDesigner = async () => {
+      try {
         // Import the Designer component
         const { Designer } = await import('@pdfme/ui');
         
-        // Create a deep copy of the template to avoid reference issues
-        const templateCopy = JSON.parse(JSON.stringify(template));
+        // Use saved state if available, otherwise use current template
+        // Then create a deep copy to avoid reference issues
+        const templateToUse = savedTemplateState || template;
+        const templateCopy = JSON.parse(JSON.stringify(templateToUse));
+        
+        console.log("Creating new designer with template", 
+          templateCopy ? `(basePdf length: ${templateCopy.basePdf.length})` : 'no template');
         
         // Create a new designer instance
-        designerInstance = new Designer({
+        const designerInstance = new Designer({
           domContainer: designerRef.current!,
           template: templateCopy as any, // Cast to any to avoid type issues with pdfme
           options: {
@@ -156,7 +176,6 @@ export default function TemplateDesigner() {
         // Set up the onSaveTemplate callback to update our state
         designerInstance.onSaveTemplate((updatedTemplate: any) => {
           console.log("Template saved from designer automatically");
-          // Create deep copy to avoid reference issues
           const templateCopy = JSON.parse(JSON.stringify(updatedTemplate));
           setTemplate(templateCopy as Template);
         });
@@ -182,29 +201,25 @@ export default function TemplateDesigner() {
       if (designer) {
         try {
           // Try to get the template before destroying the designer
-          try {
-            if (typeof designer.getTemplate === 'function') {
-              const currentTemplate = designer.getTemplate();
-              if (currentTemplate) {
-                // Create a deep copy of the template to avoid reference issues
-                const templateCopy = JSON.parse(JSON.stringify(currentTemplate));
-                setTemplate(templateCopy as Template);
-                console.log("Template saved during cleanup");
-              }
+          if (typeof designer.getTemplate === 'function') {
+            const currentTemplate = designer.getTemplate();
+            if (currentTemplate) {
+              // Create a deep copy to avoid reference issues
+              const templateCopy = JSON.parse(JSON.stringify(currentTemplate));
+              setTemplate(templateCopy as Template);
+              console.log("Template saved during cleanup");
             }
-          } catch (error) {
-            console.error("Error getting template during cleanup:", error);
           }
           
           // Then destroy the designer
           designer.destroy();
           console.log("Designer destroyed during cleanup");
         } catch (error) {
-          console.error("Error destroying designer during cleanup:", error);
+          console.error("Error destroying designer:", error);
         }
       }
     };
-  }, [activeTab, template.basePdf]);
+  }, [activeTab, template.basePdf, designerRef.current]);
   
   // Create template mutation
   const createTemplateMutation = useMutation({
@@ -661,30 +676,48 @@ export default function TemplateDesigner() {
         defaultValue="editor" 
         value={activeTab} 
         onValueChange={(value) => {
-          // If we're leaving the editor tab, save the current template state
+          console.log(`Tab switching from ${activeTab} to ${value}`);
+          
+          // Create a variable to hold the new template state if we save it
+          let savedTemplate: Template | null = null;
+          
+          // Only try to save if we're leaving the editor tab
           if (activeTab === 'editor' && designer) {
             try {
-              // Check if designer is valid before trying to get the template
+              console.log("Saving template state during tab switch");
+              
+              // Get the current template if possible
               if (typeof designer.getTemplate === 'function') {
-                // Save the current state of the template before switching tabs
-                const currentTemplate = designer.getTemplate();
-                if (currentTemplate) {
-                  // Store the current template state using a deep copy to avoid reference issues
-                  const templateCopy = JSON.parse(JSON.stringify(currentTemplate));
-                  setTemplate(templateCopy as Template);
-                  console.log("Template state saved when leaving editor tab");
+                try {
+                  const currentTemplate = designer.getTemplate();
+                  if (currentTemplate) {
+                    // Create a deep copy and save it
+                    savedTemplate = JSON.parse(JSON.stringify(currentTemplate));
+                    
+                    // Log details for debugging
+                    console.log(`Template data being saved: ${Object.keys(savedTemplate).join(', ')}`);
+                    console.log(`PDF length: ${
+                      savedTemplate.basePdf ? (savedTemplate.basePdf as string).length : 0
+                    }`);
+                    
+                    // Update the template state right away
+                    setTemplate(savedTemplate as Template);
+                    console.log("✓ Template state saved when switching tabs");
+                  } else {
+                    console.warn("Designer returned null template");
+                  }
+                } catch (getTemplateError) {
+                  console.error("Error getting template during tab switch:", getTemplateError);
                 }
+              } else {
+                console.warn("Designer.getTemplate is not a function");
               }
             } catch (error) {
-              console.error("Error saving template state on tab switch:", error);
-              // Don't throw here, just continue with the tab switch
+              console.error("General error during tab switch template saving:", error);
             }
           }
           
-          // If we're switching back to the editor tab and there's already a template with PDF,
-          // the useEffect hook will handle reinitializing the designer
-          
-          // Update the active tab
+          // Update active tab (this needs to happen regardless of whether template saving succeeded)
           setActiveTab(value);
         }}
         className="w-full"
