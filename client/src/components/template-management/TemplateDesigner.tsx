@@ -109,85 +109,102 @@ export default function TemplateDesigner() {
     }
   }, [templateQuery.data]);
   
-  // Initialize designer when component mounts, when template.basePdf changes, or when activeTab is 'editor'
+  // Initialize or reinitialize the designer when the active tab changes to editor or PDF changes
   useEffect(() => {
-    // Only initialize designer when on 'editor' tab
+    // Only handle designer initialization/reinitialization if we are on the editor tab
     if (activeTab !== 'editor') {
       return;
     }
     
-    // Clean up old designer instance if it exists
-    if (designer) {
-      console.log("Destroying old designer instance");
-      designer.destroy();
-      setDesigner(null);
+    // Don't initialize if no PDF is available
+    if (!template.basePdf || !designerRef.current) {
+      return;
     }
+
+    console.log("Initializing PDF designer with basePdf");
+    let designerInstance: any = null;
     
-    // Only initialize the designer if we have a PDF and the container is available
-    if (designerRef.current && template.basePdf) {
-      console.log("Initializing PDF designer with basePdf");
-      
-      import('@pdfme/ui').then(({ Designer }) => {
-        try {
-          // Create a deep copy of the template to avoid reference issues
-          const templateCopy = JSON.parse(JSON.stringify(template));
-          
-          const designerInstance = new Designer({
-            domContainer: designerRef.current!,
-            template: templateCopy as any, // Cast to any to avoid type issues with pdfme
-            options: {
-              useVirtualization: true,
-              autoSave: true,
-            },
-          });
-          
-          designerInstance.onSaveTemplate(updatedTemplate => {
-            console.log("Template saved from designer");
-            setTemplate(updatedTemplate as Template);
-          });
-          
-          setDesigner(designerInstance);
-          console.log("Designer initialized successfully");
-        } catch (error: any) {
-          console.error("Error initializing designer:", error);
-          toast({
-            variant: 'destructive',
-            title: 'Error initializing designer',
-            description: 'There was a problem setting up the template designer. Please try again.',
-          });
+    // We'll use an async function to handle the designer initialization
+    const initializeDesigner = async () => {
+      try {
+        // Clean up any existing designer instance
+        if (designer) {
+          try {
+            console.log("Cleaning up existing designer instance");
+            designer.destroy();
+          } catch (error) {
+            console.error("Error destroying existing designer:", error);
+          }
         }
-      });
-    }
+        
+        // Import the Designer component
+        const { Designer } = await import('@pdfme/ui');
+        
+        // Create a deep copy of the template to avoid reference issues
+        const templateCopy = JSON.parse(JSON.stringify(template));
+        
+        // Create a new designer instance
+        designerInstance = new Designer({
+          domContainer: designerRef.current!,
+          template: templateCopy as any, // Cast to any to avoid type issues with pdfme
+          options: {
+            useVirtualization: true,
+            autoSave: true,
+          },
+        });
+        
+        // Set up the onSaveTemplate callback to update our state
+        designerInstance.onSaveTemplate((updatedTemplate: any) => {
+          console.log("Template saved from designer automatically");
+          // Create deep copy to avoid reference issues
+          const templateCopy = JSON.parse(JSON.stringify(updatedTemplate));
+          setTemplate(templateCopy as Template);
+        });
+        
+        // Update our designer state
+        setDesigner(designerInstance);
+        console.log("Designer initialized successfully");
+      } catch (error) {
+        console.error("Error initializing designer:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Error initializing designer',
+          description: 'There was a problem setting up the template designer. Please try again.',
+        });
+      }
+    };
     
-    // Cleanup
+    // Initialize the designer
+    initializeDesigner();
+    
+    // Cleanup function to run when the component unmounts or dependencies change
     return () => {
       if (designer) {
-        // Save the current state before destroying the designer
         try {
-          // Check if designer is still valid
-          if (typeof designer.getTemplate === 'function') {
-            const currentTemplate = designer.getTemplate();
-            if (currentTemplate) {
-              setTemplate(currentTemplate as Template);
-              console.log("Template state saved before designer cleanup");
-            }
-            // Safely destroy the designer
-            designer.destroy();
-          }
-        } catch (error) {
-          console.error("Error saving template state on cleanup:", error);
-          // Even if getting template fails, try to destroy the designer
+          // Try to get the template before destroying the designer
           try {
-            if (typeof designer.destroy === 'function') {
-              designer.destroy();
+            if (typeof designer.getTemplate === 'function') {
+              const currentTemplate = designer.getTemplate();
+              if (currentTemplate) {
+                // Create a deep copy of the template to avoid reference issues
+                const templateCopy = JSON.parse(JSON.stringify(currentTemplate));
+                setTemplate(templateCopy as Template);
+                console.log("Template saved during cleanup");
+              }
             }
-          } catch (destroyError) {
-            console.error("Error destroying designer:", destroyError);
+          } catch (error) {
+            console.error("Error getting template during cleanup:", error);
           }
+          
+          // Then destroy the designer
+          designer.destroy();
+          console.log("Designer destroyed during cleanup");
+        } catch (error) {
+          console.error("Error destroying designer during cleanup:", error);
         }
       }
     };
-  }, [designerRef, template.basePdf, activeTab]);
+  }, [activeTab, template.basePdf]);
   
   // Create template mutation
   const createTemplateMutation = useMutation({
@@ -652,7 +669,9 @@ export default function TemplateDesigner() {
                 // Save the current state of the template before switching tabs
                 const currentTemplate = designer.getTemplate();
                 if (currentTemplate) {
-                  setTemplate(currentTemplate as Template);
+                  // Store the current template state using a deep copy to avoid reference issues
+                  const templateCopy = JSON.parse(JSON.stringify(currentTemplate));
+                  setTemplate(templateCopy as Template);
                   console.log("Template state saved when leaving editor tab");
                 }
               }
@@ -661,6 +680,11 @@ export default function TemplateDesigner() {
               // Don't throw here, just continue with the tab switch
             }
           }
+          
+          // If we're switching back to the editor tab and there's already a template with PDF,
+          // the useEffect hook will handle reinitializing the designer
+          
+          // Update the active tab
           setActiveTab(value);
         }}
         className="w-full"
