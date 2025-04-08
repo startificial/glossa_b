@@ -1,0 +1,149 @@
+// Define interfaces to match the Pydantic models in the Python API
+interface RequirementInfo {
+  index: number;
+  text: string;
+}
+
+interface ContradictionResult {
+  requirement1: RequirementInfo;
+  requirement2: RequirementInfo;
+  similarity_score: number;
+  nli_contradiction_score: number;
+}
+
+interface AnalysisResponse {
+  contradictions: ContradictionResult[];
+  processing_time_seconds: number;
+  comparisons_made: number;
+  nli_checks_made: number;
+}
+
+interface RequirementsInput {
+    requirements: string[];
+    similarity_threshold_override?: number | null; // Optional overrides
+    nli_threshold_override?: number | null;      // Optional overrides
+}
+
+/**
+ * Calls the backend API to find contradictions in a list of requirements.
+ *
+ * @param requirements - An array of requirement strings.
+ * @param apiUrl - The URL of the backend API endpoint. Defaults to 'http://localhost:8000/find-contradictions'.
+ * @param similarityThreshold - Optional similarity threshold override.
+ * @param nliThreshold - Optional NLI contradiction threshold override.
+ * @returns A Promise resolving to the AnalysisResponse object containing contradictions and metadata.
+ * @throws An error if the API call fails or returns an error status.
+ */
+async function findRequirementContradictions(
+  requirements: string[],
+  apiUrl: string = 'http://localhost:8000/find-contradictions', // Default API URL
+  similarityThreshold?: number | null,
+  nliThreshold?: number | null
+): Promise<AnalysisResponse> {
+
+  const requestBody: RequirementsInput = {
+      requirements: requirements,
+      similarity_threshold_override: similarityThreshold, // Will be null if undefined
+      nli_threshold_override: nliThreshold          // Will be null if undefined
+  };
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json', // Explicitly accept JSON
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      // Try to get error details from the response body
+      let errorDetails = `API request failed with status ${response.status}`;
+      try {
+          const errorJson = await response.json();
+          if (errorJson.detail) {
+              errorDetails += `: ${errorJson.detail}`;
+          }
+      } catch (e) {
+          // Ignore if response body is not JSON or empty
+          errorDetails += `: ${response.statusText}`;
+      }
+      throw new Error(errorDetails);
+    }
+
+    const results: AnalysisResponse = await response.json();
+    return results;
+
+  } catch (error) {
+    console.error('Error calling contradiction analysis API:', error);
+    // Re-throw the error so the calling code can handle it
+    // (e.g., display an error message in the UI)
+    throw error;
+  }
+}
+
+// --- Example Usage (e.g., in an async function or frontend component) ---
+
+async function processRequirements() {
+  const exampleRequirements = [
+    "The Salesforce implementation must support the creation and management of campaign hierarchies, mirroring the client's existing program tree structure. This includes the ability to create parent-child relationships between campaigns, allowing for multiple levels of nesting. The system should accurately reflect the relationships between overarching marketing initiatives (e.g., Q1 Product Launch) and their constituent sub-campaigns (e.g., email blasts, webinars, social media campaigns). This hierarchical structure should be visible throughout the system for reporting and analysis purposes, enabling users to understand the contribution of individual campaigns to larger initiatives. The system should also allow for easy navigation and exploration of these hierarchies by authorized users.",
+    "The Salesforce implementation must not allow the creation or management of campaign hierarchies, nor mirror the client's existing program tree structure. All campaigns should exist at the same level, with no parent-child relationships. This means the system must strictly prevent multiple levels of nesting. Any relationships between overarching marketing initiatives (e.g., Q1 Product Launch) and their constituent sub-campaigns (e.g., email blasts, webinars, social media campaigns) must not be reflected or visible in the system. Reporting and analysis should treat each campaign as an independent entity, devoid of any hierarchical ties to larger initiatives. The system should also restrict navigation and exploration features to ensure that any semblance of a hierarchical view or structure is absent for all users.", // Contradicts 1
+    "The application should encrypt all sensitive data at rest.",
+    "Sensitive data will be stored in plain text without encryption.", // Contradicts 3
+    "The reporting module will generate daily summaries.",
+    "The reporting functionality is disabled and will not produce any reports.", // Contradicts 5
+    "Search results should be sorted by relevance.",
+    "Users can filter search results by date." // Non-contradictory
+  ];
+
+  try {
+    console.log("Sending requirements to backend for analysis...");
+    // Example: Call with default thresholds
+    const analysisResult = await findRequirementContradictions(exampleRequirements);
+
+    // Example: Call with custom thresholds
+    // const analysisResult = await findRequirementContradictions(
+    //   exampleRequirements,
+    //   undefined, // Use default URL
+    //   0.5,       // Custom similarity threshold
+    //   0.85       // Custom NLI threshold
+    // );
+
+
+    console.log(`Analysis complete in ${analysisResult.processing_time_seconds.toFixed(2)} seconds.`);
+    console.log(`Comparisons made: ${analysisResult.comparisons_made}, NLI checks: ${analysisResult.nli_checks_made}`);
+
+    if (analysisResult.contradictions.length > 0) {
+      console.log(`\nFound ${analysisResult.contradictions.length} potential contradictions:`);
+      console.log("--------------------------------------------------");
+      analysisResult.contradictions.forEach((contradiction) => {
+        console.log(`Requirement ${contradiction.requirement1.index + 1}: "${contradiction.requirement1.text}"`);
+        console.log(`Requirement ${contradiction.requirement2.index + 1}: "${contradiction.requirement2.text}"`);
+        console.log(`----> Similarity Score: ${contradiction.similarity_score.toFixed(4)}`);
+        console.log(`----> NLI Contradiction Score: ${contradiction.nli_contradiction_score.toFixed(4)}`);
+        console.log("--------------------------------------------------");
+      });
+    } else {
+      console.log("\nNo significant contradictions found based on the criteria.");
+    }
+
+    // --- UI Integration ---
+    // Here, you would typically update the state of your UI component
+    // with 'analysisResult.contradictions' to display them to the user.
+    // For example, in React:
+    // setContradictionList(analysisResult.contradictions);
+    // setLoading(false);
+
+  } catch (error) {
+    console.error("Failed to get contradiction analysis:", error);
+    // --- UI Integration ---
+    // Display an error message to the user.
+    // For example, in React:
+    // setErrorMessage(`Failed to analyze requirements: ${error.message}`);
+    // setLoading(false);
+  }
+}
+
+// Run the example
+processRequirements();

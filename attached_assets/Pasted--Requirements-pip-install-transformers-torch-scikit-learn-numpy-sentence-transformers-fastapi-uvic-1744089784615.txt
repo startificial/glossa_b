@@ -1,0 +1,219 @@
+# Requirements: pip install transformers torch scikit-learn numpy sentence-transformers fastapi uvicorn
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+from sentence_transformers import SentenceTransformer # Easier embedding generation
+import time # To time operations
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List, Tuple, Dict, Any
+import os # To potentially configure device
+
+# --- Configuration ---
+# Allow configuring device via environment variable, default to CUDA if available
+DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE_NAME = os.environ.get("INFERENCE_DEVICE", DEFAULT_DEVICE)
+device = torch.device(DEVICE_NAME)
+print(f"Using device: {device}")
+
+# Model for sentence similarity
+similarity_model_name = "sentence-transformers/all-mpnet-base-v2"
+# Model for Natural Language Inference (NLI)
+nli_model_name = "MoritzLaurer/DeBERTa-v3-base-mnli"
+
+# Thresholds
+similarity_threshold = 0.6
+nli_contradiction_threshold = 0.90
+
+# --- Global Variables for Models (Load once on startup) ---
+similarity_model = None
+nli_tokenizer = None
+nli_model = None
+nli_contradiction_label_id = -1 # Store the determined contradiction ID globally
+
+# --- Helper Function to Load Models ---
+def load_models():
+    global similarity_model, nli_tokenizer, nli_model, nli_contradiction_label_id, device
+    print(f"Loading models to device: {device}...")
+    start_time = time.time()
+
+    print(f"Loading similarity model: {similarity_model_name}...")
+    similarity_model = SentenceTransformer(similarity_model_name, device=device)
+    print(f"Similarity model loaded in {time.time() - start_time:.2f} seconds.")
+
+    start_time = time.time()
+    print(f"Loading NLI model: {nli_model_name}...")
+    nli_tokenizer = AutoTokenizer.from_pretrained(nli_model_name)
+    nli_model = AutoModelForSequenceClassification.from_pretrained(nli_model_name).to(device)
+    nli_model.eval() # Set to evaluation mode
+
+    # Determine contradiction ID from model config
+    for label_id, label_name in nli_model.config.id2label.items():
+         if 'contra' in label_name.lower():
+              nli_contradiction_label_id = label_id
+              print(f"Determined NLI contradiction label ID: {nli_contradiction_label_id} ('{label_name}')")
+              break
+
+    if nli_contradiction_label_id == -1:
+        print("Warning: Could not automatically determine contradiction label ID. Assuming ID 0.", flush=True)
+        nli_contradiction_label_id = 0 # Fallback
+
+    print(f"NLI model loaded in {time.time() - start_time:.2f} seconds.")
+    print("Models loaded successfully.")
+
+# --- NLI Contradiction Check Function ---
+def check_nli_contradiction(text1: str, text2: str, threshold: float) -> Tuple[bool, float]:
+    """Checks NLI contradiction using pre-loaded global models."""
+    global nli_tokenizer, nli_model, nli_contradiction_label_id, device
+
+    if not nli_tokenizer or not nli_model:
+        raise RuntimeError("NLI models not loaded.")
+
+    inputs = nli_tokenizer(text1, text2, return_tensors='pt', truncation=True, padding=True, max_length=512).to(device)
+
+    with torch.no_grad():
+        outputs = nli_model(**inputs)
+        probabilities = torch.softmax(outputs.logits, dim=1).cpu().numpy()[0]
+
+    contradiction_score = probabilities[nli_contradiction_label_id]
+    predicted_label_id = np.argmax(probabilities)
+
+    is_contradiction_above_threshold = (predicted_label_id == nli_contradiction_label_id and
+                                        contradiction_score >= threshold)
+
+    return is_contradiction_above_threshold, float(contradiction_score) # Return standard float
+
+# --- FastAPI Setup ---
+app = FastAPI()
+
+# Define request body structure
+class RequirementsInput(BaseModel):
+    requirements: List[str]
+    # Optional: Allow overriding thresholds per request
+    similarity_threshold_override: float | None = None
+    nli_threshold_override: float | None = None
+
+# Define response structure
+class RequirementInfo(BaseModel):
+    index: int
+    text: str
+
+class ContradictionResult(BaseModel):
+    requirement1: RequirementInfo
+    requirement2: RequirementInfo
+    similarity_score: float
+    nli_contradiction_score: float
+
+class AnalysisResponse(BaseModel):
+    contradictions: List[ContradictionResult]
+    processing_time_seconds: float
+    comparisons_made: int
+    nli_checks_made: int
+
+
+# Load models when the application starts
+@app.on_event("startup")
+async def startup_event():
+    load_models()
+
+@app.post("/find-contradictions", response_model=AnalysisResponse)
+async def find_contradictions_endpoint(data: RequirementsInput):
+    """
+    Analyzes a list of requirements to find potential contradictions.
+    """
+    global similarity_model, nli_tokenizer, nli_model, similarity_threshold, nli_contradiction_threshold, device
+
+    if not similarity_model or not nli_model or not nli_tokenizer:
+         raise HTTPException(status_code=503, detail="Models are not ready or failed to load.")
+
+    start_process_time = time.time()
+    requirements = data.requirements
+    num_requirements = len(requirements)
+
+    if num_requirements < 2:
+        return AnalysisResponse(
+            contradictions=[],
+            processing_time_seconds=0.0,
+            comparisons_made=0,
+            nli_checks_made=0
+        )
+
+    # Use overridden thresholds if provided, otherwise use global defaults
+    current_sim_threshold = data.similarity_threshold_override if data.similarity_threshold_override is not None else similarity_threshold
+    current_nli_threshold = data.nli_threshold_override if data.nli_threshold_override is not None else nli_contradiction_threshold
+
+    try:
+        # --- Generate Embeddings ---
+        print(f"Generating embeddings for {num_requirements} requirements...")
+        start_embed_time = time.time()
+        embeddings = similarity_model.encode(
+            requirements,
+            convert_to_tensor=True,
+            show_progress_bar=False, # Usually disable progress bar in API
+            device=device
+        )
+        print(f"Embeddings generated in {time.time() - start_embed_time:.2f} seconds.")
+        embeddings_np = embeddings.cpu().numpy() # Move to CPU for sklearn
+
+        # --- Identify Potential Contradictions ---
+        print(f"Identifying potential contradictions (Sim Threshold: {current_sim_threshold}, NLI Threshold: {current_nli_threshold})...")
+        potential_contradictions_data = []
+        comparisons_made = 0
+        nli_checks_made = 0
+        start_analysis_time = time.time()
+
+        for i in range(num_requirements):
+            for j in range(i + 1, num_requirements):
+                comparisons_made += 1
+                similarity_score = cosine_similarity([embeddings_np[i]], [embeddings_np[j]])[0][0]
+
+                if similarity_score >= current_sim_threshold:
+                    nli_checks_made += 1
+                    req1_text = requirements[i]
+                    req2_text = requirements[j]
+
+                    contradiction_1_2, score_1_2 = check_nli_contradiction(req1_text, req2_text, current_nli_threshold)
+                    contradiction_2_1, score_2_1 = check_nli_contradiction(req2_text, req1_text, current_nli_threshold)
+
+                    if contradiction_1_2 or contradiction_2_1:
+                         final_nli_score = max(score_1_2, score_2_1)
+                         # Only add if the *final determining score* meets the NLI threshold
+                         # (The check_nli function already ensures one of them met it)
+                         potential_contradictions_data.append(
+                             ContradictionResult(
+                                 requirement1=RequirementInfo(index=i, text=req1_text),
+                                 requirement2=RequirementInfo(index=j, text=req2_text),
+                                 similarity_score=float(similarity_score), # Ensure standard float
+                                 nli_contradiction_score=float(final_nli_score) # Ensure standard float
+                             )
+                         )
+
+        print(f"Analysis completed in {time.time() - start_analysis_time:.2f} seconds.")
+        total_time = time.time() - start_process_time
+
+        # Sort results for consistency
+        potential_contradictions_data.sort(key=lambda x: (x.requirement1.index, x.requirement2.index))
+
+        return AnalysisResponse(
+            contradictions=potential_contradictions_data,
+            processing_time_seconds=total_time,
+            comparisons_made=comparisons_made,
+            nli_checks_made=nli_checks_made
+        )
+
+    except Exception as e:
+        print(f"Error during contradiction analysis: {e}")
+        import traceback
+        traceback.print_exc() # Print full stack trace to backend logs
+        raise HTTPException(status_code=500, detail=f"Internal server error during analysis: {str(e)}")
+
+
+# --- Main execution (for running with uvicorn) ---
+if __name__ == "__main__":
+    import uvicorn
+    # You might need to adjust host and port
+    # Use reload=True only for development
+    uvicorn.run("contradiction_api:app", host="0.0.0.0", port=8000, reload=False)
+    # To run: python contradiction_api.py
+    # Or preferably: uvicorn contradiction_api:app --host 0.0.0.0 --port 8000
