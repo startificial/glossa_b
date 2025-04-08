@@ -6,6 +6,10 @@ import { analyzeContradictionsWithHuggingFace } from './hugging-face-service';
  */
 export async function analyzeContradictions(input: RequirementsInput): Promise<AnalysisResponse> {
   console.log('Using HuggingFace API for contradiction analysis');
+  console.log('Models in use:');
+  console.log('- Similarity: sentence-transformers/all-mpnet-base-v2');
+  console.log('- NLI: MoritzLaurer/DeBERTa-v3-base-mnli');
+  
   return analyzeContradictionsWithHuggingFace(input);
 }
 

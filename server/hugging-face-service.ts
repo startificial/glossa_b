@@ -6,9 +6,9 @@
 import fetch from 'node-fetch';
 import { AnalysisResponse, ContradictionResult, RequirementsInput } from '../shared/contradiction-types';
 
-// Constants for model endpoints
-const SIMILARITY_MODEL = 'sentence-transformers/all-MiniLM-L6-v2';
-const NLI_MODEL = 'cross-encoder/nli-deberta-v3-base';
+// Constants for model endpoints - using specified models from config
+const SIMILARITY_MODEL = 'sentence-transformers/all-mpnet-base-v2';
+const NLI_MODEL = 'MoritzLaurer/DeBERTa-v3-base-mnli';
 
 /**
  * Check if the HuggingFace API is available and configured
@@ -98,6 +98,8 @@ async function makeHuggingFaceRequest(url: string, body: any, maxRetries = 3, re
  */
 export async function calculateSimilarity(text1: string, text2: string): Promise<number> {
   try {
+    // For all-mpnet-base-v2, the expected input format is 
+    // { inputs: { source_sentence: string, sentences: string[] } }
     const result = await makeHuggingFaceRequest(
       `https://api-inference.huggingface.co/models/${SIMILARITY_MODEL}`,
       {
@@ -106,9 +108,26 @@ export async function calculateSimilarity(text1: string, text2: string): Promise
           sentences: [text2]
         }
       }
-    ) as number[];
+    );
     
-    return result[0]; // The model returns similarity scores between 0 and 1
+    console.log('Similarity API response:', JSON.stringify(result).substring(0, 200) + '...');
+    
+    // Check if the result is an array and has at least one element
+    if (Array.isArray(result) && result.length > 0) {
+      return result[0]; // The model returns similarity scores between 0 and 1
+    }
+    
+    // Some sentence transformer models return { [key: string]: number } format
+    if (typeof result === 'object' && result !== null) {
+      // Look for any property that might be a similarity score
+      const possibleScores = Object.values(result).filter(v => typeof v === 'number');
+      if (possibleScores.length > 0) {
+        return possibleScores[0];
+      }
+    }
+    
+    console.warn('Unexpected similarity response format:', result);
+    return 0;
   } catch (error) {
     console.error('Error calculating similarity:', error);
     // Return a default value (0) to allow processing to continue
@@ -122,20 +141,36 @@ export async function calculateSimilarity(text1: string, text2: string): Promise
  */
 export async function detectContradiction(text1: string, text2: string): Promise<number> {
   try {
+    // For DeBERTa-v3 the expected format is {"inputs": "premise\nhypothesis"}
     const result = await makeHuggingFaceRequest(
       `https://api-inference.huggingface.co/models/${NLI_MODEL}`,
       {
         inputs: `${text1}\n${text2}`,
       }
-    ) as [
-      { label: 'entailment', score: number },
-      { label: 'neutral', score: number },
-      { label: 'contradiction', score: number }
-    ];
+    );
     
-    // Find the contradiction score
-    const contradictionResult = result.find(item => item.label === 'contradiction');
-    return contradictionResult ? contradictionResult.score : 0;
+    console.log('NLI API response:', JSON.stringify(result).substring(0, 200) + '...');
+    
+    // The model should return an array with entailment, neutral, and contradiction probabilities
+    // Depending on the exact format from MoritzLaurer/DeBERTa-v3-base-mnli
+    if (Array.isArray(result)) {
+      // Find the contradiction score
+      const contradictionResult = result.find((item: any) => 
+        item.label === 'contradiction' || item.label === 'CONTRADICTION');
+      
+      if (contradictionResult) {
+        return contradictionResult.score;
+      }
+      
+      // If we didn't find a "contradiction" label, try checking for indices
+      // Some models return [entailment, neutral, contradiction] in that order
+      if (result.length === 3 && typeof result[2]?.score === 'number') {
+        return result[2].score;
+      }
+    }
+    
+    console.warn('Unexpected NLI response format:', result);
+    return 0;
   } catch (error) {
     console.error('Error detecting contradiction:', error);
     // Return a default value (0) to allow processing to continue

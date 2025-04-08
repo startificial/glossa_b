@@ -134,7 +134,7 @@ export function ContradictionDetector({ projectId }: ContradictionDetectorProps)
             {qualityCheck && !isFetching && (
               <div className="space-y-4">
                 {qualityCheck.errors && (
-                  <Alert variant="warning" className="bg-yellow-50 text-yellow-800 border-yellow-100">
+                  <Alert className="bg-yellow-50 text-yellow-800 border-yellow-100">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Warning</AlertTitle>
                     <AlertDescription>

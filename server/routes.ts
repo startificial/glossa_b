@@ -2435,13 +2435,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get requirements from the request body
       const requirements = requirementsInput.requirements;
+      console.log(`Analyzing contradictions for ${requirements.length} requirements directly via API`);
       
-      // Check if external ML service is available
-      const isServiceAvailable = await isContradictionServiceAvailable();
-      console.log(`Using ${isServiceAvailable ? 'external ML' : 'fallback'} contradiction detection service`);
+      // Check if HuggingFace API key is available
+      if (!process.env.HUGGINGFACE_API_KEY) {
+        console.error('HuggingFace API key not found in environment');
+        return res.status(500).json({ 
+          message: "HuggingFace API key not found. This feature requires a valid HuggingFace API key.",
+          service_unavailable: true
+        });
+      }
       
-      // Analyze contradictions
+      // Log models being used
+      console.log('Using HuggingFace API with models:');
+      console.log('- Similarity: sentence-transformers/all-mpnet-base-v2');
+      console.log('- NLI: MoritzLaurer/DeBERTa-v3-base-mnli');
+      
+      // Analyze contradictions using HuggingFace API (no fallback available)
       const analysisResult = await analyzeContradictions(requirementsInput);
+      
+      console.log(`Analysis complete: Found ${analysisResult.contradictions.length} potential contradictions`);
+      console.log(`Made ${analysisResult.comparisons_made} comparisons and ${analysisResult.nli_checks_made} NLI checks`);
+      
+      if (analysisResult.errors) {
+        console.warn(`Analysis encountered errors: ${analysisResult.errors}`);
+      }
       
       return res.status(200).json(analysisResult);
     } catch (error: any) {
@@ -2463,10 +2481,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!projectRequirements || projectRequirements.length === 0) {
         return res.status(200).json({ 
           contradictions: [],
-          duplicates: [],
-          totalRequirements: 0
+          totalRequirements: 0,
+          processing_time: 0
         });
       }
+      
+      console.log(`Analyzing quality check for ${projectRequirements.length} requirements in project ${projectId}`);
       
       // Import the contradiction service
       const { analyzeContradictions } = await import('./contradiction-service');
@@ -2474,10 +2494,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract requirement descriptions for analysis
       const requirementTexts = projectRequirements.map(req => req.description);
       
+      // Log models being used
+      console.log('Using HuggingFace API with models:');
+      console.log('- Similarity: sentence-transformers/all-mpnet-base-v2');
+      console.log('- NLI: MoritzLaurer/DeBERTa-v3-base-mnli');
+      
       // Analyze contradictions
       const analysisResult = await analyzeContradictions({
         requirements: requirementTexts
       });
+      
+      console.log(`Analysis complete: Found ${analysisResult.contradictions.length} potential contradictions`);
+      console.log(`Made ${analysisResult.comparisons_made} comparisons and ${analysisResult.nli_checks_made} NLI checks`);
+      
+      if (analysisResult.errors) {
+        console.warn(`Analysis encountered errors: ${analysisResult.errors}`);
+      }
       
       // Map contradiction results to include requirement IDs
       const contradictionsWithIds = analysisResult.contradictions.map(contradiction => {
@@ -2495,11 +2527,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
-      // Return the results
+      // Return the results, including any error messages
       return res.status(200).json({
         contradictions: contradictionsWithIds,
         totalRequirements: projectRequirements.length,
-        processing_time: analysisResult.processing_time_seconds
+        processing_time: analysisResult.processing_time_seconds,
+        errors: analysisResult.errors // Pass error info to client if there were any issues
       });
     } catch (error: any) {
       console.error("Error checking requirement quality:", error);
