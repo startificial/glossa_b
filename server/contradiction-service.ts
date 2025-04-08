@@ -1,10 +1,11 @@
 import { AnalysisResponse, ContradictionResult, RequirementsInput } from '../shared/contradiction-types';
+import { isHuggingFaceAvailable, analyzeContradictionsWithHuggingFace } from './hugging-face-service';
 
 /**
  * Simple method to detect basic contradictions using keyword analysis
- * This is a fallback implementation when the Python ML service is not available
+ * This is a fallback implementation when the HuggingFace API service is not available
  */
-export async function analyzeContradictions(input: RequirementsInput): Promise<AnalysisResponse> {
+export async function analyzeContradictionsWithKeywords(input: RequirementsInput): Promise<AnalysisResponse> {
   const startTime = Date.now();
   const requirements = input.requirements;
   const similarityThreshold = input.similarity_threshold_override ?? 0.6;
@@ -103,6 +104,23 @@ export async function analyzeContradictions(input: RequirementsInput): Promise<A
 }
 
 /**
+ * Main method to analyze contradictions - will use HuggingFace API if available,
+ * otherwise will fall back to keyword-based analysis
+ */
+export async function analyzeContradictions(input: RequirementsInput): Promise<AnalysisResponse> {
+  // Check if HuggingFace API is available
+  const huggingFaceAvailable = await isContradictionServiceAvailable();
+  
+  if (huggingFaceAvailable) {
+    console.log('Using HuggingFace API for contradiction analysis');
+    return analyzeContradictionsWithHuggingFace(input);
+  } else {
+    console.log('HuggingFace API not available, using fallback keyword analysis');
+    return analyzeContradictionsWithKeywords(input);
+  }
+}
+
+/**
  * Calculate Jaccard similarity between two strings
  * Jaccard similarity = (size of intersection) / (size of union)
  */
@@ -144,9 +162,8 @@ function calculateJaccardSimilarity(str1: string, str2: string): number {
 
 /**
  * Check if an external ML contradiction service is available
- * In a real implementation, this would check if the Python service is running
  */
 export async function isContradictionServiceAvailable(): Promise<boolean> {
-  // For now, always return false to use the fallback implementation
-  return false;
+  // Use the HuggingFace service if available
+  return await isHuggingFaceAvailable();
 }
