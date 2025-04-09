@@ -40,22 +40,11 @@ export default function Dashboard() {
     <div className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <img src={glossaLogo} alt="Glossa Logo" className="w-10 h-10" />
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome to Glossa</h1>
-              </div>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Intelligent requirements generation and management platform
-              </p>
-            </div>
-            <div className="mt-4 md:mt-0">
-              <Button onClick={navigateToProjects} className="shadow-sm">
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Create New Project
-              </Button>
-            </div>
+          <div className="flex justify-end">
+            <Button onClick={navigateToProjects} className="shadow-sm">
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Create New Project
+            </Button>
           </div>
         </header>
 
