@@ -221,7 +221,7 @@ export async function analyzeContradictionsWithHuggingFace(
   const nliThreshold = input.nli_threshold_override ?? 0.55;
   
   // Limit the number of requirements to avoid timeouts or rate limits
-  const maxRequirements = 30;
+  const maxRequirements = 100;
   const actualRequirements = requirements.length > maxRequirements 
     ? requirements.slice(0, maxRequirements) 
     : requirements;

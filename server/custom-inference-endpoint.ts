@@ -10,13 +10,19 @@ import { log } from './vite';
 
 // Define an interface for the endpoint response
 interface EndpointResponse {
-  labels: string[];
-  scores: number[];
-  sequence: string;
+  // Old zero-shot classification format
+  labels?: string[];
+  scores?: number[];
+  sequence?: string;
+  
+  // New NLI model format
+  contradiction?: number;
+  entailment?: number;
+  neutral?: number;
 }
 
 // Constants
-const ENDPOINT_URL = "https://at7yvwa5umiteqlq.us-east-1.aws.endpoints.huggingface.cloud";
+const ENDPOINT_URL = "https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.huggingface.cloud";
 
 /**
  * Check if the custom inference endpoint is available
@@ -31,7 +37,7 @@ export async function isEndpointAvailable(): Promise<boolean> {
   }
   
   try {
-    // Simple health check with a minimal query
+    // Simple health check with a minimal query using the premise-hypothesis format
     const response = await fetch(ENDPOINT_URL, {
       method: 'POST',
       headers: {
@@ -40,9 +46,9 @@ export async function isEndpointAvailable(): Promise<boolean> {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        "inputs": "Hello world",
-        "parameters": {
-          "candidate_labels": "greeting, question, statement"
+        "inputs": {
+          "premise": "A man is walking his dog in the park.", 
+          "hypothesis": "A person is outside with an animal."
         }
       })
     });
@@ -77,13 +83,7 @@ export async function detectContradictionWithEndpoint(premise: string, hypothesi
   }
   
   try {
-    // Format our input for the zero-shot classification format the endpoint expects
-    // We'll craft a more specific prompt to help the model identify contradictions
-    const combinedText = `I need to determine if two software requirements contradict each other.
-Statement 1: ${premise}
-Statement 2: ${hypothesis}
-Question: Do these two requirements logically contradict or conflict with each other in a software system?`;
-    
+    // Use the premise-hypothesis structure for the NLI model
     const response = await fetch(ENDPOINT_URL, {
       method: 'POST',
       headers: {
@@ -92,9 +92,9 @@ Question: Do these two requirements logically contradict or conflict with each o
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        "inputs": combinedText,
-        "parameters": {
-          "candidate_labels": "yes, no"
+        "inputs": {
+          "premise": premise,
+          "hypothesis": hypothesis
         }
       })
     });
@@ -107,18 +107,25 @@ Question: Do these two requirements logically contradict or conflict with each o
     const result = await response.json() as EndpointResponse;
     log(`Custom endpoint response: ${JSON.stringify(result).substring(0, 200)}...`, 'models');
     
-    // The endpoint will return scores for "yes" and "no" - we want the "yes" score
-    // which indicates probability of contradiction
+    // The NLI model will return contradiction, entailment, and neutral scores
+    // We only care about the contradiction score
+    if (result && result.contradiction !== undefined) {
+      const contradictionScore = result.contradiction;
+      log(`Contradiction score for premise: "${premise.substring(0, 50)}..." and hypothesis: "${hypothesis.substring(0, 50)}..." is ${contradictionScore.toFixed(4)}`, 'models');
+      return contradictionScore;
+    }
+    
+    // Fallback to old format if somehow we get it
     if (result && result.labels && result.scores) {
-      // Find the index of the "yes" label
       const yesIndex = result.labels.findIndex((label: string) => 
-        label.toLowerCase() === 'yes');
+        label.toLowerCase() === 'yes' || label.toLowerCase() === 'contradiction');
       
       if (yesIndex !== -1) {
         return result.scores[yesIndex];
       }
     }
     
+    log('Could not extract contradiction score from response', 'error');
     return 0;
   } catch (error) {
     log(`Error querying custom inference endpoint: ${error}`, 'error');
