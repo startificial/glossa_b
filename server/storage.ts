@@ -1,3 +1,8 @@
+/**
+ * Database Storage Module
+ * 
+ * This module contains the implementation of the storage interface using PostgreSQL.
+ */
 import { 
   users, type User, type InsertUser,
   invites, type Invite, type InsertInvite,
@@ -714,47 +719,78 @@ export class DatabaseStorage implements IStorage {
         return { projects: [], requirements: [] };
       }
 
+      console.log(`Performing quick search with query "${query}" for user ${userId}`);
       const searchTerm = `%${query.toLowerCase()}%`;
       
-      // Search projects
-      const projects = await db.select({
-        ...projects,
-        customerDetails: customers
-      })
-      .from(projects)
-      .leftJoin(customers, eq(projects.customerId, customers.id))
-      .where(and(
-        eq(projects.userId, userId),
-        or(
-          like(drizzleSql`lower(${projects.name})`, searchTerm),
-          like(drizzleSql`lower(${projects.description})`, searchTerm)
-        )
-      ))
-      .limit(limit);
+      // Define return arrays
+      let projectResults: any[] = [];
+      let requirementResults: any[] = [];
       
-      // Search requirements
-      const requirementResults = await db.select({
-        requirement: requirements,
-        project: projects
-      })
-        .from(requirements)
-        .innerJoin(projects, eq(requirements.projectId, projects.id))
-        .where(and(
-          eq(projects.userId, userId),
-          or(
-            like(drizzleSql`lower(${requirements.title})`, searchTerm),
-            like(drizzleSql`lower(${requirements.description})`, searchTerm),
-            like(drizzleSql`lower(${requirements.category})`, searchTerm)
-          )
-        ))
-        .limit(limit);
+      // Use direct SQL queries for reliability
+      try {
+        // Get projects
+        const projectsQuery = `
+          SELECT p.id, p.name, p.description, p.user_id as "userId", 
+                p.customer_id as "customerId", p.created_at as "createdAt", 
+                p.updated_at as "updatedAt", p.source_system as "sourceSystem", 
+                p.target_system as "targetSystem", p.type,
+                c.name as "customerName", c.email as "customerEmail"
+          FROM projects p
+          LEFT JOIN customers c ON p.customer_id = c.id
+          WHERE p.user_id = $1 
+          AND (LOWER(p.name) LIKE $2 OR LOWER(p.description) LIKE $2)
+          ORDER BY p.updated_at DESC
+          LIMIT $3
+        `;
+        
+        const projectData = await sql.query(projectsQuery, [userId, searchTerm, limit]);
+        
+        // Convert results to expected format
+        projectResults = projectData.rows.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          type: p.type,
+          userId: p.userId,
+          customerId: p.customerId,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          sourceSystem: p.sourceSystem,
+          targetSystem: p.targetSystem,
+          customer: p.customerName,
+          customerDetails: p.customerName ? {
+            id: p.customerId,
+            name: p.customerName,
+            email: p.customerEmail
+          } : null
+        }));
+        
+        console.log(`Quick search: Found ${projectResults.length} matching projects`);
       
-      // Extract requirements from join result
-      const requirementList = requirementResults.map(r => r.requirement);
+        // Get requirements
+        const requirementsQuery = `
+          SELECT r.id, r.title, r.description, r.category, r.priority, 
+                r.project_id as "projectId", r.created_at as "createdAt", 
+                r.updated_at as "updatedAt", r.input_data_id as "inputDataId"
+          FROM requirements r
+          JOIN projects p ON r.project_id = p.id
+          WHERE p.user_id = $1 
+          AND (LOWER(r.title) LIKE $2 OR LOWER(r.description) LIKE $2 OR LOWER(r.category) LIKE $2)
+          ORDER BY r.updated_at DESC
+          LIMIT $3
+        `;
+        
+        const requirementsData = await sql.query(requirementsQuery, [userId, searchTerm, limit]);
+        requirementResults = requirementsData.rows;
+        console.log(`Quick search: Found ${requirementResults.length} matching requirements`);
+      
+      } catch (sqlError) {
+        console.error('SQL error during quick search:', sqlError);
+      }
       
       return {
-        projects,
-        requirements: requirementList
+        projects: projectResults,
+        requirements: requirementResults
       };
     } catch (error) {
       console.error('Error performing quick search:', error);
@@ -807,8 +843,8 @@ export class DatabaseStorage implements IStorage {
             SELECT p.id, p.name, p.description, p.user_id as "userId", 
                   p.customer_id as "customerId", p.created_at as "createdAt", 
                   p.updated_at as "updatedAt", p.source_system as "sourceSystem", 
-                  p.target_system as "targetSystem",
-                  c.name as "customerName"
+                  p.target_system as "targetSystem", p.type,
+                  c.name as "customerName", c.email as "customerEmail"
             FROM projects p
             LEFT JOIN customers c ON p.customer_id = c.id
             WHERE p.user_id = $1 
@@ -818,7 +854,24 @@ export class DatabaseStorage implements IStorage {
           `;
           
           const projectData = await sql.query(projectsQuery, [userId, searchTerm, limit, offset]);
-          projectResults = projectData.rows;
+          projectResults = projectData.rows.map(p => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            type: p.type,
+            userId: p.userId,
+            customerId: p.customerId,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+            sourceSystem: p.sourceSystem,
+            targetSystem: p.targetSystem,
+            customer: p.customerName,
+            customerDetails: p.customerName ? {
+              id: p.customerId,
+              name: p.customerName,
+              email: p.customerEmail
+            } : null
+          }));
           console.log(`Found ${projectResults.length} matching projects`);
           
           // Get requirements
