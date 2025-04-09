@@ -142,7 +142,7 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
 
   return (
     <>
-      <header className="bg-white dark:bg-gray-800 shadow-sm z-20">
+      <header className="bg-white dark:bg-gray-800 z-20 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-full mx-auto px-4 sm:px-6">
           <div className="flex justify-between items-center py-3 md:justify-start md:space-x-4">
             {/* Logo & Mobile menu button */}
