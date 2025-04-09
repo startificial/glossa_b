@@ -39,14 +39,10 @@ export default function Dashboard() {
   return (
     <div className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
-          <div className="flex justify-end">
-            <Button onClick={navigateToProjects} className="shadow-sm">
-              <PlusIcon className="mr-2 h-4 w-4" />
-              Create New Project
-            </Button>
-          </div>
-        </header>
+        {/* Visual divider separating the header (with search/create button) from content */}
+        <div className="mb-8 border-b-2 border-gray-200 dark:border-gray-700 pb-3 mt-1">
+          {/* This empty div creates space and adds the divider/stroke */}
+        </div>
 
         <section className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Projects</h2>
