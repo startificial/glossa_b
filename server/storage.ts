@@ -722,75 +722,80 @@ export class DatabaseStorage implements IStorage {
       console.log(`Performing quick search with query "${query}" for user ${userId}`);
       const searchTerm = `%${query.toLowerCase()}%`;
       
-      // Define return arrays
-      let projectResults: any[] = [];
-      let requirementResults: any[] = [];
+      // Search projects with a safe approach to avoid circular references
+      const projectsQuery = await db.select({
+        id: projects.id,
+        name: projects.name,
+        description: projects.description,
+        type: projects.type,
+        userId: projects.userId,
+        customerId: projects.customerId,
+        createdAt: projects.createdAt,
+        updatedAt: projects.updatedAt,
+        sourceSystem: projects.sourceSystem,
+        targetSystem: projects.targetSystem,
+        customerName: customers.name,
+      })
+      .from(projects)
+      .leftJoin(customers, eq(projects.customerId, customers.id))
+      .where(and(
+        eq(projects.userId, userId),
+        or(
+          like(drizzleSql`lower(${projects.name})`, searchTerm),
+          like(drizzleSql`lower(${projects.description})`, searchTerm)
+        )
+      ))
+      .orderBy(desc(projects.updatedAt))
+      .limit(limit);
       
-      // Use direct SQL queries for reliability
-      try {
-        // Get projects
-        const projectsQuery = `
-          SELECT p.id, p.name, p.description, p.user_id as "userId", 
-                p.customer_id as "customerId", p.created_at as "createdAt", 
-                p.updated_at as "updatedAt", p.source_system as "sourceSystem", 
-                p.target_system as "targetSystem", p.type,
-                c.name as "customerName", c.email as "customerEmail"
-          FROM projects p
-          LEFT JOIN customers c ON p.customer_id = c.id
-          WHERE p.user_id = $1 
-          AND (LOWER(p.name) LIKE $2 OR LOWER(p.description) LIKE $2)
-          ORDER BY p.updated_at DESC
-          LIMIT $3
-        `;
-        
-        const projectData = await sql.query(projectsQuery, [userId, searchTerm, limit]);
-        
-        // Convert results to expected format
-        projectResults = projectData.rows.map(p => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          type: p.type,
-          userId: p.userId,
-          customerId: p.customerId,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-          sourceSystem: p.sourceSystem,
-          targetSystem: p.targetSystem,
-          customer: p.customerName,
-          customerDetails: p.customerName ? {
-            id: p.customerId,
-            name: p.customerName,
-            email: p.customerEmail
-          } : null
-        }));
-        
-        console.log(`Quick search: Found ${projectResults.length} matching projects`);
+      // Format project results properly
+      const projectResults = projectsQuery.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        type: p.type,
+        userId: p.userId,
+        customerId: p.customerId,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        sourceSystem: p.sourceSystem,
+        targetSystem: p.targetSystem,
+        customer: p.customerName,
+        customerDetails: p.customerName ? {
+          id: p.customerId,
+          name: p.customerName,
+        } : null
+      }));
       
-        // Get requirements
-        const requirementsQuery = `
-          SELECT r.id, r.title, r.description, r.category, r.priority, 
-                r.project_id as "projectId", r.created_at as "createdAt", 
-                r.updated_at as "updatedAt", r.input_data_id as "inputDataId"
-          FROM requirements r
-          JOIN projects p ON r.project_id = p.id
-          WHERE p.user_id = $1 
-          AND (LOWER(r.title) LIKE $2 OR LOWER(r.description) LIKE $2 OR LOWER(r.category) LIKE $2)
-          ORDER BY r.updated_at DESC
-          LIMIT $3
-        `;
-        
-        const requirementsData = await sql.query(requirementsQuery, [userId, searchTerm, limit]);
-        requirementResults = requirementsData.rows;
-        console.log(`Quick search: Found ${requirementResults.length} matching requirements`);
-      
-      } catch (sqlError) {
-        console.error('SQL error during quick search:', sqlError);
-      }
+      // Search requirements with a safe approach
+      const requirementsQuery = await db.select({
+        id: requirements.id,
+        title: requirements.title,
+        description: requirements.description,
+        category: requirements.category,
+        priority: requirements.priority,
+        projectId: requirements.projectId,
+        createdAt: requirements.createdAt,
+        updatedAt: requirements.updatedAt,
+        codeId: requirements.codeId,
+        text: requirements.description, // For display in search results
+      })
+      .from(requirements)
+      .innerJoin(projects, eq(requirements.projectId, projects.id))
+      .where(and(
+        eq(projects.userId, userId),
+        or(
+          like(drizzleSql`lower(${requirements.title})`, searchTerm),
+          like(drizzleSql`lower(${requirements.description})`, searchTerm),
+          like(drizzleSql`lower(${requirements.category})`, searchTerm)
+        )
+      ))
+      .orderBy(desc(requirements.updatedAt))
+      .limit(limit);
       
       return {
         projects: projectResults,
-        requirements: requirementResults
+        requirements: requirementsQuery
       };
     } catch (error) {
       console.error('Error performing quick search:', error);
@@ -821,145 +826,247 @@ export class DatabaseStorage implements IStorage {
     totalPages: number;
   }> {
     try {
-      console.log(`Performing simplified search with query "${query}" for user ${userId}`);
+      console.log(`Performing advanced search with query "${query}" for user ${userId}`);
       
       // Set up basic variables
       const page = pagination?.page || 1;
       const limit = pagination?.limit || 10;
       const offset = (page - 1) * limit;
-      const searchTerm = query ? `%${query.toLowerCase()}%` : null;
+      const searchTerm = query ? `%${query.toLowerCase()}%` : '';
       
-      // Define empty result sets
+      // Define result arrays
       let projectResults: any[] = [];
       let requirementResults: any[] = [];
       let inputDataResults: any[] = [];
       let taskResults: any[] = [];
       
-      // STEP 1: Directly query the database using simple SQL to avoid issues
-      if (searchTerm) {
+      // Only search if a query is provided
+      if (query && query.trim()) {
+        // Get entity types to search
+        const entityTypes = filters?.entityTypes || ["projects", "requirements", "inputData", "tasks"];
+        
         try {
-          // Get projects
-          const projectsQuery = `
-            SELECT p.id, p.name, p.description, p.user_id as "userId", 
-                  p.customer_id as "customerId", p.created_at as "createdAt", 
-                  p.updated_at as "updatedAt", p.source_system as "sourceSystem", 
-                  p.target_system as "targetSystem", p.type,
-                  c.name as "customerName", c.email as "customerEmail"
-            FROM projects p
-            LEFT JOIN customers c ON p.customer_id = c.id
-            WHERE p.user_id = $1 
-            AND (LOWER(p.name) LIKE $2 OR LOWER(p.description) LIKE $2)
-            ORDER BY p.updated_at DESC
-            LIMIT $3 OFFSET $4
-          `;
+          // 1. Search projects if included in entity types
+          if (entityTypes.includes("projects")) {
+            let projectQuery = db.select({
+              id: projects.id,
+              name: projects.name,
+              description: projects.description,
+              type: projects.type,
+              userId: projects.userId,
+              customerId: projects.customerId,
+              createdAt: projects.createdAt,
+              updatedAt: projects.updatedAt,
+              sourceSystem: projects.sourceSystem,
+              targetSystem: projects.targetSystem,
+              customerName: customers.name,
+            })
+            .from(projects)
+            .leftJoin(customers, eq(projects.customerId, customers.id))
+            .where(and(
+              eq(projects.userId, userId),
+              or(
+                like(drizzleSql`lower(${projects.name})`, searchTerm),
+                like(drizzleSql`lower(${projects.description})`, searchTerm)
+              )
+            ))
+            .orderBy(desc(projects.updatedAt))
+            .limit(limit)
+            .offset(offset);
+            
+            const projectsData = await projectQuery;
+            
+            // Format project results
+            projectResults = projectsData.map(p => ({
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              type: p.type,
+              userId: p.userId,
+              customerId: p.customerId,
+              createdAt: p.createdAt,
+              updatedAt: p.updatedAt,
+              sourceSystem: p.sourceSystem,
+              targetSystem: p.targetSystem,
+              customer: p.customerName,
+              // Safely include only necessary customer details
+              customerDetails: p.customerName && p.customerId ? {
+                id: p.customerId,
+                name: p.customerName,
+              } : null
+            }));
+            console.log(`Found ${projectResults.length} matching projects`);
+          }
           
-          const projectData = await sql.query(projectsQuery, [userId, searchTerm, limit, offset]);
-          projectResults = projectData.rows.map(p => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            type: p.type,
-            userId: p.userId,
-            customerId: p.customerId,
-            createdAt: p.createdAt,
-            updatedAt: p.updatedAt,
-            sourceSystem: p.sourceSystem,
-            targetSystem: p.targetSystem,
-            customer: p.customerName,
-            customerDetails: p.customerName ? {
-              id: p.customerId,
-              name: p.customerName,
-              email: p.customerEmail
-            } : null
-          }));
-          console.log(`Found ${projectResults.length} matching projects`);
+          // 2. Search requirements if included in entity types
+          if (entityTypes.includes("requirements")) {
+            let reqQuery = db.select({
+              id: requirements.id,
+              title: requirements.title,
+              description: requirements.description,
+              category: requirements.category,
+              priority: requirements.priority,
+              projectId: requirements.projectId,
+              createdAt: requirements.createdAt,
+              updatedAt: requirements.updatedAt,
+              codeId: requirements.codeId,
+              inputDataId: requirements.inputDataId,
+              text: requirements.description, // For display in search results
+            })
+            .from(requirements)
+            .innerJoin(projects, eq(requirements.projectId, projects.id));
+            
+            // Apply projectId filter if available
+            if (filters?.projectId) {
+              reqQuery = reqQuery.where(and(
+                eq(projects.userId, userId),
+                eq(requirements.projectId, filters.projectId),
+                or(
+                  like(drizzleSql`lower(${requirements.title})`, searchTerm),
+                  like(drizzleSql`lower(${requirements.description})`, searchTerm),
+                  like(drizzleSql`lower(${requirements.category})`, searchTerm)
+                )
+              ));
+            } else {
+              reqQuery = reqQuery.where(and(
+                eq(projects.userId, userId),
+                or(
+                  like(drizzleSql`lower(${requirements.title})`, searchTerm),
+                  like(drizzleSql`lower(${requirements.description})`, searchTerm),
+                  like(drizzleSql`lower(${requirements.category})`, searchTerm)
+                )
+              ));
+            }
+            
+            // Apply category filter if available
+            if (filters?.category) {
+              reqQuery = reqQuery.where(eq(requirements.category, filters.category));
+            }
+            
+            // Apply priority filter if available
+            if (filters?.priority) {
+              reqQuery = reqQuery.where(eq(requirements.priority, filters.priority));
+            }
+            
+            // Apply date filters if available
+            if (filters?.dateRange?.from) {
+              reqQuery = reqQuery.where(gte(requirements.createdAt, filters.dateRange.from));
+            }
+            
+            if (filters?.dateRange?.to) {
+              reqQuery = reqQuery.where(lte(requirements.createdAt, filters.dateRange.to));
+            }
+            
+            reqQuery = reqQuery.orderBy(desc(requirements.updatedAt))
+              .limit(limit)
+              .offset(offset);
+            
+            requirementResults = await reqQuery;
+            console.log(`Found ${requirementResults.length} matching requirements`);
+          }
           
-          // Get requirements
-          const requirementsQuery = `
-            SELECT r.id, r.title, r.description, r.category, r.priority, 
-                  r.project_id as "projectId", r.created_at as "createdAt", 
-                  r.updated_at as "updatedAt", r.input_data_id as "inputDataId"
-            FROM requirements r
-            JOIN projects p ON r.project_id = p.id
-            WHERE p.user_id = $1 
-            AND (LOWER(r.title) LIKE $2 OR LOWER(r.description) LIKE $2 OR LOWER(r.category) LIKE $2)
-            ORDER BY r.updated_at DESC
-            LIMIT $3 OFFSET $4
-          `;
+          // 3. Search input data if included in entity types
+          if (entityTypes.includes("inputData")) {
+            let dataQuery = db.select({
+              id: inputData.id,
+              name: inputData.name,
+              type: inputData.type,
+              size: inputData.size,
+              contentType: inputData.contentType,
+              projectId: inputData.projectId,
+              createdAt: inputData.createdAt,
+              updatedAt: inputData.updatedAt,
+              status: inputData.status,
+            })
+            .from(inputData)
+            .innerJoin(projects, eq(inputData.projectId, projects.id));
+            
+            // Apply projectId filter if available
+            if (filters?.projectId) {
+              dataQuery = dataQuery.where(and(
+                eq(projects.userId, userId),
+                eq(inputData.projectId, filters.projectId),
+                or(
+                  like(drizzleSql`lower(${inputData.name})`, searchTerm),
+                  like(drizzleSql`lower(${inputData.contentType})`, searchTerm)
+                )
+              ));
+            } else {
+              dataQuery = dataQuery.where(and(
+                eq(projects.userId, userId),
+                or(
+                  like(drizzleSql`lower(${inputData.name})`, searchTerm),
+                  like(drizzleSql`lower(${inputData.contentType})`, searchTerm)
+                )
+              ));
+            }
+            
+            dataQuery = dataQuery.orderBy(desc(inputData.createdAt))
+              .limit(limit)
+              .offset(offset);
+            
+            inputDataResults = await dataQuery;
+            console.log(`Found ${inputDataResults.length} matching input data items`);
+          }
           
-          const requirementsData = await sql.query(requirementsQuery, [userId, searchTerm, limit, offset]);
-          requirementResults = requirementsData.rows;
-          console.log(`Found ${requirementResults.length} matching requirements`);
-          
-          // Get input data
-          const inputDataQuery = `
-            SELECT i.id, i.name, i.type, i.size, i.content_type as "contentType", 
-                  i.project_id as "projectId", i.created_at as "createdAt", 
-                  i.updated_at as "updatedAt", i.status
-            FROM input_data i
-            JOIN projects p ON i.project_id = p.id
-            WHERE p.user_id = $1 
-            AND (LOWER(i.name) LIKE $2 OR LOWER(i.content_type) LIKE $2)
-            ORDER BY i.created_at DESC
-            LIMIT $3 OFFSET $4
-          `;
-          
-          const inputDataData = await sql.query(inputDataQuery, [userId, searchTerm, limit, offset]);
-          inputDataResults = inputDataData.rows;
-          console.log(`Found ${inputDataResults.length} matching input data items`);
-          
-          // Get tasks
-          const tasksQuery = `
-            SELECT t.id, t.title, t.description, t.requirement_id as "requirementId", 
-                  t.status, t.priority, t.assigned_to as "assignedTo", 
-                  t.created_at as "createdAt", t.updated_at as "updatedAt",
-                  r.project_id as "projectId"
-            FROM implementation_tasks t
-            JOIN requirements r ON t.requirement_id = r.id
-            JOIN projects p ON r.project_id = p.id
-            WHERE p.user_id = $1 
-            AND (LOWER(t.title) LIKE $2 OR LOWER(t.description) LIKE $2)
-            ORDER BY t.updated_at DESC
-            LIMIT $3 OFFSET $4
-          `;
-          
-          const tasksData = await sql.query(tasksQuery, [userId, searchTerm, limit, offset]);
-          taskResults = tasksData.rows;
-          console.log(`Found ${taskResults.length} matching tasks`);
-          
+          // 4. Search implementation tasks if included in entity types
+          if (entityTypes.includes("tasks")) {
+            let tasksQuery = db.select({
+              id: implementationTasks.id,
+              title: implementationTasks.title,
+              description: implementationTasks.description,
+              requirementId: implementationTasks.requirementId,
+              status: implementationTasks.status,
+              priority: implementationTasks.priority,
+              assignedTo: implementationTasks.assignedTo,
+              createdAt: implementationTasks.createdAt,
+              updatedAt: implementationTasks.updatedAt,
+              projectId: requirements.projectId,
+            })
+            .from(implementationTasks)
+            .innerJoin(requirements, eq(implementationTasks.requirementId, requirements.id))
+            .innerJoin(projects, eq(requirements.projectId, projects.id));
+            
+            // Apply projectId filter if available
+            if (filters?.projectId) {
+              tasksQuery = tasksQuery.where(and(
+                eq(projects.userId, userId),
+                eq(requirements.projectId, filters.projectId),
+                or(
+                  like(drizzleSql`lower(${implementationTasks.title})`, searchTerm),
+                  like(drizzleSql`lower(${implementationTasks.description})`, searchTerm)
+                )
+              ));
+            } else {
+              tasksQuery = tasksQuery.where(and(
+                eq(projects.userId, userId),
+                or(
+                  like(drizzleSql`lower(${implementationTasks.title})`, searchTerm),
+                  like(drizzleSql`lower(${implementationTasks.description})`, searchTerm)
+                )
+              ));
+            }
+            
+            // Apply priority filter if available
+            if (filters?.priority) {
+              tasksQuery = tasksQuery.where(eq(implementationTasks.priority, filters.priority));
+            }
+            
+            tasksQuery = tasksQuery.orderBy(desc(implementationTasks.updatedAt))
+              .limit(limit)
+              .offset(offset);
+            
+            taskResults = await tasksQuery;
+            console.log(`Found ${taskResults.length} matching tasks`);
+          }
         } catch (sqlError) {
-          console.error('SQL error during search:', sqlError);
+          console.error('Error during search:', sqlError);
         }
       }
-
+      
       // Calculate total results
       const totalResults = projectResults.length + requirementResults.length + 
-                           inputDataResults.length + taskResults.length;
-      
-      // Apply filters if needed (basic implementation)
-      if (filters?.projectId) {
-        // Filter by project ID if specified
-        requirementResults = requirementResults.filter(r => r.projectId === filters.projectId);
-        inputDataResults = inputDataResults.filter(i => i.projectId === filters.projectId);
-        taskResults = taskResults.filter(t => t.projectId === filters.projectId);
-      }
-      
-      if (filters?.category) {
-        requirementResults = requirementResults.filter(r => r.category === filters.category);
-      }
-      
-      if (filters?.priority) {
-        requirementResults = requirementResults.filter(r => r.priority === filters.priority);
-        taskResults = taskResults.filter(t => t.priority === filters.priority);
-      }
-      
-      // Apply entityTypes filter if specified
-      const entityTypes = filters?.entityTypes || ["projects", "requirements", "inputData", "tasks"];
-      
-      if (!entityTypes.includes("projects")) projectResults = [];
-      if (!entityTypes.includes("requirements")) requirementResults = [];
-      if (!entityTypes.includes("inputData")) inputDataResults = [];
-      if (!entityTypes.includes("tasks")) taskResults = [];
+                          inputDataResults.length + taskResults.length;
       
       // Return results
       return {
