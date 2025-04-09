@@ -81,12 +81,18 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
 
   // Navigate to search results
   const navigateToAdvancedSearch = () => {
+    console.log("navigateToAdvancedSearch called, searchQuery:", searchQuery);
     if (searchQuery && searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setIsSearchPopoverOpen(false);
+      const url = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+      console.log("Navigating to:", url);
       
-      // We'll refetch later with the useEffect in search-results.tsx
-      // No need to call any other functions here
+      // Use direct href navigation instead of wouter's navigate
+      window.location.href = url;
+      
+      // Also close the popover
+      setIsSearchPopoverOpen(false);
+    } else {
+      console.log("Search query is empty, not navigating");
     }
   };
 
@@ -249,7 +255,10 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
                         {/* Advanced search link */}
                         <div 
                           className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-primary hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
-                          onClick={navigateToAdvancedSearch}
+                          onClick={() => {
+                            console.log("'View all results' clicked - desktop");
+                            navigateToAdvancedSearch();
+                          }}
                         >
                           View all results
                         </div>
@@ -411,7 +420,10 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
                         {/* Advanced search link */}
                         <div 
                           className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-primary hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
-                          onClick={navigateToAdvancedSearch}
+                          onClick={() => {
+                            console.log("'View all results' clicked - mobile");
+                            navigateToAdvancedSearch();
+                          }}
                         >
                           View all results
                         </div>
@@ -424,12 +436,13 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
           )}
         </div>
       </header>
-
-      {/* Project Creation Modal */}
-      <ProjectForm 
-        isOpen={isProjectModalOpen} 
-        onClose={() => setIsProjectModalOpen(false)} 
-      />
+      
+      {isProjectModalOpen && (
+        <ProjectForm 
+          onClose={() => setIsProjectModalOpen(false)}
+          onSuccess={() => setIsProjectModalOpen(false)} 
+        />
+      )}
     </>
   );
 }

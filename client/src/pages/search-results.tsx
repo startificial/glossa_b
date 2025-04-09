@@ -41,6 +41,10 @@ export function SearchResults() {
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
   const initialQuery = searchParams.get('q') || '';
   
+  console.log("SearchResults mounted, location:", location);
+  console.log("Search params:", Object.fromEntries(searchParams.entries()));
+  console.log("Initial query:", initialQuery);
+  
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [activeTab, setActiveTab] = useState("all");
   const [page, setPage] = useState(1);
