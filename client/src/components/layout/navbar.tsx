@@ -81,8 +81,13 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
 
   // Navigate to search results
   const navigateToAdvancedSearch = () => {
-    navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
-    setIsSearchPopoverOpen(false);
+    if (searchQuery && searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchPopoverOpen(false);
+      
+      // We'll refetch later with the useEffect in search-results.tsx
+      // No need to call any other functions here
+    }
   };
 
   // Navigate to specific result

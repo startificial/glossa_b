@@ -150,6 +150,14 @@ export function SearchResults() {
     }
   }, [searchQuery, activeTab]);
   
+  // Auto-trigger search when component loads with a query parameter
+  useEffect(() => {
+    if (initialQuery && initialQuery.trim().length > 0) {
+      // Only auto-trigger if we have a real query
+      refetch();
+    }
+  }, [initialQuery, refetch]);
+  
   // Format date range for display
   const getFormattedDateRange = () => {
     if (fromDate && toDate) {
