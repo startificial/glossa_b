@@ -54,8 +54,29 @@ export async function isEndpointAvailable(): Promise<boolean> {
     });
     
     if (response.ok) {
-      log('Custom inference endpoint is available', 'models');
-      return true;
+      const result = await response.json();
+      log(`Custom inference health check response: ${JSON.stringify(result).substring(0, 100)}...`, 'models');
+      
+      // Verify we can parse the response to ensure the endpoint is working correctly
+      let validResponse = false;
+      
+      if (Array.isArray(result)) {
+        const contradictionObject = result.find(item => 
+          item.label && item.label.toLowerCase() === 'contradiction');
+        
+        if (contradictionObject && contradictionObject.score !== undefined) {
+          validResponse = true;
+        }
+      }
+      
+      if (validResponse) {
+        log('Custom inference endpoint is available and returning valid responses', 'models');
+        return true;
+      } else {
+        log('Custom inference endpoint returned OK status but invalid response format', 'warning');
+        // Still return true because the endpoint is accessible, just not in the expected format
+        return true;
+      }
     } else {
       log(`Custom inference endpoint returned status ${response.status}`, 'error');
       return false;
@@ -104,24 +125,39 @@ export async function detectContradictionWithEndpoint(premise: string, hypothesi
       return 0;
     }
     
-    const result = await response.json() as EndpointResponse;
+    const result = await response.json();
     log(`Custom endpoint response: ${JSON.stringify(result).substring(0, 200)}...`, 'models');
     
-    // The NLI model will return contradiction, entailment, and neutral scores
-    // We only care about the contradiction score
-    if (result && result.contradiction !== undefined) {
-      const contradictionScore = result.contradiction;
-      log(`Contradiction score for premise: "${premise.substring(0, 50)}..." and hypothesis: "${hypothesis.substring(0, 50)}..." is ${contradictionScore.toFixed(4)}`, 'models');
+    // The API returns an array of objects with label/score pairs
+    if (Array.isArray(result)) {
+      // Find the object with label "contradiction"
+      const contradictionObject = result.find(item => 
+        item.label && item.label.toLowerCase() === 'contradiction');
+      
+      if (contradictionObject && contradictionObject.score !== undefined) {
+        const contradictionScore = contradictionObject.score;
+        log(`Contradiction score for premise: "${premise.substring(0, 50)}..." and hypothesis: "${hypothesis.substring(0, 50)}..." is ${contradictionScore.toFixed(4)}`, 'models');
+        return contradictionScore;
+      }
+    }
+    
+    // Check if the result has direct properties (original expected format)
+    const typedResult = result as EndpointResponse;
+    if (typedResult && typeof typedResult.contradiction === 'number') {
+      const contradictionScore = typedResult.contradiction;
+      log(`Contradiction score from direct property: ${contradictionScore.toFixed(4)}`, 'models');
       return contradictionScore;
     }
     
-    // Fallback to old format if somehow we get it
-    if (result && result.labels && result.scores) {
-      const yesIndex = result.labels.findIndex((label: string) => 
+    // Fallback to old format for backwards compatibility
+    if (result && (result as EndpointResponse).labels && (result as EndpointResponse).scores) {
+      const labels = (result as EndpointResponse).labels || [];
+      const scores = (result as EndpointResponse).scores || [];
+      const yesIndex = labels.findIndex((label: string) => 
         label.toLowerCase() === 'yes' || label.toLowerCase() === 'contradiction');
       
       if (yesIndex !== -1) {
-        return result.scores[yesIndex];
+        return scores[yesIndex];
       }
     }
     
