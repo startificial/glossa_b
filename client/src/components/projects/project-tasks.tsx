@@ -26,12 +26,20 @@ interface ProjectTasksProps {
 
 // Custom hook to fetch tasks for multiple requirements
 function useRequirementsTasks(requirementIds: number[] = []) {
-  const queries = requirementIds.map(reqId => {
+  // Ensure requirementIds is an array before mapping
+  const safeRequirementIds = Array.isArray(requirementIds) ? requirementIds : [];
+  
+  const queries = safeRequirementIds.map(reqId => {
     return useQuery<ImplementationTask[]>({
       queryKey: [`/api/requirements/${reqId}/tasks`],
       enabled: !!reqId,
     });
   });
+
+  // If there are no queries, return empty defaults to prevent errors
+  if (queries.length === 0) {
+    return { data: [], isLoading: false, isError: false };
+  }
 
   const isLoading = queries.some(query => query.isLoading);
   const isError = queries.some(query => query.isError);
