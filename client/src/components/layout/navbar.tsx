@@ -83,8 +83,17 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
   const navigateToAdvancedSearch = () => {
     console.log("navigateToAdvancedSearch called, searchQuery:", searchQuery);
     if (searchQuery && searchQuery.trim()) {
-      const url = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+      const trimmedQuery = searchQuery.trim();
+      const url = `/search?q=${encodeURIComponent(trimmedQuery)}`;
       console.log("Navigating to:", url);
+      
+      // Save search query to sessionStorage
+      try {
+        sessionStorage.setItem('lastSearchQuery', trimmedQuery);
+        console.log("Saved search query to sessionStorage:", trimmedQuery);
+      } catch (e) {
+        console.error("Failed to save to sessionStorage:", e);
+      }
       
       // Use direct href navigation instead of wouter's navigate
       window.location.href = url;

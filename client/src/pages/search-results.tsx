@@ -39,11 +39,35 @@ export function SearchResults() {
   const [_, params] = useRoute("/search");
   const [location] = useLocation();
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
-  const initialQuery = searchParams.get('q') || '';
+  
+  // Get query from URL or sessionStorage
+  let initialQuery = searchParams.get('q') || '';
+  
+  // If there's no query in the URL but we have one in sessionStorage, use that
+  if (!initialQuery) {
+    try {
+      const storedQuery = sessionStorage.getItem('lastSearchQuery');
+      if (storedQuery) {
+        console.log("Retrieved query from sessionStorage:", storedQuery);
+        initialQuery = storedQuery;
+        
+        // Update the URL to include the query
+        const newParams = new URLSearchParams(location.split('?')[1] || '');
+        newParams.set('q', storedQuery);
+        window.history.replaceState(
+          {},
+          '',
+          `${window.location.pathname}?${newParams.toString()}`
+        );
+      }
+    } catch (e) {
+      console.error("Failed to retrieve from sessionStorage:", e);
+    }
+  }
   
   console.log("SearchResults mounted, location:", location);
   console.log("Search params:", Object.fromEntries(searchParams.entries()));
-  console.log("Initial query:", initialQuery);
+  console.log("Initial query (after sessionStorage check):", initialQuery);
   
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [activeTab, setActiveTab] = useState("all");
