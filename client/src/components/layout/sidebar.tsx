@@ -279,10 +279,11 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
           </nav>
         </div>
 
-        {/* User and Settings */}
+        {/* User and Settings - Fixed at the bottom of the viewport */}
         <div className={cn(
-          "mt-4 md:mt-6 pt-3 md:pt-4 border-t border-gray-200 dark:border-gray-700",
-          isCollapsed ? "mx-1" : "mx-2"
+          "fixed bottom-0 left-0 pt-3 md:pt-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 z-10",
+          isCollapsed ? "w-16" : "w-64 md:w-72 lg:w-64",
+          isCollapsed ? "px-1" : "px-2"
         )}>
           <Link 
             href="/settings"
@@ -368,7 +369,12 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
               </span>
             </Link>
           )}
+          {/* Add extra padding at the bottom to ensure content doesn't get hidden behind the fixed element */}
+          <div className="h-2"></div>
         </div>
+        
+        {/* Add a spacer at the end of the sidebar content to prevent content from being hidden behind the fixed bottom nav */}
+        <div className="mt-4 md:mt-6 pb-36"></div>
       </aside>
     </>
   );
