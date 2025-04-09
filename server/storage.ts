@@ -832,10 +832,21 @@ export class DatabaseStorage implements IStorage {
         
         projectsCount = Number(projectCountResult[0].count);
         
-        // Get paginated projects
-        matchedProjects = await db.select({
-          ...projects,
-          customerDetails: customers
+        // Get paginated projects - simplify the selection to avoid circular references
+        const projectResults = await db.select({
+          id: projects.id,
+          name: projects.name,
+          description: projects.description,
+          customerId: projects.customerId,
+          userId: projects.userId,
+          createdAt: projects.createdAt,
+          updatedAt: projects.updatedAt,
+          status: projects.status,
+          sourceSystem: projects.sourceSystem,
+          targetSystem: projects.targetSystem,
+          // Include just the essential customer fields rather than the entire table
+          customerName: customers.name,
+          customerEmail: customers.email
         })
         .from(projects)
         .leftJoin(customers, eq(projects.customerId, customers.id))
@@ -843,6 +854,26 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(projects.updatedAt))
         .limit(limit)
         .offset(offset);
+        
+        // Convert to Project type - this avoids spreading nested objects which can cause recursion
+        matchedProjects = projectResults.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          customerId: p.customerId,
+          userId: p.userId,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          status: p.status,
+          sourceSystem: p.sourceSystem,
+          targetSystem: p.targetSystem,
+          // Include customer details if needed
+          customerDetails: p.customerName ? {
+            id: p.customerId,
+            name: p.customerName,
+            email: p.customerEmail
+          } : undefined
+        }));
       }
       
       // Search requirements
@@ -1015,11 +1046,30 @@ export class DatabaseStorage implements IStorage {
           .limit(limit)
           .offset(offset);
         
-        // Convert to ExtendedImplementationTask format
-        matchedTasks = taskResults.map(result => ({
-          ...result.task,
-          projectId: result.projectId
-        }));
+        // Convert to ExtendedImplementationTask format - avoid spreading nested objects
+        matchedTasks = taskResults.map(result => {
+          // Extract task properties explicitly to avoid circular references
+          const task = result.task;
+          return {
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            requirementId: task.requirementId,
+            status: task.status,
+            priority: task.priority,
+            assignedTo: task.assignedTo,
+            createdAt: task.createdAt,
+            updatedAt: task.updatedAt,
+            salesforceObjectType: task.salesforceObjectType,
+            salesforceFieldName: task.salesforceFieldName,
+            salesforceImplementationDetails: task.salesforceImplementationDetails,
+            configChanges: task.configChanges,
+            codeChanges: task.codeChanges,
+            testingStrategy: task.testingStrategy,
+            estimatedHours: task.estimatedHours,
+            projectId: result.projectId
+          };
+        });
       }
       
       // Calculate total results and pages
