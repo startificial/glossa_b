@@ -57,7 +57,10 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
       >
         <div className="flex flex-shrink-0 px-2 md:px-4 mb-3 md:mb-5 items-center justify-between">
           <div className={cn("flex-1", isCollapsed && "hidden")}>
-            <h2 className="text-base md:text-lg font-medium">Projects</h2>
+            {/* Only show the Projects heading when we're on a projects page */}
+            {(location === "/projects" || location.startsWith("/projects/")) && (
+              <h2 className="text-base md:text-lg font-medium">Projects</h2>
+            )}
           </div>
           <Button
             variant="ghost"
