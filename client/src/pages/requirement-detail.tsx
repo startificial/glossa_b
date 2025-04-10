@@ -200,9 +200,11 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       console.log(`Generating criteria for requirement ID: ${requirementId} in project: ${projectId}`);
       // Call the server endpoint to generate acceptance criteria with Claude
       return apiRequest(
-        "POST",
         `/api/requirements/${requirementId}/generate-acceptance-criteria`,
-        { projectId } // Include projectId in the request body
+        {
+          method: "POST",
+          data: { projectId } // Include projectId in the request body
+        }
       );
     },
     onSuccess: (data) => {
@@ -252,9 +254,11 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
     mutationFn: async () => {
       console.log(`Generating tasks for requirement ID: ${requirementId} in project: ${projectId}`);
       return apiRequest(
-        "POST",
         `/api/requirements/${requirementId}/generate-tasks`,
-        { projectId } // Include projectId in the request body
+        {
+          method: "POST",
+          data: { projectId } // Include projectId in the request body
+        }
       );
     },
     onSuccess: () => {
@@ -361,10 +365,12 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       
       // Update the requirement with the new acceptance criteria
       return apiRequest(
-        "PUT",
         `/api/projects/${projectId}/requirements/${requirementId}`,
-        { 
-          acceptanceCriteria: [...currentCriteria, newCriterionWithId]
+        {
+          method: "PUT",
+          data: { 
+            acceptanceCriteria: [...currentCriteria, newCriterionWithId]
+          }
         }
       );
     },
