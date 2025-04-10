@@ -193,7 +193,7 @@ export function WorkflowEditor({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-md overflow-hidden border border-gray-200 dark:border-gray-700">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-md overflow-hidden border border-gray-200 dark:border-gray-700" style={{ height: '800px', width: '100%' }}>
       {/* Editor header with controls */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap justify-between items-center gap-2">
         <div className="flex-1 min-w-[250px]">
@@ -249,7 +249,7 @@ export function WorkflowEditor({
       </div>
 
       {/* Main editor area */}
-      <div className="flex-1 h-0 relative">
+      <div className="flex-1 relative" style={{ height: 'calc(100% - 110px)', minHeight: '500px' }}>
         <style>{customNodeStyles}</style>
         <ReactFlow
           nodes={nodes}
@@ -269,6 +269,7 @@ export function WorkflowEditor({
           elementsSelectable={!readOnly}
           edgesFocusable={!readOnly}
           nodesFocusable={!readOnly}
+          style={{ width: '100%', height: '100%', background: '#f8f9fa' }}
         >
           <Controls />
           <Background gap={12} size={1} />
