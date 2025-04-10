@@ -20,7 +20,7 @@ export function SidebarNavFooter({
 }: SidebarNavFooterProps) {
   return (
     <div className={cn(
-      "fixed bottom-0 left-0 pt-3 md:pt-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800",
+      "fixed bottom-0 left-0 pt-3 md:pt-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 z-30 shadow-md",
       isCollapsed ? "w-16" : "w-64 md:w-72 lg:w-64",
       isCollapsed ? "px-1" : "px-2"
     )}>

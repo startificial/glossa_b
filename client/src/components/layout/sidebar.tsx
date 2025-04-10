@@ -51,7 +51,7 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
       <SidebarBackdrop />
       <aside
         className={cn(
-          "bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pt-3 pb-4 flex flex-col transform -translate-x-full md:translate-x-0 transition-all duration-300 ease-in-out fixed md:sticky top-0 z-20 h-[calc(100vh-61px)] overflow-y-auto",
+          "bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pt-3 pb-20 flex flex-col transform -translate-x-full md:translate-x-0 transition-all duration-300 ease-in-out fixed md:sticky top-0 z-20 h-[calc(100vh-61px)] overflow-hidden",
           isCollapsed ? "w-16" : "w-64 md:w-72 lg:w-64",
           isOpen && "translate-x-0"
         )}
@@ -75,8 +75,8 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
           </Button>
         </div>
 
-        {/* Main content scrollable area (with bottom padding for footer) */}
-        <div className="overflow-y-auto pb-36">
+        {/* Main content scrollable area (with ample padding for footer) */}
+        <div className="overflow-y-auto pb-40 mask-image-linear">
           <nav className="space-y-4 px-2">
             {/* Main Navigation section */}
             <div className={cn(

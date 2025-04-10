@@ -111,4 +111,10 @@
   .navbar-desktop {
     @apply hidden md:flex items-center justify-between w-full py-3 px-6;
   }
+  
+  /* Mask effect for scrollable areas that need to fade out near the bottom */
+  .mask-image-linear {
+    mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+  }
 }
