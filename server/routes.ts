@@ -28,8 +28,8 @@ import {
   documents,
   fieldMappings
 } from "@shared/schema";
-import { eq, asc, desc, and } from "drizzle-orm";
-import { AcceptanceCriterion } from "@shared/types";
+import { eq, asc, desc, and, like } from "drizzle-orm";
+import { AcceptanceCriterion, WorkflowNode, WorkflowEdge } from "@shared/types";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
