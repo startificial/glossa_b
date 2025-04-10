@@ -720,6 +720,298 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Workflow routes
+  app.get("/api/projects/:projectId/workflows", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      const workflows = await storage.getWorkflowsByProject(projectId);
+      res.json(workflows);
+    } catch (error) {
+      console.error("Error fetching workflows:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/workflows/:id", async (req: Request, res: Response) => {
+    try {
+      const workflowId = parseInt(req.params.id);
+      if (isNaN(workflowId)) {
+        return res.status(400).json({ message: "Invalid workflow ID" });
+      }
+
+      const workflow = await storage.getWorkflow(workflowId);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+
+      res.json(workflow);
+    } catch (error) {
+      console.error("Error fetching workflow:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/workflows", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // Validate the workflow data
+      const workflowData = insertWorkflowSchema.parse({
+        ...req.body,
+        projectId // Override with the path parameter
+      });
+
+      const newWorkflow = await storage.createWorkflow(workflowData);
+      
+      // Log the creation of a new workflow as an activity
+      await storage.createActivity({
+        type: "created_workflow",
+        description: `Created workflow "${newWorkflow.name}"`,
+        userId: req.session.userId || 1, // Use demo user if not logged in
+        projectId,
+        relatedEntityId: newWorkflow.id
+      });
+
+      res.status(201).json(newWorkflow);
+    } catch (error) {
+      console.error("Error creating workflow:", error);
+      res.status(400).json({ message: "Invalid workflow data", error });
+    }
+  });
+
+  app.put("/api/workflows/:id", async (req: Request, res: Response) => {
+    try {
+      const workflowId = parseInt(req.params.id);
+      if (isNaN(workflowId)) {
+        return res.status(400).json({ message: "Invalid workflow ID" });
+      }
+
+      // Check if workflow exists
+      const existingWorkflow = await storage.getWorkflow(workflowId);
+      if (!existingWorkflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+
+      // Validate the update data
+      const workflowData = insertWorkflowSchema.partial().parse(req.body);
+
+      // Update the workflow
+      const updatedWorkflow = await storage.updateWorkflow(workflowId, workflowData);
+      if (!updatedWorkflow) {
+        return res.status(500).json({ message: "Failed to update workflow" });
+      }
+
+      // Log the update as an activity
+      await storage.createActivity({
+        type: "updated_workflow",
+        description: `Updated workflow "${updatedWorkflow.name}"`,
+        userId: req.session.userId || 1, // Use demo user if not logged in
+        projectId: updatedWorkflow.projectId,
+        relatedEntityId: updatedWorkflow.id
+      });
+
+      res.json(updatedWorkflow);
+    } catch (error) {
+      console.error("Error updating workflow:", error);
+      res.status(400).json({ message: "Invalid workflow data", error });
+    }
+  });
+
+  app.delete("/api/workflows/:id", async (req: Request, res: Response) => {
+    try {
+      const workflowId = parseInt(req.params.id);
+      if (isNaN(workflowId)) {
+        return res.status(400).json({ message: "Invalid workflow ID" });
+      }
+
+      // Check if workflow exists
+      const existingWorkflow = await storage.getWorkflow(workflowId);
+      if (!existingWorkflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+
+      // Delete the workflow
+      const success = await storage.deleteWorkflow(workflowId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete workflow" });
+      }
+
+      // Log the deletion as an activity
+      await storage.createActivity({
+        type: "deleted_workflow",
+        description: `Deleted workflow "${existingWorkflow.name}"`,
+        userId: req.session.userId || 1, // Use demo user if not logged in
+        projectId: existingWorkflow.projectId,
+        relatedEntityId: null
+      });
+
+      res.json({ message: "Workflow deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting workflow:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Generate workflow from requirements tagged with "workflow"
+  app.post("/api/projects/:projectId/generate-workflow", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Check if project exists
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // Get all requirements for this project that are tagged with "workflow" in their category
+      const workflowRequirements = await db.query.requirements.findMany({
+        where: and(
+          eq(requirements.projectId, projectId),
+          like(requirements.category, "%workflow%")
+        )
+      });
+
+      if (workflowRequirements.length === 0) {
+        return res.status(404).json({ 
+          message: "No workflow requirements found",
+          detail: "Add requirements with 'workflow' in their category to generate a workflow"
+        });
+      }
+
+      // Create a new workflow with default structure
+      const workflowName = req.body.name || `${project.name} Workflow`;
+      
+      // Generate nodes for start, end, and each requirement
+      const nodes: WorkflowNode[] = [
+        {
+          id: 'start',
+          type: 'start',
+          position: { x: 250, y: 50 },
+          data: { label: 'Start' }
+        }
+      ];
+      
+      // Add nodes for each requirement
+      workflowRequirements.forEach((req, index) => {
+        nodes.push({
+          id: `req-${req.id}`,
+          type: 'task',
+          position: { x: 250, y: 150 + (index * 100) },
+          data: {
+            label: req.title,
+            description: req.description,
+            requirementId: req.id
+          }
+        });
+      });
+      
+      // Add end node
+      nodes.push({
+        id: 'end',
+        type: 'end',
+        position: { x: 250, y: 150 + (workflowRequirements.length * 100) },
+        data: { label: 'End' }
+      });
+      
+      // Generate edges connecting all nodes in sequence
+      const edges: WorkflowEdge[] = [];
+      
+      // Connect start to first requirement
+      if (workflowRequirements.length > 0) {
+        edges.push({
+          id: 'start-to-first',
+          source: 'start',
+          target: `req-${workflowRequirements[0].id}`,
+          type: 'default'
+        });
+      } else {
+        // If no requirements, connect start directly to end
+        edges.push({
+          id: 'start-to-end',
+          source: 'start',
+          target: 'end',
+          type: 'default'
+        });
+      }
+      
+      // Connect requirements to each other in sequence
+      for (let i = 0; i < workflowRequirements.length - 1; i++) {
+        edges.push({
+          id: `req-${workflowRequirements[i].id}-to-req-${workflowRequirements[i+1].id}`,
+          source: `req-${workflowRequirements[i].id}`,
+          target: `req-${workflowRequirements[i+1].id}`,
+          type: 'default'
+        });
+      }
+      
+      // Connect last requirement to end
+      if (workflowRequirements.length > 0) {
+        edges.push({
+          id: 'last-to-end',
+          source: `req-${workflowRequirements[workflowRequirements.length-1].id}`,
+          target: 'end',
+          type: 'default'
+        });
+      }
+      
+      // Create the workflow
+      const newWorkflow = await storage.createWorkflow({
+        name: workflowName,
+        description: req.body.description || 'Automatically generated workflow from requirements',
+        projectId,
+        status: 'draft',
+        version: 1,
+        nodes,
+        edges
+      });
+      
+      // Log the creation as an activity
+      await storage.createActivity({
+        type: "generated_workflow",
+        description: `Generated workflow "${newWorkflow.name}" from ${workflowRequirements.length} requirements`,
+        userId: req.session.userId || 1, // Use demo user if not logged in
+        projectId,
+        relatedEntityId: newWorkflow.id
+      });
+      
+      res.status(201).json(newWorkflow);
+    } catch (error) {
+      console.error("Error generating workflow:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Input data endpoints
   app.get("/api/projects/:projectId/input-data", async (req: Request, res: Response) => {
     try {
