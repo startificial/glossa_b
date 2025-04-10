@@ -1115,7 +1115,7 @@ Begin designing the workflow now based *only* on the specific requirement detail
         // Transform Claude's output to our WorkflowNode and WorkflowEdge format
         if (workflowJson && workflowJson.nodes && workflowJson.edges) {
           // Map Claude's nodes to our format
-          nodes = workflowJson.nodes.map((node: any) => {
+          const mappedNodes = workflowJson.nodes.map((node: any) => {
             // Map Claude's nodeType to our node type format
             let nodeType = 'task'; // Default to task
             switch (node.data.nodeType) {
@@ -1135,7 +1135,8 @@ Begin designing the workflow now based *only* on the specific requirement detail
             return {
               id: node.id,
               type: nodeType,
-              position: node.position || { x: Math.random() * 500, y: Math.random() * 500 }, // Randomize position if none provided
+              // Initially set position to origin, will be arranged by layout algorithm
+              position: { x: 0, y: 0 },
               data: {
                 label: node.data.label,
                 description: node.data.justification,
@@ -1148,7 +1149,7 @@ Begin designing the workflow now based *only* on the specific requirement detail
           });
           
           // Map Claude's edges to our format
-          edges = workflowJson.edges.map((edge: any) => {
+          const mappedEdges = workflowJson.edges.map((edge: any) => {
             return {
               id: edge.id,
               source: edge.source,
@@ -1158,6 +1159,146 @@ Begin designing the workflow now based *only* on the specific requirement detail
               animated: false
             };
           });
+          
+          // Apply layout algorithm to the nodes
+          // We'll use a simple hierarchical layout (top to bottom)
+          
+          // Step 1: Build a graph structure from nodes and edges
+          type GraphNode = {
+            id: string;
+            nodeData: any;
+            outgoingEdges: string[]; // target node IDs
+            incomingEdges: string[]; // source node IDs
+            level?: number; // Level in the hierarchy (distance from start)
+            column?: number; // Column in the layout
+          };
+          
+          const graph: Record<string, GraphNode> = {};
+          
+          // Initialize graph with nodes
+          mappedNodes.forEach(node => {
+            graph[node.id] = {
+              id: node.id,
+              nodeData: node,
+              outgoingEdges: [],
+              incomingEdges: [],
+            };
+          });
+          
+          // Add edge information to the graph
+          mappedEdges.forEach(edge => {
+            if (graph[edge.source]) {
+              graph[edge.source].outgoingEdges.push(edge.target);
+            }
+            if (graph[edge.target]) {
+              graph[edge.target].incomingEdges.push(edge.source);
+            }
+          });
+          
+          // Step 2: Find start and end nodes (sources and sinks)
+          const startNodes: string[] = [];
+          const endNodes: string[] = [];
+          
+          Object.keys(graph).forEach(nodeId => {
+            const node = graph[nodeId];
+            
+            // Node with no incoming edges is a source/start
+            if (node.incomingEdges.length === 0) {
+              startNodes.push(nodeId);
+            }
+            
+            // Node with no outgoing edges is a sink/end
+            if (node.outgoingEdges.length === 0) {
+              endNodes.push(nodeId);
+            }
+          });
+          
+          // Step 3: Assign levels to nodes (distance from start)
+          // Start with start nodes at level 0
+          startNodes.forEach(nodeId => {
+            graph[nodeId].level = 0;
+          });
+          
+          // Breadth-first traversal to assign levels
+          const queue = [...startNodes];
+          const visited = new Set<string>(startNodes);
+          
+          while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            const currentNode = graph[currentId];
+            
+            currentNode.outgoingEdges.forEach(targetId => {
+              const targetNode = graph[targetId];
+              
+              // Update level if not set or if new level is higher
+              const newLevel = (currentNode.level || 0) + 1;
+              if (targetNode.level === undefined || newLevel > targetNode.level) {
+                targetNode.level = newLevel;
+              }
+              
+              // Add to queue if not visited
+              if (!visited.has(targetId)) {
+                queue.push(targetId);
+                visited.add(targetId);
+              }
+            });
+          }
+          
+          // For any unvisited nodes (disconnected), set a default level
+          Object.keys(graph).forEach(nodeId => {
+            if (graph[nodeId].level === undefined) {
+              graph[nodeId].level = 0;
+            }
+          });
+          
+          // Step 4: Assign columns to nodes within each level
+          // First, count nodes at each level
+          const levelCounts: Record<number, number> = {};
+          const nodesAtLevel: Record<number, string[]> = {};
+          
+          Object.keys(graph).forEach(nodeId => {
+            const level = graph[nodeId].level || 0;
+            if (!levelCounts[level]) {
+              levelCounts[level] = 0;
+              nodesAtLevel[level] = [];
+            }
+            nodesAtLevel[level].push(nodeId);
+            levelCounts[level]++;
+          });
+          
+          // Assign columns based on node position within level
+          Object.keys(nodesAtLevel).forEach(level => {
+            const nodesInLevel = nodesAtLevel[Number(level)];
+            const nodeCount = nodesInLevel.length;
+            
+            nodesInLevel.forEach((nodeId, index) => {
+              graph[nodeId].column = index;
+            });
+          });
+          
+          // Step 5: Calculate final positions
+          const LEVEL_HEIGHT = 150; // Vertical spacing between levels
+          const NODE_WIDTH = 200; // Horizontal spacing between nodes
+          
+          // Apply positions to nodes
+          mappedNodes.forEach(node => {
+            const graphNode = graph[node.id];
+            const level = graphNode.level || 0;
+            const column = graphNode.column || 0;
+            const totalNodesAtLevel = levelCounts[level] || 1;
+            
+            // Center nodes horizontally at each level
+            const levelWidth = totalNodesAtLevel * NODE_WIDTH;
+            const startX = -(levelWidth / 2) + (NODE_WIDTH / 2);
+            
+            node.position = {
+              x: startX + (column * NODE_WIDTH),
+              y: level * LEVEL_HEIGHT
+            };
+          });
+          
+          nodes = mappedNodes;
+          edges = mappedEdges;
         } else {
           // Fallback if Claude doesn't return proper structure
           console.error('Invalid workflow structure in Claude response');
