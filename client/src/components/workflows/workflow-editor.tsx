@@ -15,8 +15,14 @@ import ReactFlow, {
   MarkerType
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Workflow } from '@/lib/types';
+import { Workflow, WorkflowNode, WorkflowEdge } from '@/lib/types';
 import { nodeTypes, customNodeStyles } from './workflow-nodes';
+import { 
+  workflowNodesToReactFlowNodes, 
+  workflowEdgesToReactFlowEdges,
+  reactFlowNodesToWorkflowNodes,
+  reactFlowEdgesToWorkflowEdges
+} from './workflow-adapters';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
