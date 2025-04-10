@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Workflow } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -7,14 +7,24 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, PlusCircle, GitBranch, AlertTriangle, Trash2, Edit, Eye } from 'lucide-react';
+import { Loader2, PlusCircle, GitBranch, AlertTriangle, Trash2, Edit, Eye, Filter } from 'lucide-react';
 import { WorkflowEditor } from './workflow-editor';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface WorkflowsListProps {
   projectId: number;
+}
+
+interface WorkflowRequirement {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  selected?: boolean;
 }
 
 export function WorkflowsList({ projectId }: WorkflowsListProps) {
@@ -27,10 +37,19 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(null);
+  const [workflowRequirements, setWorkflowRequirements] = useState<WorkflowRequirement[]>([]);
+  const [selectedRequirements, setSelectedRequirements] = useState<number[]>([]);
 
   // Query to fetch all workflows for this project
   const { data: workflows, isLoading, error } = useQuery<Workflow[]>({
     queryKey: [`/api/projects/${projectId}/workflows`],
+  });
+  
+  // Query to fetch workflow requirements for this project
+  const { data: requirements, isLoading: isLoadingRequirements } = useQuery<WorkflowRequirement[]>({
+    queryKey: [`/api/projects/${projectId}/requirements`],
+    select: (data) => data.filter(req => req.category.toLowerCase() === 'workflow'),
+    enabled: isGenerateDialogOpen // Only fetch when dialog is open
   });
 
   // Mutation to delete a workflow
@@ -61,10 +80,10 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
 
   // Mutation to generate a workflow automatically
   const generateWorkflowMutation = useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async (data: { name: string, requirementIds?: number[] }) => {
       return apiRequest<Workflow>(`/api/projects/${projectId}/generate-workflow`, {
         method: 'POST',
-        data: { name }
+        data
       });
     },
     onSuccess: (data) => {
@@ -74,6 +93,7 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
       });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/workflows`] });
       setIsGenerateDialogOpen(false);
+      setSelectedRequirements([]);
     },
     onError: (error: any) => {
       console.error('Error generating workflow:', error);
@@ -121,8 +141,29 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
     }
   };
 
+  // Update workflowRequirements when requirements are loaded
+  useEffect(() => {
+    if (requirements) {
+      setWorkflowRequirements(requirements);
+    }
+  }, [requirements]);
+
+  // Toggle requirement selection
+  const toggleRequirement = (reqId: number) => {
+    setSelectedRequirements(prev => {
+      if (prev.includes(reqId)) {
+        return prev.filter(id => id !== reqId);
+      } else {
+        return [...prev, reqId];
+      }
+    });
+  };
+
   const handleGenerateWorkflow = () => {
-    generateWorkflowMutation.mutate("Auto-generated Workflow");
+    generateWorkflowMutation.mutate({
+      name: "Auto-generated Workflow",
+      requirementIds: selectedRequirements.length > 0 ? selectedRequirements : undefined
+    });
   };
 
   // If creating or editing, show the workflow editor
@@ -324,7 +365,7 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
 
       {/* Auto-generate workflow dialog */}
       <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Generate Workflow</DialogTitle>
             <DialogDescription>
@@ -332,11 +373,47 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Alert>
-              <AlertDescription>
-                Make sure you have requirements with the "Workflow" category to generate a meaningful workflow. Only requirements with this specific category will be included.
-              </AlertDescription>
-            </Alert>
+            {isLoadingRequirements ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              </div>
+            ) : workflowRequirements && workflowRequirements.length > 0 ? (
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Available Workflow Requirements:</h3>
+                <div className="max-h-60 overflow-y-auto border rounded-md p-2">
+                  {workflowRequirements.map(req => (
+                    <div key={req.id} className="flex items-start space-x-2 py-2 border-b last:border-0">
+                      <Checkbox 
+                        id={`req-${req.id}`} 
+                        checked={selectedRequirements.includes(req.id)}
+                        onCheckedChange={() => toggleRequirement(req.id)}
+                      />
+                      <div className="flex-1">
+                        <label 
+                          htmlFor={`req-${req.id}`}
+                          className="text-sm font-medium cursor-pointer"
+                        >
+                          {req.title}
+                        </label>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{req.description}</p>
+                      </div>
+                      <Badge 
+                        variant="outline" 
+                        className="ml-auto self-start text-xs"
+                      >
+                        {req.priority}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <Alert>
+                <AlertDescription>
+                  No requirements with the "Workflow" category found. Please add requirements with this category before generating a workflow.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsGenerateDialogOpen(false)}>
@@ -344,7 +421,7 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
             </Button>
             <Button 
               onClick={handleGenerateWorkflow}
-              disabled={generateWorkflowMutation.isPending}
+              disabled={generateWorkflowMutation.isPending || (workflowRequirements && workflowRequirements.length === 0)}
             >
               {generateWorkflowMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
