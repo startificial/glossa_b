@@ -6,6 +6,7 @@ import * as schema from '../../shared/schema';
 import { eq, inArray, and, asc } from 'drizzle-orm';
 import { generate } from '@pdfme/generator';
 import * as anthropic from '@anthropic-ai/sdk';
+import { generateWithClaude } from '../claude';
 
 const router = express.Router();
 
