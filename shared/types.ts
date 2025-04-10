@@ -20,7 +20,7 @@ export interface AcceptanceCriterion {
 // Workflow Node type for workflow builder
 export interface WorkflowNode {
   id: string;
-  type: 'task' | 'decision' | 'start' | 'end' | 'subprocess';
+  type: 'task' | 'userTask' | 'decision' | 'start' | 'end' | 'subprocess' | 'parallel' | 'wait' | 'message' | 'error' | 'annotation';
   position: { x: number; y: number };
   data: {
     label: string;
@@ -37,7 +37,7 @@ export interface WorkflowEdge {
   source: string;
   target: string;
   label?: string;
-  type?: 'default' | 'conditional' | 'exception';
+  type?: 'default' | 'conditional' | 'exception' | 'message' | 'annotation' | 'timeout';
   animated?: boolean;
   style?: Record<string, any>;
   data?: Record<string, any>;

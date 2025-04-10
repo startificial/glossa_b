@@ -92,15 +92,70 @@ export function WorkflowEditor({
   );
 
   // Add a new node of a specific type
-  const addNode = (type: 'task' | 'decision' | 'subprocess') => {
+  const addNode = (type: 'start' | 'end' | 'task' | 'userTask' | 'decision' | 'subprocess' | 'parallel' | 'wait' | 'message' | 'error' | 'annotation') => {
     const nodeCount = nodes.filter(n => n.type === type).length;
+    
+    // Set default label and descriptions based on node type
+    let label = `New ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+    let description = '';
+    
+    switch(type) {
+      case 'start':
+        label = 'Start';
+        description = 'Start of process';
+        break;
+      case 'end':
+        label = 'End';
+        description = 'End of process';
+        break;
+      case 'task':
+        label = 'Task';
+        description = 'System task';
+        break;
+      case 'userTask':
+        label = 'User Task';
+        description = 'Requires user input';
+        break;
+      case 'decision':
+        label = 'Decision';
+        description = 'Yes/No';
+        break;
+      case 'subprocess':
+        label = 'Subprocess';
+        description = 'Nested process';
+        break;
+      case 'parallel':
+        label = 'Parallel Gateway';
+        description = 'Split flow';
+        break;
+      case 'wait':
+        label = 'Wait';
+        description = 'Time delay';
+        break;
+      case 'message':
+        label = 'Message';
+        description = 'Send/receive';
+        break;
+      case 'error':
+        label = 'Error';
+        description = 'Handle errors';
+        break;
+      case 'annotation':
+        label = 'Note';
+        description = 'Annotation';
+        break;
+    }
+    
     const newNode: Node = {
       id: `${type}-${Date.now()}`,
       type,
-      position: { x: 100, y: 100 + nodeCount * 50 }, // Position new nodes with an offset
+      position: { 
+        x: 100 + (nodeCount % 3) * 50, 
+        y: 100 + nodeCount * 50 
+      },
       data: { 
-        label: `New ${type}`,
-        description: type === 'decision' ? 'Yes/No' : '' 
+        label,
+        description
       },
     };
     setNodes((nds) => [...nds, newNode]);
@@ -275,31 +330,96 @@ export function WorkflowEditor({
           <Background gap={12} size={1} />
 
           {!readOnly && (
-            <Panel position="top-left" className="bg-white dark:bg-gray-800 p-2 rounded-md shadow-md border border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col space-y-2">
+            <Panel position="top-left" className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-md border border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-semibold mb-2 text-gray-600 dark:text-gray-300">ADD NODE</div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => addNode('start')}
+                  className="justify-start h-8"
+                >
+                  <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div> Start
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => addNode('end')}
+                  className="justify-start h-8"
+                >
+                  <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div> End
+                </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => addNode('task')}
-                  className="w-full justify-start"
+                  className="justify-start h-8"
                 >
-                  <Plus className="h-4 w-4 mr-1" /> Task
+                  <div className="w-3 h-3 rounded bg-blue-500 mr-1"></div> Task
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => addNode('userTask')}
+                  className="justify-start h-8"
+                >
+                  <div className="w-3 h-3 rounded bg-blue-300 mr-1"></div> User Task
                 </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => addNode('decision')}
-                  className="w-full justify-start"
+                  className="justify-start h-8"
                 >
-                  <Plus className="h-4 w-4 mr-1" /> Decision
+                  <div className="w-3 h-3 transform rotate-45 bg-yellow-400 mr-1"></div> Decision
                 </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => addNode('subprocess')}
-                  className="w-full justify-start"
+                  className="justify-start h-8"
                 >
-                  <Plus className="h-4 w-4 mr-1" /> Subprocess
+                  <div className="w-3 h-3 rounded bg-indigo-500 mr-1"></div> Subprocess
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => addNode('parallel')}
+                  className="justify-start h-8"
+                >
+                  <div className="w-3 h-3 transform rotate-45 bg-purple-500 mr-1"></div> Parallel
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => addNode('wait')}
+                  className="justify-start h-8"
+                >
+                  <div className="w-3 h-3 rounded-full bg-amber-500 mr-1"></div> Wait
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => addNode('message')}
+                  className="justify-start h-8"
+                >
+                  <div className="w-3 h-3 rounded-full bg-teal-500 mr-1"></div> Message
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => addNode('error')}
+                  className="justify-start h-8"
+                >
+                  <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div> Error
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => addNode('annotation')}
+                  className="justify-start h-8"
+                >
+                  <div className="w-3 h-3 border border-gray-400 mr-1"></div> Note
                 </Button>
               </div>
             </Panel>

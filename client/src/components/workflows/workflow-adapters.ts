@@ -30,7 +30,7 @@ export function workflowNodesToReactFlowNodes(workflowNodes: WorkflowNode[] = []
 export function reactFlowNodesToWorkflowNodes(reactFlowNodes: Node[] = []): WorkflowNode[] {
   return reactFlowNodes.map(node => ({
     id: node.id,
-    type: node.type as 'task' | 'decision' | 'start' | 'end' | 'subprocess',
+    type: node.type as 'task' | 'userTask' | 'decision' | 'start' | 'end' | 'subprocess' | 'parallel' | 'wait' | 'message' | 'error' | 'annotation',
     position: node.position,
     data: {
       label: node.data?.label || 'Unnamed',
@@ -75,7 +75,7 @@ export function reactFlowEdgesToWorkflowEdges(reactFlowEdges: Edge[] = []): Work
     source: edge.source,
     target: edge.target,
     label: edge.label ? String(edge.label) : undefined,
-    type: edge.type as 'default' | 'conditional' | 'exception' | undefined,
+    type: edge.type as 'default' | 'conditional' | 'exception' | 'message' | 'annotation' | 'timeout' | undefined,
     animated: edge.animated,
     style: edge.style,
     data: edge.data,
