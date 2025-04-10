@@ -241,7 +241,7 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
                 onClick={() => setIsGenerateDialogOpen(true)}
                 className="flex items-center"
               >
-                <FileFlowchart className="h-4 w-4 mr-2" />
+                <GitBranch className="h-4 w-4 mr-2" />
                 Auto-Generate
               </Button>
               <Button onClick={handleCreateClick} className="flex items-center">
