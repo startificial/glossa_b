@@ -51,13 +51,13 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
       <SidebarBackdrop />
       <aside
         className={cn(
-          "bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pt-3 pb-20 flex flex-col transform -translate-x-full md:translate-x-0 transition-all duration-300 ease-in-out fixed md:sticky top-0 z-20 h-[calc(100vh-61px)] overflow-hidden",
+          "bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pt-0 pb-20 flex flex-col transform -translate-x-full md:translate-x-0 transition-all duration-300 ease-in-out fixed md:sticky top-0 z-20 h-[calc(100vh-61px)] overflow-hidden",
           isCollapsed ? "w-16" : "w-64 md:w-72 lg:w-64",
           isOpen && "translate-x-0"
         )}
       >
         {/* Header area */}
-        <div className="flex-shrink-0 px-2 md:px-4 mb-3 md:mb-5 items-center justify-between flex">
+        <div className="flex-shrink-0 px-2 md:px-4 py-2 md:py-2 items-center justify-between flex border-b border-gray-200 dark:border-gray-700">
           <div className={cn("flex-1", isCollapsed && "hidden")}>
             {/* Only show the Projects heading when we're on a projects page */}
             {(location === "/projects" || location.startsWith("/projects/")) && (
@@ -77,10 +77,10 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
 
         {/* Main content scrollable area (with ample padding for footer) */}
         <div className="overflow-y-auto pb-40 mask-image-linear">
-          <nav className="space-y-4 px-2">
+          <nav className="space-y-2 px-2 pt-2">
             {/* Main Navigation section */}
             <div className={cn(
-              "px-2 md:px-3 py-1 md:py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider",
+              "px-2 md:px-3 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider",
               isCollapsed && "hidden"
             )}>
               Navigation
