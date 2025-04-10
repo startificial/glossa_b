@@ -14,7 +14,8 @@ import {
   implementationTasks, type ImplementationTask, type InsertImplementationTask,
   documentTemplates, type DocumentTemplate, type InsertDocumentTemplate,
   documents, type Document, type InsertDocument,
-  fieldMappings, type FieldMapping, type InsertFieldMapping
+  fieldMappings, type FieldMapping, type InsertFieldMapping,
+  workflows, type Workflow, type InsertWorkflow, type WorkflowNode, type WorkflowEdge
 } from "@shared/schema";
 import { ExtendedImplementationTask } from './extended-types';
 import { and, desc, eq, or, like, sql as drizzleSql, gte, lte, inArray } from 'drizzle-orm';
@@ -712,6 +713,97 @@ export class DatabaseStorage implements IStorage {
       return true;
     } catch (error) {
       console.error('Error deleting implementation task:', error);
+      return false;
+    }
+  }
+  
+  // Workflow methods
+  async getWorkflow(id: number): Promise<Workflow | undefined> {
+    try {
+      const result = await db.select().from(workflows).where(eq(workflows.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error fetching workflow:', error);
+      return undefined;
+    }
+  }
+
+  async getWorkflowsByProject(projectId: number): Promise<Workflow[]> {
+    try {
+      return await db.select().from(workflows)
+        .where(eq(workflows.projectId, projectId))
+        .orderBy(desc(workflows.updatedAt));
+    } catch (error) {
+      console.error('Error fetching workflows by project:', error);
+      return [];
+    }
+  }
+
+  async getWorkflowsWithRequirementId(requirementId: number): Promise<Workflow[]> {
+    try {
+      // This requires a more complex query as we need to look inside the JSON nodes
+      // to find workflows that reference this requirement
+      const rawResults = await sql`
+        SELECT * FROM workflows 
+        WHERE project_id IN (
+          SELECT project_id FROM requirements WHERE id = ${requirementId}
+        )
+        AND EXISTS (
+          SELECT 1 FROM jsonb_array_elements(nodes) as node
+          WHERE node->'data'->>'requirementId' = ${requirementId.toString()}
+        )
+        ORDER BY updated_at DESC
+      `;
+      
+      // Convert raw results to Workflow objects
+      return rawResults.map(row => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        projectId: row.project_id,
+        version: row.version,
+        status: row.status,
+        nodes: row.nodes,
+        edges: row.edges,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }));
+    } catch (error) {
+      console.error('Error fetching workflows with requirement ID:', error);
+      return [];
+    }
+  }
+
+  async createWorkflow(workflow: InsertWorkflow): Promise<Workflow> {
+    try {
+      const [newWorkflow] = await db.insert(workflows).values(workflow).returning();
+      return newWorkflow;
+    } catch (error) {
+      console.error('Error creating workflow:', error);
+      throw error;
+    }
+  }
+
+  async updateWorkflow(id: number, workflowData: Partial<InsertWorkflow>): Promise<Workflow | undefined> {
+    try {
+      const [updatedWorkflow] = await db.update(workflows)
+        .set({ ...workflowData, updatedAt: new Date() })
+        .where(eq(workflows.id, id))
+        .returning();
+      
+      return updatedWorkflow;
+    } catch (error) {
+      console.error('Error updating workflow:', error);
+      return undefined;
+    }
+  }
+
+  async deleteWorkflow(id: number): Promise<boolean> {
+    try {
+      await db.delete(workflows).where(eq(workflows.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error deleting workflow:', error);
       return false;
     }
   }

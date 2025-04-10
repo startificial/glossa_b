@@ -17,6 +17,7 @@ import {
   insertDocumentTemplateSchema,
   insertDocumentSchema,
   insertFieldMappingSchema,
+  insertWorkflowSchema,
   customers,
   projects,
   requirements,
