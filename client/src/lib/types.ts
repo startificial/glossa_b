@@ -228,3 +228,41 @@ export interface ImplementationTask {
   createdAt: string;
   updatedAt: string;
 }
+
+// Workflow types for the visual workflow builder
+export interface WorkflowNode {
+  id: string;
+  type: 'task' | 'decision' | 'start' | 'end' | 'subprocess';
+  position: { x: number; y: number };
+  data: {
+    label: string;
+    description?: string;
+    requirementId?: number;
+    taskId?: number;
+    properties?: Record<string, any>;
+  };
+}
+
+export interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  type?: 'default' | 'conditional' | 'exception';
+  animated?: boolean;
+  style?: Record<string, any>;
+  data?: Record<string, any>;
+}
+
+export interface Workflow {
+  id: number;
+  name: string;
+  description: string | null;
+  projectId: number;
+  version: number;
+  status: 'draft' | 'published' | 'archived';
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  createdAt: string;
+  updatedAt: string;
+}

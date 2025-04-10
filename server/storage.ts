@@ -88,6 +88,14 @@ export interface IStorage {
   updateImplementationTask(id: number, task: Partial<InsertImplementationTask>): Promise<ImplementationTask | undefined>;
   deleteImplementationTask(id: number): Promise<boolean>;
   
+  // Workflow methods
+  getWorkflow(id: number): Promise<Workflow | undefined>;
+  getWorkflowsByProject(projectId: number): Promise<Workflow[]>;
+  getWorkflowsWithRequirementId(requirementId: number): Promise<Workflow[]>;
+  createWorkflow(workflow: InsertWorkflow): Promise<Workflow>;
+  updateWorkflow(id: number, workflow: Partial<InsertWorkflow>): Promise<Workflow | undefined>;
+  deleteWorkflow(id: number): Promise<boolean>;
+  
   // Search methods
   quickSearch(userId: number, query: string, limit?: number): Promise<{
     projects: Project[];

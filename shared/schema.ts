@@ -337,3 +337,56 @@ export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 
 export type FieldMapping = typeof fieldMappings.$inferSelect;
 export type InsertFieldMapping = z.infer<typeof insertFieldMappingSchema>;
+
+// Workflow schema - stores project workflow definitions
+export const workflows = pgTable("workflows", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  version: integer("version").default(1).notNull(),
+  status: text("status").default("draft").notNull(), // draft, published, archived
+  nodes: jsonb("nodes").default([]).notNull(), // Array of workflow nodes (steps, gateways, etc.)
+  edges: jsonb("edges").default([]).notNull(), // Array of connections between nodes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkflowSchema = createInsertSchema(workflows).pick({
+  name: true,
+  description: true,
+  projectId: true,
+  version: true,
+  status: true,
+  nodes: true,
+  edges: true,
+});
+
+// WorkflowNode Type Definitions (for documentation and TypeScript)
+export interface WorkflowNode {
+  id: string;
+  type: 'task' | 'decision' | 'start' | 'end' | 'subprocess';
+  position: { x: number; y: number };
+  data: {
+    label: string;
+    description?: string;
+    requirementId?: number;
+    taskId?: number;
+    properties?: Record<string, any>;
+  };
+}
+
+// WorkflowEdge Type Definitions (for documentation and TypeScript)
+export interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  type?: 'default' | 'conditional' | 'exception';
+  animated?: boolean;
+  style?: Record<string, any>;
+  data?: Record<string, any>;
+}
+
+export type Workflow = typeof workflows.$inferSelect;
+export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
