@@ -56,34 +56,31 @@ export function Sidebar({ isOpen, isCollapsed, toggleCollapse }: SidebarProps) {
           isOpen && "translate-x-0"
         )}
       >
-        {/* Header area */}
-        <div className="flex-shrink-0 px-2 md:px-4 py-2 md:py-2 items-center justify-between flex border-b border-gray-200 dark:border-gray-700">
-          <div className={cn("flex-1", isCollapsed && "hidden")}>
-            {/* Only show the Projects heading when we're on a projects page */}
-            {(location === "/projects" || location.startsWith("/projects/")) && (
-              <h2 className="text-base md:text-lg font-medium">Projects</h2>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto hidden md:flex"
-            onClick={toggleCollapse}
-            aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-          >
-            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </Button>
-        </div>
-
         {/* Main content scrollable area (with ample padding for footer) */}
         <div className="overflow-y-auto pb-40 mask-image-linear">
-          <nav className="space-y-2 px-2 pt-2">
-            {/* Main Navigation section */}
+          <nav className="space-y-2 px-2">
+            {/* Main Navigation section with collapse button inline */}
             <div className={cn(
-              "px-2 md:px-3 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider",
-              isCollapsed && "hidden"
+              "flex items-center justify-between border-b border-gray-200 dark:border-gray-700 py-2 mb-1",
+              isCollapsed && "justify-center"
             )}>
-              Navigation
+              {!isCollapsed && (
+                <div className="px-2 md:px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Navigation
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "md:flex h-6 w-6 p-0", 
+                  isCollapsed ? "flex" : "hidden md:flex ml-auto"
+                )}
+                onClick={toggleCollapse}
+                aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              >
+                {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              </Button>
             </div>
             
             <div>
