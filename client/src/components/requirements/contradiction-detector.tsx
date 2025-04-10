@@ -108,8 +108,14 @@ export function ContradictionDetector({ projectId }: ContradictionDetectorProps)
                 onClick={handleCheckContradictions}
                 disabled={isFetching}
                 variant="default"
+                className={isFetching ? "animate-pulse bg-slate-400 dark:bg-slate-700" : ""}
               >
-                {isFetching ? "Analyzing..." : "Check Requirements"}
+                {isFetching ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent mr-2"></div>
+                    Analyzing...
+                  </div>
+                ) : "Check Requirements"}
               </Button>
             </div>
 
