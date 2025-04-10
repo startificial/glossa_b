@@ -75,9 +75,12 @@ export function AddRequirementDialog({ projectId }: { projectId: number }) {
   // Mutation for adding a requirement
   const addRequirementMutation = useMutation({
     mutationFn: async (values: RequirementFormValues) => {
-      return apiRequest("POST", `/api/projects/${projectId}/requirements`, {
-        ...values,
-        projectId
+      return apiRequest(`/api/projects/${projectId}/requirements`, {
+        method: "POST",
+        data: {
+          ...values,
+          projectId
+        }
       });
     },
     onSuccess: () => {

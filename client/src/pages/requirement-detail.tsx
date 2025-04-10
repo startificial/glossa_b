@@ -53,7 +53,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const { data: requirement, isLoading, isError } = useQuery({
     queryKey: ['/api/projects', projectId, 'requirements', requirementId],
     queryFn: async () => {
-      return apiRequest("GET", `/api/projects/${projectId}/requirements/${requirementId}`);
+      return apiRequest(`/api/projects/${projectId}/requirements/${requirementId}`);
     }
   });
   
@@ -61,7 +61,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const { data: activities } = useQuery({
     queryKey: ['/api/projects', projectId, 'activities'],
     queryFn: async () => {
-      return apiRequest("GET", `/api/projects/${projectId}/activities`);
+      return apiRequest(`/api/projects/${projectId}/activities`);
     }
   });
   
@@ -69,7 +69,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const { data: implementationTasks, isLoading: isTasksLoading } = useQuery({
     queryKey: ['/api/requirements', requirementId, 'tasks'],
     queryFn: async () => {
-      return apiRequest("GET", `/api/requirements/${requirementId}/tasks`);
+      return apiRequest(`/api/requirements/${requirementId}/tasks`);
     }
   });
   
@@ -78,7 +78,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
     queryKey: ['/api/projects', projectId, 'input-data', requirement?.inputDataId],
     queryFn: async () => {
       if (!requirement || !requirement.inputDataId) return null;
-      return apiRequest("GET", `/api/projects/${projectId}/input-data/${requirement.inputDataId}`);
+      return apiRequest(`/api/projects/${projectId}/input-data/${requirement.inputDataId}`);
     },
     enabled: !!requirement && !!requirement.inputDataId
   });
@@ -92,9 +92,11 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const updateRequirementMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       return apiRequest(
-        "PUT",
         `/api/projects/${projectId}/requirements/${requirementId}`,
-        data
+        {
+          method: "PUT",
+          data
+        }
       );
     },
     onSuccess: () => {
@@ -128,8 +130,10 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const deleteRequirementMutation = useMutation({
     mutationFn: async () => {
       const result = await apiRequest(
-        "DELETE",
-        `/api/projects/${projectId}/requirements/${requirementId}`
+        `/api/projects/${projectId}/requirements/${requirementId}`,
+        {
+          method: "DELETE"
+        }
       );
       return result;
     },
