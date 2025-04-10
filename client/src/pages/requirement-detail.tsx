@@ -577,6 +577,8 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                           <SelectItem value="non-functional">Non-functional</SelectItem>
                           <SelectItem value="security">Security</SelectItem>
                           <SelectItem value="performance">Performance</SelectItem>
+                          <SelectItem value="usability">Usability</SelectItem>
+                          <SelectItem value="compatibility">Compatibility</SelectItem>
                           <SelectItem value="workflow">Workflow</SelectItem>
                         </SelectContent>
                       </Select>

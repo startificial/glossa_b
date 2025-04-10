@@ -188,6 +188,7 @@ export function AddRequirementDialog({ projectId }: { projectId: number }) {
                         <SelectItem value="performance">Performance</SelectItem>
                         <SelectItem value="usability">Usability</SelectItem>
                         <SelectItem value="compatibility">Compatibility</SelectItem>
+                        <SelectItem value="workflow">Workflow</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
