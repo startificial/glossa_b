@@ -636,6 +636,65 @@ export default function TemplateDesigner() {
   };
   
   // Handle file upload with a simpler approach
+  // Create a blank page PDF
+  const createBlankPdf = async () => {
+    try {
+      // Dynamically import jspdf
+      const { jsPDF } = await import('jspdf');
+
+      // Create a new document with portrait A4 format
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      // Get the PDF as base64 string
+      const base64String = doc.output('datauristring');
+      
+      // Create a new template with the blank PDF
+      const newTemplate = {
+        basePdf: base64String,
+        schemas: [[]] as any[][],
+        sampledata: [{}] as any[],
+      };
+      
+      // Set the template
+      setTemplate(newTemplate);
+      
+      // Clean up existing designer if needed
+      if (designer && designerInitialized) {
+        try {
+          if (typeof designer.destroy === 'function') {
+            designer.destroy();
+          }
+          setDesigner(null);
+          setDesignerInitialized(false);
+        } catch (error) {
+          console.error('Error destroying designer:', error);
+        }
+      }
+      
+      // Initialize the designer with the blank PDF
+      setTimeout(() => {
+        initializeDesigner();
+      }, 500);
+      
+      // Show success message
+      toast({
+        title: 'Blank page created',
+        description: 'A blank page has been created. Switch to the Editor tab to add fields.',
+      });
+    } catch (error) {
+      console.error('Error creating blank PDF:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error creating blank page',
+        description: 'Failed to create a blank page. Please try again.',
+      });
+    }
+  };
+  
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     
@@ -819,12 +878,23 @@ export default function TemplateDesigner() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="pdf-upload">Upload Base PDF</Label>
-                  <Input 
-                    id="pdf-upload" 
-                    type="file" 
-                    accept=".pdf" 
-                    onChange={handleFileUpload} 
-                  />
+                  <div className="flex space-x-2">
+                    <Input 
+                      id="pdf-upload" 
+                      type="file" 
+                      accept=".pdf" 
+                      onChange={handleFileUpload} 
+                      className="w-3/4"
+                    />
+                    <Button 
+                      onClick={createBlankPdf}
+                      variant="outline"
+                      className="w-1/4"
+                    >
+                      Create Blank Page
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Upload an existing PDF or create a blank page to start from scratch</p>
                 </div>
                 
                 {!template.basePdf ? (
