@@ -467,6 +467,7 @@ export default function TemplateDesigner() {
       selectionMode: 'single', // 'single', 'all', or 'custom'
       selectionFilter: '',    // Filter criteria for custom selection
       recordId: null,         // For single record selection
+      prompt: '',             // For AI-generated type content
     };
     
     setFieldMappings([...fieldMappings, newMapping as FieldMapping]);
