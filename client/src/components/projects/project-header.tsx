@@ -46,8 +46,7 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
 
   const exportMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("GET", `/api/projects/${projectId}/export`);
-      return response.json() as Promise<ExportData>;
+      return await apiRequest<ExportData>("GET", `/api/projects/${projectId}/export`);
     },
     onSuccess: (data) => {
       downloadJSON(data, `${data.project.name.replace(/\s+/g, '_')}_requirements.json`);
@@ -70,10 +69,7 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
   
   const deleteProjectMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/projects/${projectId}`);
-      if (!response.ok) {
-        throw new Error("Failed to delete project");
-      }
+      await apiRequest("DELETE", `/api/projects/${projectId}`);
       return true;
     },
     onSuccess: () => {
