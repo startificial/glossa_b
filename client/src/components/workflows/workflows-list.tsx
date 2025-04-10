@@ -79,7 +79,7 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
       console.error('Error generating workflow:', error);
       toast({
         title: "Error",
-        description: error.response?.data?.detail || "Failed to generate workflow. Make sure you have requirements with 'workflow' in their category.",
+        description: error.response?.data?.detail || "Failed to generate workflow. Make sure you have requirements with the 'Workflow' category.",
         variant: "destructive"
       });
     }
@@ -233,7 +233,7 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
             <CardTitle className="text-lg mb-2">No Workflows Yet</CardTitle>
             <CardDescription className="max-w-md mb-6">
               Create your first workflow to visualize and organize the process flow of your requirements.
-              Or auto-generate a workflow from your requirements marked with the "workflow" category.
+              Or auto-generate a workflow from your requirements with the "Workflow" category.
             </CardDescription>
             <div className="flex gap-3">
               <Button 
@@ -328,13 +328,13 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
           <DialogHeader>
             <DialogTitle>Generate Workflow</DialogTitle>
             <DialogDescription>
-              This will automatically create a workflow based on requirements tagged with "workflow" in their category.
+              This will automatically create a workflow based on requirements with the "Workflow" category.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Alert>
               <AlertDescription>
-                Make sure you have requirements with the "workflow" category to generate a meaningful workflow.
+                Make sure you have requirements with the "Workflow" category to generate a meaningful workflow. Only requirements with this specific category will be included.
               </AlertDescription>
             </Alert>
           </div>

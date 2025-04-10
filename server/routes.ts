@@ -905,7 +905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (workflowRequirements.length === 0) {
         return res.status(404).json({ 
           message: "No workflow requirements found",
-          detail: "Add requirements with 'workflow' in their category to generate a workflow"
+          detail: "Add requirements with the 'Workflow' category to generate a workflow"
         });
       }
 
