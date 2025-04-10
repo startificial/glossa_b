@@ -894,11 +894,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // Get all requirements for this project that are tagged with "workflow" in their category
+      // Get all requirements for this project that have the "workflow" category
       const workflowRequirements = await db.query.requirements.findMany({
         where: and(
           eq(requirements.projectId, projectId),
-          like(requirements.category, "%workflow%")
+          eq(requirements.category, "workflow")
         )
       });
 
