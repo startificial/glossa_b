@@ -28,7 +28,7 @@ import {
   documents,
   fieldMappings
 } from "@shared/schema";
-import { eq, asc, desc, and, like } from "drizzle-orm";
+import { eq, asc, desc, and, like, inArray } from "drizzle-orm";
 import { AcceptanceCriterion, WorkflowNode, WorkflowEdge } from "@shared/types";
 import multer from "multer";
 import path from "path";
@@ -894,13 +894,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // Get all requirements for this project that have the "workflow" category
-      const workflowRequirements = await db.query.requirements.findMany({
-        where: and(
-          eq(requirements.projectId, projectId),
-          eq(requirements.category, "workflow")
-        )
-      });
+      // Get specific requirements if IDs were provided, otherwise get all workflow category requirements
+      let workflowRequirements;
+      
+      if (req.body.requirementIds && Array.isArray(req.body.requirementIds) && req.body.requirementIds.length > 0) {
+        // Get the specified requirements
+        workflowRequirements = await db.query.requirements.findMany({
+          where: and(
+            eq(requirements.projectId, projectId),
+            inArray(requirements.id, req.body.requirementIds)
+          )
+        });
+      } else {
+        // Get all requirements with the "workflow" category
+        workflowRequirements = await db.query.requirements.findMany({
+          where: and(
+            eq(requirements.projectId, projectId),
+            eq(requirements.category, "workflow")
+          )
+        });
+      }
 
       if (workflowRequirements.length === 0) {
         return res.status(404).json({ 
