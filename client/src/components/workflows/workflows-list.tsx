@@ -37,7 +37,7 @@ export function WorkflowsList({ projectId }: WorkflowsListProps) {
   const deleteWorkflowMutation = useMutation({
     mutationFn: async (workflowId: number) => {
       return apiRequest(`/api/workflows/${workflowId}`, {
-        method: 'DELETE',
+        method: 'DELETE'
       });
     },
     onSuccess: () => {

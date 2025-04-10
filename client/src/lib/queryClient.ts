@@ -20,11 +20,14 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest<T = any>(
-  method: string = "GET",
   url: string,
-  data?: unknown | undefined,
+  options: {
+    method?: string;
+    data?: unknown;
+  } = {},
   parseJson: boolean = true
 ): Promise<T> {
+  const { method = "GET", data } = options;
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
