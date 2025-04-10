@@ -74,18 +74,30 @@ router.post('/generate-data/:templateId', async (req, res) => {
       return res.status(404).json({ error: 'Template not found' });
     }
     
-    // Fetch the project data
+    // Fetch the project data with related items
     const project = await db.query.projects.findFirst({
       where: eq(schema.projects.id, projectId),
       with: {
         customer: true,
-        requirements: true,
+        requirements: {
+          with: {
+            implementationTasks: true
+          }
+        },
       },
     });
     
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
+    
+    // Get all tasks for the project directly (for efficiency)
+    const tasks = await db.query.implementationTasks.findMany({
+      where: inArray(
+        schema.implementationTasks.requirementId,
+        project.requirements.map(req => req.id)
+      ),
+    });
     
     // Generate data based on field mappings
     const generatedData: Record<string, any> = {};
