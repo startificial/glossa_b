@@ -898,7 +898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let workflowRequirements;
       
       if (req.body.requirementIds && Array.isArray(req.body.requirementIds) && req.body.requirementIds.length > 0) {
-        // Get the specified requirements
+        // Get the specified requirements with their acceptance criteria
         workflowRequirements = await db.query.requirements.findMany({
           where: and(
             eq(requirements.projectId, projectId),
@@ -906,7 +906,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         });
       } else {
-        // Get all requirements with the "workflow" category
+        // Get all requirements with the "workflow" category and their acceptance criteria
         workflowRequirements = await db.query.requirements.findMany({
           where: and(
             eq(requirements.projectId, projectId),
@@ -925,77 +925,322 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a new workflow with default structure
       const workflowName = req.body.name || `${project.name} Workflow`;
       
-      // Generate nodes for start, end, and each requirement
-      const nodes: WorkflowNode[] = [
-        {
-          id: 'start',
-          type: 'start',
-          position: { x: 250, y: 50 },
-          data: { label: 'Start' }
+      let nodes: WorkflowNode[] = [];
+      let edges: WorkflowEdge[] = [];
+      
+      // For Claude-based workflow generation, we'll use a single requirement with its acceptance criteria
+      // If multiple requirements are selected, we'll use the first one for simplicity
+      const primaryRequirement = workflowRequirements[0];
+      
+      // Check for Anthropic API key
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        console.error('Missing ANTHROPIC_API_KEY environment variable');
+        return res.status(500).json({ 
+          message: "Missing API key",
+          detail: "Claude API key is not configured. Please set the ANTHROPIC_API_KEY environment variable."
+        });
+      }
+      
+      // Try to generate workflow using Claude
+      try {
+        // Import Anthropic module
+        const Anthropic = (await import('@anthropic-ai/sdk')).default;
+        const anthropic = new Anthropic({
+          apiKey
+        });
+        
+        // Format requirement and acceptance criteria for the prompt
+        let acceptanceCriteriaText = "No specific acceptance criteria provided.";
+        if (primaryRequirement.acceptanceCriteria && 
+            Array.isArray(primaryRequirement.acceptanceCriteria) && 
+            primaryRequirement.acceptanceCriteria.length > 0) {
+          acceptanceCriteriaText = primaryRequirement.acceptanceCriteria
+            .map((ac: any, index: number) => `${index + 1}. ${ac.description}`)
+            .join('\n');
         }
-      ];
-      
-      // Add nodes for each requirement
-      workflowRequirements.forEach((req, index) => {
-        nodes.push({
-          id: `req-${req.id}`,
-          type: 'task',
-          position: { x: 250, y: 150 + (index * 100) },
-          data: {
-            label: req.title,
-            description: req.description,
-            requirementId: req.id
+        
+        // Create the prompt for Claude
+        const prompt = `
+You are an expert Workflow Designer AI. Your task is to analyze the provided software requirement (including its description and acceptance criteria) and design a conceptual workflow using a strictly defined set of node types. The output must be structured as JSON objects compatible with the React Flow library, representing the workflow's nodes and edges.
+
+**1. Available Node Types:**
+
+You MUST use *only* the following node types when defining the \`nodeType\` in the output node data. The visual characteristics are for your reference in understanding the node's purpose:
+
+\`\`\`
+| Node Type         | Suggested Shape        | Suggested Color (Fill/Border) | Suggested Icon         | Border Style      |
+| :---------------- | :--------------------- | :---------------------------- | :--------------------- | :---------------- |
+| Task              | Rectangle              | Blue / Grey                   | Gear (optional)        | Solid             |
+| Subprocess        | Rectangle              | Slightly different Blue/Grey  | + symbol (collapsible) | Solid, maybe bold |
+| Decision          | Diamond                | Yellow / Orange               | Question Mark (?)      | Solid             |
+| Start Event       | Circle                 | Green                         | Play symbol (optional) | Thin Solid        |
+| End Event         | Circle                 | Red                           | Stop symbol (optional) | Thick Solid       |
+| Parallel GW       | Diamond                | Purple / Grey                 | Plus symbol (+)        | Solid             |
+| User Task         | Rectangle              | Light Blue / Task Color       | Person                 | Solid             |
+| Wait / Delay      | Circle                 | Brown / Yellow                | Clock                  | Intermediate Solid|
+| Message Event     | Circle                 | Orange / Teal                 | Envelope               | Intermediate Solid|
+| Error Event       | Circle                 | Red Border                    | Lightning Bolt         | Thick/Intermediate|
+| Annotation        | Open Rectangle [\`]     | No Fill / Grey Text           | None                   | (Connected via Dotted Line) |
+\`\`\`
+
+**2. Requirement to Implement:**
+
+Analyze the following requirement carefully:
+
+\`\`\`
+Requirement ID: ${primaryRequirement.codeId || primaryRequirement.id}
+Requirement Title: ${primaryRequirement.title}
+
+Description:
+${primaryRequirement.description}
+
+Acceptance Criteria:
+${acceptanceCriteriaText}
+\`\`\`
+
+**3. Your Task:**
+
+Based *specifically* on the requirement description and acceptance criteria provided:
+a.  Determine the logical sequence of steps, including any necessary branching (Decisions) or parallel paths (Parallel GWs), required to fulfill the requirement from start to finish.
+b.  For each step or logical element (like start, end, task, decision point), create a corresponding **node** object.
+c.  Define the connections between these steps by creating **edge** objects.
+d.  Ensure every node has a unique \`id\`. Use these \`id\`s in the \`source\` and \`target\` fields of the edge objects to define the workflow connections.
+e.  Handle branching by creating multiple edge objects originating from the \`source\` node (\`Decision\` or \`Parallel GW\`). Add descriptive \`label\`s to edges originating from \`Decision\` nodes (e.g., "Yes", "No", "Condition Met").
+f.  Handle merging of paths by having multiple edge objects targeting the same \`target\` node.
+g.  Generate the output as a single JSON object containing two main keys: \`nodes\` (an array of node objects) and \`edges\` (an array of edge objects).
+
+**Output Format (React Flow Compatible JSON):**
+
+Produce a JSON object structured exactly like this example. Populate the \`nodes\` and \`edges\` arrays based on your analysis of the requirement:
+
+\`\`\`json
+{
+  "nodes": [
+    {
+      "id": "unique-node-id-1", // Assign a unique ID, e.g., "start" or "task-1"
+      "type": "custom", // Use 'custom', 'input', 'output', or 'default' based on your React Flow setup needs. 'custom' is flexible.
+      "position": { "x": 0, "y": 0 }, // Placeholder position, layout is typically handled by the frontend library
+      "data": {
+        "label": "Brief description of this step/node", // e.g., "Start Monthly Sales Report Generation"
+        "nodeType": "Start Event", // *** The specific type from the 'Available Node Types' list ***
+        "justification": "Brief rationale linking node to requirement/AC." // e.g., "Marks the entry point of the workflow."
+        // Optional: You could add "color", "icon" fields here if needed by your React Flow custom nodes
+      }
+    },
+    // ... Add more node objects here for each step (Task, Decision, Parallel GW, End Event etc.)
+    {
+      "id": "unique-node-id-decision-1",
+      "type": "custom",
+      "position": { "x": 0, "y": 0 },
+      "data": {
+        "label": "Check [Condition]?",
+        "nodeType": "Decision",
+        "justification": "Branching logic required by AC [Number]."
+      }
+    }
+    // ... nodes for branches A, B etc.
+    // ... nodes for merging paths if applicable
+    // ... final end node(s)
+  ],
+  "edges": [
+    {
+      "id": "unique-edge-id-1-2", // Assign a unique ID, e.g., "edge-start-task1"
+      "source": "unique-node-id-1", // ID of the source node
+      "target": "unique-node-id-2", // ID of the target node
+      "type": "smoothstep", // Common React Flow edge type, adjust if needed
+      "label": "" // Optional label, useful for Decision outputs
+    },
+    // Example edge from a Decision node:
+    {
+      "id": "unique-edge-id-decision1-branchA",
+      "source": "unique-node-id-decision-1",
+      "target": "unique-node-id-branchA-start", // ID of the first node in branch A
+      "type": "smoothstep",
+      "label": "Condition Met" // Label indicating the path logic
+    },
+    {
+      "id": "unique-edge-id-decision1-branchB",
+      "source": "unique-node-id-decision-1",
+      "target": "unique-node-id-branchB-start", // ID of the first node in branch B
+      "type": "smoothstep",
+      "label": "Condition Not Met"
+    }
+    // ... Add more edge objects here to connect all the nodes according to the workflow logic.
+    // ... Edges representing merges will simply point to the same target node ID.
+  ]
+}
+\`\`\`
+
+Begin designing the workflow now based *only* on the specific requirement details provided and generate the output in the specified JSON format. Your output should be a properly formatted and valid JSON string containing the workflow nodes and edges as described.`;
+
+        // Generate content using Claude
+        console.log(`Generating workflow diagram with Claude for ${primaryRequirement.title}...`);
+        const message = await anthropic.messages.create({
+          model: 'claude-3-opus-20240229',
+          max_tokens: 4000,
+          temperature: 0.2,
+          system: 'You are an expert business process analyst and workflow designer specializing in creating detailed process flows from requirements.',
+          messages: [
+            { role: 'user', content: prompt }
+          ]
+        });
+        
+        let workflowJson;
+        
+        // Extract the JSON from Claude's response
+        if (message.content && message.content.length > 0 && 'text' in message.content[0]) {
+          const claudeResponse = message.content[0].text;
+          const jsonMatch = claudeResponse.match(/```json\s*({[\s\S]*?})\s*```/) || 
+                            claudeResponse.match(/```\s*({[\s\S]*?})\s*```/) ||
+                            claudeResponse.match(/{[\s\S]*?}/);
+          
+          if (jsonMatch && jsonMatch[1]) {
+            try {
+              workflowJson = JSON.parse(jsonMatch[1]);
+              console.log('Successfully parsed workflow JSON from Claude response');
+            } catch (error) {
+              console.error('Failed to parse JSON from Claude response:', error);
+              throw new Error('Invalid JSON in Claude response');
+            }
+          } else {
+            console.error('No JSON found in Claude response');
+            throw new Error('No valid workflow JSON in Claude response');
           }
+        } else {
+          console.error('Empty or invalid response from Claude');
+          throw new Error('Empty or invalid response from Claude');
+        }
+        
+        // Transform Claude's output to our WorkflowNode and WorkflowEdge format
+        if (workflowJson && workflowJson.nodes && workflowJson.edges) {
+          // Map Claude's nodes to our format
+          nodes = workflowJson.nodes.map((node: any) => {
+            // Map Claude's nodeType to our node type format
+            let nodeType = 'task'; // Default to task
+            switch (node.data.nodeType) {
+              case 'Start Event': nodeType = 'start'; break;
+              case 'End Event': nodeType = 'end'; break;
+              case 'Task': nodeType = 'task'; break;
+              case 'Subprocess': nodeType = 'subprocess'; break;
+              case 'Decision': nodeType = 'decision'; break;
+              case 'Parallel GW': nodeType = 'parallel'; break;
+              case 'User Task': nodeType = 'userTask'; break;
+              case 'Wait / Delay': nodeType = 'wait'; break;
+              case 'Message Event': nodeType = 'message'; break;
+              case 'Error Event': nodeType = 'error'; break;
+              case 'Annotation': nodeType = 'annotation'; break;
+            }
+            
+            return {
+              id: node.id,
+              type: nodeType,
+              position: node.position || { x: Math.random() * 500, y: Math.random() * 500 }, // Randomize position if none provided
+              data: {
+                label: node.data.label,
+                description: node.data.justification,
+                requirementId: primaryRequirement.id,
+                properties: {
+                  justification: node.data.justification
+                }
+              }
+            };
+          });
+          
+          // Map Claude's edges to our format
+          edges = workflowJson.edges.map((edge: any) => {
+            return {
+              id: edge.id,
+              source: edge.source,
+              target: edge.target,
+              label: edge.label || '',
+              type: edge.type === 'smoothstep' ? 'default' : edge.type || 'default',
+              animated: false
+            };
+          });
+        } else {
+          // Fallback if Claude doesn't return proper structure
+          console.error('Invalid workflow structure in Claude response');
+          throw new Error('Invalid workflow structure in Claude response');
+        }
+      } catch (aiError) {
+        console.error('Error generating workflow with Claude:', aiError);
+        
+        // Fallback to basic workflow structure if Claude API fails
+        console.log('Falling back to basic workflow structure');
+        
+        // Generate nodes for start, end, and each requirement
+        nodes = [
+          {
+            id: 'start',
+            type: 'start',
+            position: { x: 250, y: 50 },
+            data: { label: 'Start' }
+          }
+        ];
+        
+        // Add nodes for each requirement
+        workflowRequirements.forEach((req, index) => {
+          nodes.push({
+            id: `req-${req.id}`,
+            type: 'task',
+            position: { x: 250, y: 150 + (index * 100) },
+            data: {
+              label: req.title,
+              description: req.description,
+              requirementId: req.id
+            }
+          });
         });
-      });
-      
-      // Add end node
-      nodes.push({
-        id: 'end',
-        type: 'end',
-        position: { x: 250, y: 150 + (workflowRequirements.length * 100) },
-        data: { label: 'End' }
-      });
-      
-      // Generate edges connecting all nodes in sequence
-      const edges: WorkflowEdge[] = [];
-      
-      // Connect start to first requirement
-      if (workflowRequirements.length > 0) {
-        edges.push({
-          id: 'start-to-first',
-          source: 'start',
-          target: `req-${workflowRequirements[0].id}`,
-          type: 'default'
+        
+        // Add end node
+        nodes.push({
+          id: 'end',
+          type: 'end',
+          position: { x: 250, y: 150 + (workflowRequirements.length * 100) },
+          data: { label: 'End' }
         });
-      } else {
-        // If no requirements, connect start directly to end
-        edges.push({
-          id: 'start-to-end',
-          source: 'start',
-          target: 'end',
-          type: 'default'
-        });
-      }
+        
+        // Generate edges connecting all nodes in sequence
+        edges = [];
+        
+        // Connect start to first requirement
+        if (workflowRequirements.length > 0) {
+          edges.push({
+            id: 'start-to-first',
+            source: 'start',
+            target: `req-${workflowRequirements[0].id}`,
+            type: 'default'
+          });
+        } else {
+          // If no requirements, connect start directly to end
+          edges.push({
+            id: 'start-to-end',
+            source: 'start',
+            target: 'end',
+            type: 'default'
+          });
+        }
       
-      // Connect requirements to each other in sequence
-      for (let i = 0; i < workflowRequirements.length - 1; i++) {
-        edges.push({
-          id: `req-${workflowRequirements[i].id}-to-req-${workflowRequirements[i+1].id}`,
-          source: `req-${workflowRequirements[i].id}`,
-          target: `req-${workflowRequirements[i+1].id}`,
-          type: 'default'
-        });
-      }
-      
-      // Connect last requirement to end
-      if (workflowRequirements.length > 0) {
-        edges.push({
-          id: 'last-to-end',
-          source: `req-${workflowRequirements[workflowRequirements.length-1].id}`,
-          target: 'end',
-          type: 'default'
-        });
+        // Connect requirements to each other in sequence
+        for (let i = 0; i < workflowRequirements.length - 1; i++) {
+          edges.push({
+            id: `req-${workflowRequirements[i].id}-to-req-${workflowRequirements[i+1].id}`,
+            source: `req-${workflowRequirements[i].id}`,
+            target: `req-${workflowRequirements[i+1].id}`,
+            type: 'default'
+          });
+        }
+        
+        // Connect last requirement to end
+        if (workflowRequirements.length > 0) {
+          edges.push({
+            id: 'last-to-end',
+            source: `req-${workflowRequirements[workflowRequirements.length-1].id}`,
+            target: 'end',
+            type: 'default'
+          });
+        }
       }
       
       // Create the workflow
