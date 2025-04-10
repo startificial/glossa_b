@@ -1322,6 +1322,83 @@ export default function TemplateDesigner() {
                       </div>
                     )}
                     
+                    {/* AI-generated content UI */}
+                    {mapping.type === 'ai-generated' && (
+                      <div className="space-y-4 mt-4 border-t pt-4">
+                        <div className="p-3 bg-blue-50 rounded-md">
+                          <div className="flex items-start gap-2">
+                            <Info className="h-5 w-5 text-blue-500 mt-0.5" />
+                            <div>
+                              <p className="text-sm text-blue-700 font-medium">AI Generated Content</p>
+                              <p className="text-sm text-blue-600 mt-1">
+                                This field will be generated using AI based on project data and your custom prompt.
+                                You can reference specific data using variable syntax.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`mapping-prompt-${index}`}>AI Generation Prompt</Label>
+                          <Textarea
+                            id={`mapping-prompt-${index}`}
+                            placeholder="Write a prompt for AI to generate content based on project data..."
+                            value={mapping.prompt || ''}
+                            onChange={(e) => handleUpdateFieldMapping(index, 'prompt', e.target.value)}
+                            rows={4}
+                            className="resize-none"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Example: "Summarize the project scope based on the requirements and provide 3 key milestones."
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`mapping-data-sources-${index}`}>Include Data from</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`mapping-include-project-${index}`}
+                                checked={mapping.includeProject !== false}
+                                onChange={(e) => handleUpdateFieldMapping(index, 'includeProject', e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300"
+                              />
+                              <Label htmlFor={`mapping-include-project-${index}`}>Project details</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`mapping-include-requirements-${index}`}
+                                checked={mapping.includeRequirements !== false}
+                                onChange={(e) => handleUpdateFieldMapping(index, 'includeRequirements', e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300"
+                              />
+                              <Label htmlFor={`mapping-include-requirements-${index}`}>Requirements</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`mapping-include-tasks-${index}`}
+                                checked={mapping.includeTasks !== false}
+                                onChange={(e) => handleUpdateFieldMapping(index, 'includeTasks', e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300"
+                              />
+                              <Label htmlFor={`mapping-include-tasks-${index}`}>Implementation tasks</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`mapping-include-customer-${index}`}
+                                checked={mapping.includeCustomer !== false}
+                                onChange={(e) => handleUpdateFieldMapping(index, 'includeCustomer', e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300"
+                              />
+                              <Label htmlFor={`mapping-include-customer-${index}`}>Customer data</Label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Data selection mode UI for handling multiple records */}
                     {mapping.type === 'database' && (
                       <div className="space-y-4 mt-4 border-t pt-4">
@@ -1369,18 +1446,7 @@ export default function TemplateDesigner() {
                       </div>
                     )}
                     
-                    {mapping.type === 'ai-generated' && (
-                      <div className="space-y-2">
-                        <Label htmlFor={`mapping-prompt-${index}`}>AI Prompt</Label>
-                        <Textarea 
-                          id={`mapping-prompt-${index}`} 
-                          value={mapping.prompt || ''} 
-                          onChange={(e) => handleUpdateFieldMapping(index, 'prompt', e.target.value)} 
-                          placeholder="Enter prompt for AI to generate content" 
-                          rows={3} 
-                        />
-                      </div>
-                    )}
+                    {/* Default value field shown for all mapping types */}
                     
                     <div className="space-y-2">
                       <Label htmlFor={`mapping-default-${index}`}>Default Value</Label>

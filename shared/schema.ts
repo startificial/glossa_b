@@ -309,6 +309,11 @@ export const fieldMappings = pgTable("field_mappings", {
   selectionMode: text("selection_mode").default("single"), // single, all, or custom - how to handle multiple records
   recordId: text("record_id"), // ID of specific record if selectionMode is single
   selectionFilter: text("selection_filter"), // Filter expression if selectionMode is custom
+  // AI-specific data source flags
+  includeProject: boolean("include_project").default(true), // Include project data for AI generation
+  includeRequirements: boolean("include_requirements").default(true), // Include requirements data
+  includeTasks: boolean("include_tasks").default(true), // Include implementation tasks data
+  includeCustomer: boolean("include_customer").default(true), // Include customer data
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -327,6 +332,11 @@ export const insertFieldMappingSchema = createInsertSchema(fieldMappings).pick({
   selectionMode: true,
   recordId: true,
   selectionFilter: true,
+  // AI-specific data source flags
+  includeProject: true,
+  includeRequirements: true,
+  includeTasks: true,
+  includeCustomer: true,
 });
 
 export type DocumentTemplate = typeof documentTemplates.$inferSelect;
