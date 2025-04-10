@@ -15,7 +15,8 @@ import ReactFlow, {
   MarkerType
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Workflow, WorkflowNode, WorkflowEdge } from '@/lib/types';
+import { Workflow } from '@/lib/types';
+import { WorkflowNode, WorkflowEdge } from '@shared/types';
 import { nodeTypes, customNodeStyles } from './workflow-nodes';
 import { 
   workflowNodesToReactFlowNodes, 
@@ -47,8 +48,12 @@ export function WorkflowEditor({
   readOnly = false 
 }: WorkflowEditorProps) {
   const { toast } = useToast();
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>(workflow?.nodes || []);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>(workflow?.edges || []);
+  // Convert workflow nodes and edges to ReactFlow compatible types
+  const initialNodes = workflow?.nodes ? workflowNodesToReactFlowNodes(workflow.nodes) : [];
+  const initialEdges = workflow?.edges ? workflowEdgesToReactFlowEdges(workflow.edges) : [];
+  
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>(initialEdges);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(workflow?.name || '');
@@ -56,8 +61,9 @@ export function WorkflowEditor({
 
   useEffect(() => {
     if (workflow) {
-      setNodes(workflow.nodes || []);
-      setEdges(workflow.edges || []);
+      // Use the adapter functions to convert types
+      setNodes(workflowNodesToReactFlowNodes(workflow.nodes || []));
+      setEdges(workflowEdgesToReactFlowEdges(workflow.edges || []));
       setName(workflow.name);
       setDescription(workflow.description || '');
     }
@@ -137,11 +143,15 @@ export function WorkflowEditor({
     setIsLoading(true);
     setError(null);
     try {
+      // Convert ReactFlow nodes and edges back to our workflow types
+      const workflowNodes = reactFlowNodesToWorkflowNodes(nodes);
+      const workflowEdges = reactFlowEdgesToWorkflowEdges(edges);
+      
       const workflowData = {
         name,
         description,
-        nodes,
-        edges,
+        nodes: workflowNodes,
+        edges: workflowEdges,
         status: 'draft',
         projectId,
         version: workflow?.version ? workflow.version + 1 : 1

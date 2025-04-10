@@ -16,3 +16,29 @@ export interface AcceptanceCriterion {
   status: 'pending' | 'approved' | 'rejected';
   notes?: string;
 }
+
+// Workflow Node type for workflow builder
+export interface WorkflowNode {
+  id: string;
+  type: 'task' | 'decision' | 'start' | 'end' | 'subprocess';
+  position: { x: number; y: number };
+  data: {
+    label: string;
+    description?: string;
+    requirementId?: number;
+    taskId?: number;
+    properties?: Record<string, any>;
+  };
+}
+
+// Workflow Edge type for workflow builder
+export interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  type?: 'default' | 'conditional' | 'exception';
+  animated?: boolean;
+  style?: Record<string, any>;
+  data?: Record<string, any>;
+}

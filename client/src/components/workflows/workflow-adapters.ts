@@ -2,7 +2,7 @@
  * Adapters to convert between ReactFlow Node/Edge types and our Workflow types
  */
 import { Node, Edge, MarkerType } from 'reactflow';
-import { WorkflowNode, WorkflowEdge } from '@/lib/types';
+import { WorkflowNode, WorkflowEdge } from '@shared/types';
 
 /**
  * Convert WorkflowNode array to ReactFlow Node array
