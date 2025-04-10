@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { db } from '../database';
 import * as schema from '../../shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray, and, asc } from 'drizzle-orm';
 import { generate } from '@pdfme/generator';
 import * as anthropic from '@anthropic-ai/sdk';
 
@@ -209,20 +209,154 @@ router.post('/generate-data/:templateId', async (req, res) => {
               generatedData[mapping.fieldKey] = mapping.defaultValue || '';
             }
           } else if (selectionMode === 'all') {
-            // All records mode - join all requirements based on the column field
+            // All records mode - list all requirements
             if (project.requirements && project.requirements.length > 0) {
-              const values = project.requirements.map(r => getNestedProperty(r, mapping.columnField || ''));
-              generatedData[mapping.fieldKey] = values.filter(Boolean).join(', ') || mapping.defaultValue || '';
+              // Format as a list if the column field is provided
+              if (mapping.columnField) {
+                const values = project.requirements.map(r => getNestedProperty(r, mapping.columnField || ''));
+                const filteredValues = values.filter(Boolean);
+                
+                // Create a formatted list with each item on a new line
+                if (filteredValues.length > 0) {
+                  generatedData[mapping.fieldKey] = filteredValues.map((val, idx) => `${idx + 1}. ${val}`).join('\n');
+                } else {
+                  generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+                }
+              } else {
+                // If no column field is specified, create a detailed list with code ID, title, and description
+                const formattedList = project.requirements.map((req, idx) => {
+                  return `${idx + 1}. ${req.codeId || `REQ-${req.id}`}: ${req.title}\n   ${req.description}`;
+                }).join('\n\n');
+                
+                generatedData[mapping.fieldKey] = formattedList || mapping.defaultValue || '';
+              }
             } else {
               generatedData[mapping.fieldKey] = mapping.defaultValue || '';
             }
           } else if (selectionMode === 'custom' && mapping.selectionFilter) {
-            // Custom filter mode - not fully implemented yet
-            // For requirements, we'll just count them for now
-            generatedData[mapping.fieldKey] = `${project.requirements?.length || 0} requirements` || mapping.defaultValue || '';
+            // Custom filter mode with support for category filtering
+            try {
+              // Simple category filter implementation
+              const categoryFilter = mapping.selectionFilter.toLowerCase();
+              const filteredRequirements = project.requirements.filter(req => 
+                req.category.toLowerCase() === categoryFilter
+              );
+              
+              if (filteredRequirements.length > 0) {
+                const formattedList = filteredRequirements.map((req, idx) => {
+                  return `${idx + 1}. ${req.codeId || `REQ-${req.id}`}: ${req.title}\n   ${req.description}`;
+                }).join('\n\n');
+                
+                generatedData[mapping.fieldKey] = formattedList || mapping.defaultValue || '';
+              } else {
+                generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+              }
+            } catch (error) {
+              console.error('Error filtering requirements:', error);
+              generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+            }
           } else {
             // Default behavior - count requirements
             generatedData[mapping.fieldKey] = `${project.requirements?.length || 0} requirements` || mapping.defaultValue || '';
+          }
+        }
+        else if (mapping.dataSource === 'acceptance_criteria') {
+          // Find all acceptance criteria across requirements
+          if (project.requirements && project.requirements.length > 0) {
+            const allCriteria = [];
+            
+            for (const requirement of project.requirements) {
+              if (requirement.acceptanceCriteria && Array.isArray(requirement.acceptanceCriteria)) {
+                // For each requirement, add its acceptance criteria with a reference
+                const formattedCriteria = requirement.acceptanceCriteria.map((ac: any, acIdx: number) => {
+                  const scenario = ac.gherkin?.scenario || 'Scenario';
+                  const given = ac.gherkin?.given || '';
+                  const when = ac.gherkin?.when || '';
+                  const then = ac.gherkin?.then || '';
+                  
+                  // Format in Gherkin style with requirement reference
+                  return `${requirement.codeId || `REQ-${requirement.id}`} - Scenario: ${scenario}\n  Given ${given}\n  When ${when}\n  Then ${then}`;
+                });
+                
+                allCriteria.push(...formattedCriteria);
+              }
+            }
+            
+            if (allCriteria.length > 0) {
+              generatedData[mapping.fieldKey] = allCriteria.join('\n\n');
+            } else {
+              generatedData[mapping.fieldKey] = mapping.defaultValue || 'No acceptance criteria defined';
+            }
+          } else {
+            generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+          }
+        }
+        else if (mapping.dataSource === 'tasks') {
+          // Handle tasks specifically
+          if (tasks && tasks.length > 0) {
+            if (selectionMode === 'single' && mapping.recordId) {
+              // Single task mode
+              const task = tasks.find(t => t.id === parseInt(mapping.recordId));
+              if (task) {
+                generatedData[mapping.fieldKey] = getNestedProperty(task, mapping.columnField || '') || mapping.defaultValue || '';
+              } else {
+                generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+              }
+            } else if (selectionMode === 'all') {
+              // All tasks mode - create a formatted list
+              const formattedTasks = tasks.map((task, idx) => {
+                // If column field is specified, use that property
+                if (mapping.columnField) {
+                  const value = getNestedProperty(task, mapping.columnField);
+                  return value ? `${idx + 1}. ${value}` : null;
+                }
+                
+                // Default formatted task with title, type and description
+                return `${idx + 1}. ${task.title} (${task.taskType || 'General'})\n   ${task.description || ''}`;
+              }).filter(Boolean);
+              
+              generatedData[mapping.fieldKey] = formattedTasks.join('\n\n') || mapping.defaultValue || '';
+            } else if (selectionMode === 'custom' && mapping.selectionFilter) {
+              // Custom filter - e.g. by system or priority
+              try {
+                const filterParts = mapping.selectionFilter.split(':');
+                if (filterParts.length === 2) {
+                  const [filterType, filterValue] = filterParts;
+                  
+                  // Filter tasks based on the specified criteria
+                  const filteredTasks = tasks.filter(task => {
+                    if (filterType === 'system') {
+                      return task.system?.toLowerCase() === filterValue.toLowerCase();
+                    } else if (filterType === 'priority') {
+                      return task.priority?.toLowerCase() === filterValue.toLowerCase();
+                    } else if (filterType === 'status') {
+                      return task.status?.toLowerCase() === filterValue.toLowerCase();
+                    }
+                    return false;
+                  });
+                  
+                  if (filteredTasks.length > 0) {
+                    const formattedTasks = filteredTasks.map((task, idx) => {
+                      return `${idx + 1}. ${task.title} (${task.taskType || 'General'})\n   ${task.description || ''}`;
+                    });
+                    
+                    generatedData[mapping.fieldKey] = formattedTasks.join('\n\n') || mapping.defaultValue || '';
+                  } else {
+                    generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+                  }
+                } else {
+                  generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+                }
+              } catch (error) {
+                console.error('Error filtering tasks:', error);
+                generatedData[mapping.fieldKey] = mapping.defaultValue || '';
+              }
+            } else {
+              // Default behavior - count tasks
+              generatedData[mapping.fieldKey] = `${tasks.length} implementation tasks` || mapping.defaultValue || '';
+            }
+          } else {
+            generatedData[mapping.fieldKey] = mapping.defaultValue || '';
           }
         }
         else {
