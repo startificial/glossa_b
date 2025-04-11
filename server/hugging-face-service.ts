@@ -158,7 +158,7 @@ export async function calculateSimilarity(text1: string, text2: string): Promise
 export async function detectContradiction(text1: string, text2: string): Promise<number> {
   try {
     // First check if we should use the custom endpoint
-    if (process.env.HF_ENDPOINT_API_KEY) {
+    if (process.env.CUSTOM_ENDPOINT_API_KEY) {
       // Import the custom endpoint service dynamically to avoid circular imports
       const { detectContradictionWithEndpoint } = await import('./custom-inference-endpoint');
       

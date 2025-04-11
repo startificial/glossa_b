@@ -29,7 +29,7 @@ const ENDPOINT_URL = "https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.huggingfa
  * @returns Promise<boolean> True if the endpoint is available
  */
 export async function isEndpointAvailable(): Promise<boolean> {
-  const apiKey = process.env.HF_ENDPOINT_API_KEY;
+  const apiKey = process.env.CUSTOM_ENDPOINT_API_KEY;
   
   if (!apiKey) {
     log('Custom inference endpoint API key not found in environment', 'error');
@@ -96,7 +96,7 @@ export async function isEndpointAvailable(): Promise<boolean> {
  * @returns Promise<number> A score between 0 and 1 representing the likelihood of contradiction
  */
 export async function detectContradictionWithEndpoint(premise: string, hypothesis: string): Promise<number> {
-  const apiKey = process.env.HF_ENDPOINT_API_KEY;
+  const apiKey = process.env.CUSTOM_ENDPOINT_API_KEY;
   
   if (!apiKey) {
     log('Custom inference endpoint API key not found in environment', 'error');

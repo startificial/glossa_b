@@ -125,7 +125,7 @@ export async function warmModel(
  * @returns Promise<boolean> True if the endpoint is available and responsive
  */
 export async function checkCustomEndpoint(): Promise<boolean> {
-  if (!process.env.HF_ENDPOINT_API_KEY) {
+  if (!process.env.CUSTOM_ENDPOINT_API_KEY) {
     log('Custom endpoint API key not found, skipping check', 'models');
     return false;
   }
