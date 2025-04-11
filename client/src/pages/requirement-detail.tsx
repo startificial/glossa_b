@@ -477,11 +477,14 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                 <CardTitle className="text-xl flex flex-wrap items-center gap-2">
                   Requirement Details
                   <Badge className="ml-0 sm:ml-3" variant="outline">
-                    {requirement.category.charAt(0).toUpperCase() + requirement.category.slice(1)}
+                    {requirement.category ? 
+                      requirement.category.charAt(0).toUpperCase() + requirement.category.slice(1) :
+                      'Uncategorized'
+                    }
                   </Badge>
                   <Badge className="ml-0 sm:ml-2" variant="outline">
                     <PriorityIcon className="h-3 w-3 mr-1" />
-                    {requirement.priority}
+                    {requirement.priority || 'Medium'}
                   </Badge>
                 </CardTitle>
                 <CardDescription>

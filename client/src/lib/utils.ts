@@ -86,7 +86,16 @@ export function getFileTypeFromName(fileName: string): string {
   return 'other';
 }
 
-export function getCategoryColor(category: string) {
+export function getCategoryColor(category: string | null | undefined) {
+  const defaultColors = {
+    bg: 'bg-gray-100',
+    text: 'text-gray-800',
+    bgDark: 'dark:bg-gray-700',
+    textDark: 'dark:text-gray-300'
+  };
+
+  if (!category) return defaultColors;
+  
   const categoryColors: Record<string, { bg: string, text: string, bgDark: string, textDark: string }> = {
     'functional': { 
       bg: 'bg-green-100', 
@@ -114,15 +123,15 @@ export function getCategoryColor(category: string) {
     }
   };
   
-  return categoryColors[category.toLowerCase()] || {
-    bg: 'bg-gray-100',
-    text: 'text-gray-800',
-    bgDark: 'dark:bg-gray-700',
-    textDark: 'dark:text-gray-300'
-  };
+  try {
+    return categoryColors[category.toLowerCase()] || defaultColors;
+  } catch (error) {
+    console.error('Error getting category color:', error);
+    return defaultColors;
+  }
 }
 
-export function getPriorityInfo(priority: string) {
+export function getPriorityInfo(priority: string | null | undefined) {
   const priorityInfo: Record<string, { 
     color: string, 
     bgColor: string, 
@@ -157,23 +166,38 @@ export function getPriorityInfo(priority: string) {
     }
   };
   
-  return priorityInfo[priority.toLowerCase()] || priorityInfo.medium;
+  // Return medium priority as fallback if priority is undefined or null
+  if (!priority) return priorityInfo.medium;
+  
+  try {
+    return priorityInfo[priority.toLowerCase()] || priorityInfo.medium;
+  } catch (error) {
+    console.error('Error processing priority:', error);
+    return priorityInfo.medium;
+  }
 }
 
-export function getFileIcon(fileType: string) {
-  switch (fileType.toLowerCase()) {
-    case 'audio':
-      return 'file-audio';
-    case 'video':
-      return 'file-video';
-    case 'document':
-      return 'file-text';
-    case 'pdf':
-      return 'file-text';
-    case 'image':
-      return 'image';
-    default:
-      return 'file';
+export function getFileIcon(fileType: string | null | undefined) {
+  if (!fileType) return 'file';
+  
+  try {
+    switch (fileType.toLowerCase()) {
+      case 'audio':
+        return 'file-audio';
+      case 'video':
+        return 'file-video';
+      case 'document':
+        return 'file-text';
+      case 'pdf':
+        return 'file-text';
+      case 'image':
+        return 'image';
+      default:
+        return 'file';
+    }
+  } catch (error) {
+    console.error('Error getting file icon:', error);
+    return 'file';
   }
 }
 
