@@ -1001,6 +1001,28 @@ export default function TemplateDesigner() {
                             </SelectContent>
                           </Select>
                         </div>
+                        
+                        <div>
+                          <Label htmlFor="field-formatting">Formatting</Label>
+                          <div className="flex gap-2 mt-1">
+                            <div className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox" 
+                                id="is-heading" 
+                                className="form-checkbox h-4 w-4 text-blue-600" 
+                              />
+                              <label htmlFor="is-heading" className="text-sm">Heading</label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox" 
+                                id="is-numbered" 
+                                className="form-checkbox h-4 w-4 text-blue-600" 
+                              />
+                              <label htmlFor="is-numbered" className="text-sm">Numbered List</label>
+                            </div>
+                          </div>
+                        </div>
                         <div className="flex items-end">
                           <Button 
                             className="w-full"
@@ -1040,14 +1062,23 @@ export default function TemplateDesigner() {
                                   currentTemplate.schemas[0] = [];
                                 }
                                 
+                                // Get formatting options
+                                const isHeadingCheckbox = document.getElementById('is-heading') as HTMLInputElement;
+                                const isNumberedCheckbox = document.getElementById('is-numbered') as HTMLInputElement;
+                                const isHeading = isHeadingCheckbox?.checked || false;
+                                const isNumbered = isNumberedCheckbox?.checked || false;
+                                
                                 const newField = {
                                   name: fieldName,
                                   type: fieldType,
                                   position: { x: 0, y: 0 }, // Default position
-                                  width: 100,  // Default width
-                                  height: 20,  // Default height
+                                  width: isHeading ? 200 : 100,  // Default width - wider for headings
+                                  height: isHeading ? 30 : 20,  // Default height - taller for headings
                                   value: `{{ ${fieldName} }}`, // Template syntax
                                   defaultValue: '',
+                                  // Add formatting properties
+                                  isHeading,
+                                  isNumbered,
                                 };
                                 
                                 // Add the field to the template schema
