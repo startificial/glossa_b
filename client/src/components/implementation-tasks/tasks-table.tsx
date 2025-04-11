@@ -498,7 +498,7 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
                         <TableRow 
                           key={task.id} 
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => window.location.href = `/tasks/${task.id}`}
+                          onClick={() => window.location.href = `/tasks/${task.id}?projectId=${projectId}&requirementId=${requirementId}`}
                         >
                           <TableCell className="font-medium">
                             <div className="font-medium">{task.title}</div>
