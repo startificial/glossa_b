@@ -54,12 +54,12 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ["/api/requirements", requirementId, "tasks"],
-    queryFn: () => apiRequest({ method: "GET", url: `/api/requirements/${requirementId}/tasks` }),
+    queryFn: () => apiRequest(`/api/requirements/${requirementId}/tasks`),
   });
 
   const generateTasksMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest({ method: "POST", url: `/api/requirements/${requirementId}/generate-tasks` });
+      return apiRequest(`/api/requirements/${requirementId}/generate-tasks`, { method: "POST" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requirements", requirementId, "tasks"] });
@@ -80,7 +80,10 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
 
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: Record<string, any>) => {
-      return apiRequest({ method: "POST", url: `/api/requirements/${requirementId}/tasks`, data: taskData });
+      return apiRequest(`/api/requirements/${requirementId}/tasks`, { 
+        method: "POST", 
+        data: taskData 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requirements", requirementId, "tasks"] });
@@ -114,7 +117,10 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Record<string, any> }) => {
-      return apiRequest({ method: "PUT", url: `/api/tasks/${id}`, data });
+      return apiRequest(`/api/tasks/${id}`, { 
+        method: "PUT", 
+        data 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requirements", requirementId, "tasks"] });
