@@ -12,7 +12,8 @@ import ReactFlow, {
   Panel,
   addEdge,
   updateEdge,
-  MarkerType
+  MarkerType,
+  OnSelectionChangeParams
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Workflow } from '@/lib/types';
@@ -58,6 +59,7 @@ export function WorkflowEditor({
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(workflow?.name || '');
   const [description, setDescription] = useState(workflow?.description || '');
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
   useEffect(() => {
     if (workflow) {
@@ -89,6 +91,56 @@ export function WorkflowEditor({
       setEdges((els) => updateEdge(oldEdge, newConnection, els));
     },
     [setEdges]
+  );
+
+  // Handle node selection
+  const onSelectionChange = useCallback(
+    ({ nodes: selectedNodes }: OnSelectionChangeParams) => {
+      // When a node is selected, update the selectedNode state
+      // We only allow editing one node at a time, so we use the first selected node
+      if (selectedNodes.length === 1) {
+        setSelectedNode(selectedNodes[0]);
+      } else {
+        setSelectedNode(null);
+      }
+    },
+    []
+  );
+
+  // Update the properties of a node
+  const updateNodeProperties = useCallback(
+    (nodeId: string, properties: { label?: string; description?: string }) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === nodeId) {
+            // Create a new node object with updated data
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                ...properties
+              }
+            };
+          }
+          return node;
+        })
+      );
+      
+      // Update the selected node state if it matches the updated node
+      if (selectedNode?.id === nodeId) {
+        setSelectedNode((currentSelected) => {
+          if (!currentSelected) return null;
+          return {
+            ...currentSelected,
+            data: {
+              ...currentSelected.data,
+              ...properties
+            }
+          };
+        });
+      }
+    },
+    [setNodes, selectedNode]
   );
 
   // Add a new node of a specific type
@@ -313,6 +365,7 @@ export function WorkflowEditor({
           onEdgesChange={!readOnly ? onEdgesChange : undefined}
           onConnect={!readOnly ? onConnect : undefined}
           onEdgeUpdate={!readOnly ? onEdgeUpdate : undefined}
+          onSelectionChange={!readOnly ? onSelectionChange : undefined}
           nodeTypes={nodeTypes}
           fitView
           deleteKeyCode={null} // Disable default delete to handle it ourselves
@@ -330,99 +383,138 @@ export function WorkflowEditor({
           <Background gap={12} size={1} />
 
           {!readOnly && (
-            <Panel position="top-left" className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-md border border-gray-200 dark:border-gray-700">
-              <div className="text-xs font-semibold mb-2 text-gray-600 dark:text-gray-300">ADD NODE</div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('start')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div> Start
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('end')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div> End
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('task')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 rounded bg-blue-500 mr-1"></div> Task
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('userTask')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 rounded bg-blue-300 mr-1"></div> User Task
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('decision')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 transform rotate-45 bg-yellow-400 mr-1"></div> Decision
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('subprocess')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 rounded bg-indigo-500 mr-1"></div> Subprocess
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('parallel')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 transform rotate-45 bg-purple-500 mr-1"></div> Parallel
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('wait')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 rounded-full bg-amber-500 mr-1"></div> Wait
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('message')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 rounded-full bg-teal-500 mr-1"></div> Message
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('error')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div> Error
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => addNode('annotation')}
-                  className="justify-start h-8"
-                >
-                  <div className="w-3 h-3 border border-gray-400 mr-1"></div> Note
-                </Button>
-              </div>
-            </Panel>
+            <>
+              {/* Node Editor Panel - visible when a node is selected */}
+              {selectedNode && (
+                <Panel position="top-right" className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-md border border-gray-200 dark:border-gray-700 w-64">
+                  <div className="text-xs font-semibold mb-2 text-gray-600 dark:text-gray-300">EDIT NODE</div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Node Name
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedNode.data?.label || ''}
+                        onChange={(e) => updateNodeProperties(selectedNode.id, { label: e.target.value })}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        value={selectedNode.data?.description || ''}
+                        onChange={(e) => updateNodeProperties(selectedNode.id, { description: e.target.value })}
+                        rows={3}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none resize-none"
+                      />
+                    </div>
+                    {selectedNode.type && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        Type: <span className="font-medium capitalize">{selectedNode.type}</span>
+                      </div>
+                    )}
+                  </div>
+                </Panel>
+              )}
+
+              {/* Add Node Panel */}
+              <Panel position="top-left" className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-md border border-gray-200 dark:border-gray-700">
+                <div className="text-xs font-semibold mb-2 text-gray-600 dark:text-gray-300">ADD NODE</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('start')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div> Start
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('end')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div> End
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('task')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 rounded bg-blue-500 mr-1"></div> Task
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('userTask')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 rounded bg-blue-300 mr-1"></div> User Task
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('decision')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 transform rotate-45 bg-yellow-400 mr-1"></div> Decision
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('subprocess')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 rounded bg-indigo-500 mr-1"></div> Subprocess
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('parallel')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 transform rotate-45 bg-purple-500 mr-1"></div> Parallel
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('wait')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 rounded-full bg-amber-500 mr-1"></div> Wait
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('message')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 rounded-full bg-teal-500 mr-1"></div> Message
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('error')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div> Error
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => addNode('annotation')}
+                    className="justify-start h-8"
+                  >
+                    <div className="w-3 h-3 border border-gray-400 mr-1"></div> Note
+                  </Button>
+                </div>
+              </Panel>
+            </>
           )}
         </ReactFlow>
       </div>
