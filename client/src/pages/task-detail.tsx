@@ -25,6 +25,12 @@ interface TaskDetailProps {
 export default function TaskDetail({ taskId }: TaskDetailProps) {
   const [, setLocation] = useLocation();
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Parse URL query parameters for additional context
+  const searchParams = new URLSearchParams(window.location.search);
+  const projectIdFromUrl = searchParams.get('projectId') ? parseInt(searchParams.get('projectId') || '0') : 0;
+  const requirementIdFromUrl = searchParams.get('requirementId') ? parseInt(searchParams.get('requirementId') || '0') : 0;
+  
   const [formData, setFormData] = useState<{
     title: string;
     description: string;
@@ -57,31 +63,45 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
   const { data: task, isLoading, isError } = useQuery({
     queryKey: ['/api/tasks', taskId],
     queryFn: async () => {
-      const result = await apiRequest("GET", `/api/tasks/${taskId}`);
-      console.log("Task data received:", result);
-      console.log("Implementation steps:", result.implementationSteps);
-      return result;
+      try {
+        const result = await apiRequest({ method: "GET", url: `/api/tasks/${taskId}` });
+        console.log("Task data received:", result);
+        return result;
+      } catch (error) {
+        console.error("Error fetching task:", error);
+        throw error;
+      }
     }
   });
   
-  // Get requirement data for the task
+  // Get requirement data for the task, use URL params as fallback
   const { data: requirement } = useQuery({
-    queryKey: ['/api/requirements', task?.requirementId],
+    queryKey: ['/api/requirements', task?.requirementId || requirementIdFromUrl],
     queryFn: async () => {
-      if (!task?.requirementId) return null;
-      return apiRequest("GET", `/api/projects/${task.projectId}/requirements/${task.requirementId}`);
+      // First try to use task.requirementId if available, otherwise use URL param
+      const reqId = task?.requirementId || requirementIdFromUrl;
+      const projId = task?.projectId || projectIdFromUrl;
+      
+      if (!reqId || !projId) return null;
+      
+      try {
+        return apiRequest({ method: "GET", url: `/api/projects/${projId}/requirements/${reqId}` });
+      } catch (error) {
+        console.error("Error fetching requirement:", error);
+        return null;
+      }
     },
-    enabled: !!task?.requirementId
+    enabled: !!(task?.requirementId || (requirementIdFromUrl && projectIdFromUrl))
   });
 
   // Update task mutation
   const updateTaskMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      return apiRequest(
-        "PUT",
-        `/api/tasks/${taskId}`,
+      return apiRequest({ 
+        method: "PUT", 
+        url: `/api/tasks/${taskId}`,
         data
-      );
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
@@ -110,10 +130,10 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
   // Delete task mutation
   const deleteTaskMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(
-        "DELETE",
-        `/api/tasks/${taskId}`
-      );
+      return apiRequest({
+        method: "DELETE",
+        url: `/api/tasks/${taskId}`
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
