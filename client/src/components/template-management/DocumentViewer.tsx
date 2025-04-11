@@ -95,10 +95,12 @@ export default function DocumentViewer() {
         </CardHeader>
         <CardContent className="min-h-[800px]">
           {document.pdfPath ? (
-            <PDFViewer 
-              url={document.pdfPath}
-              onLoad={() => console.log('PDF loaded successfully')}
-            />
+            <div className="pdf-container bg-gray-50 rounded-md p-1 min-h-[800px]">
+              <PDFViewer 
+                url={`${document.pdfPath}?v=${new Date().getTime()}`}
+                onLoad={() => console.log('PDF loaded successfully')}
+              />
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-[400px] text-gray-500">
               <FileText className="h-20 w-20 mb-4" />

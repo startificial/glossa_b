@@ -675,6 +675,42 @@ async function generatePDF(template: any, data: Record<string, any>): Promise<st
     // Apply formatting to array fields to ensure proper display
     const enhancedData = { ...data };
     
+    // Clean up form field data format
+    // First, let's organize the client/project details fields - fix spacing and make them consistent
+    const clientFields = ['client', 'clientName', 'customer', 'customerName'];
+    const projectFields = ['project', 'projectName', 'projectTitle'];
+    const typeFields = ['type', 'projectType', 'documentType'];
+    const dateFields = ['date', 'generatedDate', 'createdDate'];
+    
+    // Fix field display formatting by adding proper spacing and line breaks
+    clientFields.forEach(field => {
+      if (enhancedData[field] && typeof enhancedData[field] === 'string') {
+        // Make sure client/customer name is properly formatted
+        enhancedData[field] = enhancedData[field].trim();
+      }
+    });
+    
+    // Fix label alignment issues by properly formatting field keys/values
+    Object.keys(enhancedData).forEach(key => {
+      // Add spaces after colons for label fields
+      if (key.endsWith('Label') && typeof enhancedData[key] === 'string') {
+        enhancedData[key] = enhancedData[key].replace(/:$/, ': ');
+      }
+      
+      // Clean up any label/value pairs with alignment issues
+      if (typeof enhancedData[key] === 'string') {
+        // If the value has a colon but no space after it, add the space
+        if (enhancedData[key].includes(':') && !enhancedData[key].includes(': ')) {
+          enhancedData[key] = enhancedData[key].replace(/:/g, ': ');
+        }
+        
+        // Fix alignment issues with labels that might appear in the screenshot
+        if (key === 'clientLabel' || key === 'projectLabel' || key === 'typeLabel' || key === 'dateLabel') {
+          enhancedData[key] = enhancedData[key].replace(/^\s*/, '').replace(/\s*:/, ': ');
+        }
+      }
+    });
+    
     // Go through the template schema to find array fields and format them properly
     if (template.schema && Array.isArray(template.schema)) {
       template.schema.forEach((field: any) => {
@@ -696,9 +732,26 @@ async function generatePDF(template: any, data: Record<string, any>): Promise<st
               .join('\n\n');
           }
         } else if (field.type === 'text' && field.isHeading && enhancedData[fieldName]) {
-          // Ensure headings stand out more with trailing underscores or formatting markers
-          // This will be interpreted by most PDF renderers as emphasis
+          // Ensure headings stand out more with formatting
           enhancedData[fieldName] = `${enhancedData[fieldName].toUpperCase()}`;
+        } else if (fieldName.includes('Criteria') && typeof fieldValue === 'string') {
+          // Improve formatting for acceptance criteria
+          // Split by newlines, trim each line, and add proper indentation for scenario steps
+          const lines = fieldValue.split('\n').map(line => line.trim());
+          const formattedLines = lines.map(line => {
+            // Add extra indentation for Given/When/Then/And lines
+            if (line.startsWith('Given ') || line.startsWith('When ') || 
+                line.startsWith('Then ') || line.startsWith('And ')) {
+              return `    ${line}`;
+            }
+            // Add indentation for scenario
+            else if (line.startsWith('Scenario:')) {
+              return `  ${line}`;
+            }
+            return line;
+          });
+          
+          enhancedData[fieldName] = formattedLines.join('\n');
         }
       });
     }
