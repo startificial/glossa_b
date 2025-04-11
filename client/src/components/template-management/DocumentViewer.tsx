@@ -7,6 +7,8 @@ import { AlertCircle, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { Document } from '@shared/schema';
+import { PDFViewer } from '../reference-data/pdf-viewer';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DocumentViewer() {
   const params = useParams();
@@ -93,10 +95,9 @@ export default function DocumentViewer() {
         </CardHeader>
         <CardContent className="min-h-[800px]">
           {document.pdfPath ? (
-            <iframe 
-              src={document.pdfPath} 
-              className="w-full h-[800px] border-0"
-              title="Document Viewer"
+            <PDFViewer 
+              url={document.pdfPath}
+              onLoad={() => console.log('PDF loaded successfully')}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-[400px] text-gray-500">

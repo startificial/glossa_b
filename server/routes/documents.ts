@@ -672,8 +672,41 @@ async function generatePDF(template: any, data: Record<string, any>): Promise<st
     const outputPath = path.join('uploads', filename);
     const fullPath = path.join(process.cwd(), outputPath);
     
+    // Apply formatting to array fields to ensure proper display
+    const enhancedData = { ...data };
+    
+    // Go through the template schema to find array fields and format them properly
+    if (template.schema && Array.isArray(template.schema)) {
+      template.schema.forEach((field: any) => {
+        const fieldName = field.name;
+        const fieldValue = enhancedData[fieldName];
+        
+        // Check if this is an array field that needs formatting
+        if (field.type === 'text' && Array.isArray(fieldValue)) {
+          // Format array values with proper numbering, indentation, and line breaks
+          if (field.isNumbered) {
+            // Add numbered bullets for requirements, tasks, etc.
+            enhancedData[fieldName] = fieldValue
+              .map((item: any, index: number) => `${index + 1}. ${item}`)
+              .join('\n\n');
+          } else {
+            // Add bullet points for non-numbered lists
+            enhancedData[fieldName] = fieldValue
+              .map((item: any) => `• ${item}`)
+              .join('\n\n');
+          }
+        } else if (field.type === 'text' && field.isHeading && enhancedData[fieldName]) {
+          // Ensure headings stand out more with trailing underscores or formatting markers
+          // This will be interpreted by most PDF renderers as emphasis
+          enhancedData[fieldName] = `${enhancedData[fieldName].toUpperCase()}`;
+        }
+      });
+    }
+    
     // Format the data for pdfme generator (array of data objects)
-    const formattedData = [data];
+    const formattedData = [enhancedData];
+    
+    console.log('Generating PDF with formatted data:', JSON.stringify(enhancedData, null, 2));
     
     // Generate PDF using @pdfme/generator
     const pdf = await generate({
