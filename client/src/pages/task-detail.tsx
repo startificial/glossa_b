@@ -64,7 +64,7 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
     queryKey: ['/api/tasks', taskId],
     queryFn: async () => {
       try {
-        const result = await apiRequest({ method: "GET", url: `/api/tasks/${taskId}` });
+        const result = await apiRequest(`/api/tasks/${taskId}`);
         console.log("Task data received:", result);
         return result;
       } catch (error) {
@@ -85,7 +85,7 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
       if (!reqId || !projId) return null;
       
       try {
-        return apiRequest({ method: "GET", url: `/api/projects/${projId}/requirements/${reqId}` });
+        return apiRequest(`/api/projects/${projId}/requirements/${reqId}`);
       } catch (error) {
         console.error("Error fetching requirement:", error);
         return null;
@@ -97,9 +97,8 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
   // Update task mutation
   const updateTaskMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      return apiRequest({ 
-        method: "PUT", 
-        url: `/api/tasks/${taskId}`,
+      return apiRequest(`/api/tasks/${taskId}`, {
+        method: "PUT",
         data
       });
     },
@@ -130,9 +129,8 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
   // Delete task mutation
   const deleteTaskMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest({
-        method: "DELETE",
-        url: `/api/tasks/${taskId}`
+      return apiRequest(`/api/tasks/${taskId}`, {
+        method: "DELETE"
       });
     },
     onSuccess: () => {
