@@ -102,9 +102,10 @@ export function PDFViewer({ url, highlights = [], onLoad }: PDFViewerProps) {
           </div>
         ) : (
           <iframe 
-            src={`${url}#toolbar=1&view=FitV&zoom=150${searchParam}`}
+            src={`${url}#toolbar=1&view=FitV&zoom=150&scrollbar=1&navpanes=1${searchParam}`}
             className="w-full h-[400px] sm:h-[500px] md:h-[600px] lg:h-[800px] border-0"
             title="PDF Document Viewer"
+            style={{ background: 'white' }}
           />
         )}
       </div>
