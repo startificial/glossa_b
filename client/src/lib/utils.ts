@@ -18,24 +18,52 @@ export function formatBytes(bytes: number, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-export function formatDate(date: string | Date) {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return format(dateObj, 'MMM d, yyyy');
+export function formatDate(date: string | Date | null | undefined) {
+  if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return format(dateObj, 'MMM d, yyyy');
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
 }
 
-export function formatTime(date: string | Date) {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return format(dateObj, 'h:mm a');
+export function formatTime(date: string | Date | null | undefined) {
+  if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return format(dateObj, 'h:mm a');
+  } catch (error) {
+    console.error('Error formatting time:', error);
+    return 'Invalid time';
+  }
 }
 
-export function formatDateTime(date: string | Date) {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return format(dateObj, 'MMM d, yyyy h:mm a');
+export function formatDateTime(date: string | Date | null | undefined) {
+  if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return format(dateObj, 'MMM d, yyyy h:mm a');
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
 }
 
-export function formatRelativeTime(date: string | Date) {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return formatDistanceToNow(dateObj, { addSuffix: true });
+export function formatRelativeTime(date: string | Date | null | undefined) {
+  if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return formatDistanceToNow(dateObj, { addSuffix: true });
+  } catch (error) {
+    console.error('Error formatting relative time:', error);
+    return 'Invalid date';
+  }
 }
 
 export function getFileTypeFromName(fileName: string): string {
