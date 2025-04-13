@@ -446,12 +446,13 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
         </div>
       </header>
       
-      {isProjectModalOpen && (
-        <ProjectForm 
-          onClose={() => setIsProjectModalOpen(false)}
-          onSuccess={() => setIsProjectModalOpen(false)} 
-        />
-      )}
+      <ProjectForm 
+        isOpen={isProjectModalOpen}
+        onClose={() => {
+          console.log("Navbar ProjectForm onClose called");
+          setIsProjectModalOpen(false);
+        }}
+      />
     </>
   );
 }
