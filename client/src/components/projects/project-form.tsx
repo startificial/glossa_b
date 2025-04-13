@@ -97,9 +97,18 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
 
   const createProject = useMutation({
     mutationFn: async (data: CreateProjectFormData) => {
-      return apiRequest("POST", "/api/projects", data);
+      console.log("Making API request with data:", data);
+      try {
+        const response = await apiRequest("/api/projects", { method: "POST", data });
+        console.log("API response:", response);
+        return response;
+      } catch (error) {
+        console.error("API request error:", error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      console.log("Project creation successful:", data);
       // Invalidate projects query
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
       
@@ -117,6 +126,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       });
     },
     onError: (error) => {
+      console.error("Project creation mutation error:", error);
       toast({
         title: "Error",
         description: `Failed to create project: ${error.message}`,

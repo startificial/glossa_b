@@ -28,20 +28,31 @@ export async function apiRequest<T = any>(
   parseJson: boolean = true
 ): Promise<T> {
   const { method = "GET", data } = options;
-  const res = await fetch(url, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
+  console.log(`API Request: ${method} ${url}`, { data });
+  
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: data ? { "Content-Type": "application/json" } : {},
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
 
-  await throwIfResNotOk(res);
-  
-  if (parseJson && res.headers.get("content-type")?.includes("application/json")) {
-    return res.json() as Promise<T>;
+    console.log(`API Response status: ${res.status} ${res.statusText}`);
+    
+    await throwIfResNotOk(res);
+    
+    if (parseJson && res.headers.get("content-type")?.includes("application/json")) {
+      const jsonResponse = await res.json();
+      console.log("API Response JSON:", jsonResponse);
+      return jsonResponse as T;
+    }
+    
+    return res as unknown as T;
+  } catch (error) {
+    console.error(`API Request failed for ${method} ${url}:`, error);
+    throw error;
   }
-  
-  return res as unknown as T;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
