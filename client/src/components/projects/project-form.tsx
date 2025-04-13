@@ -57,6 +57,9 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [location] = useLocation();
 
+  // Debug props
+  console.log("ProjectForm render - isOpen:", isOpen);
+
   // Fetch customers for the dropdown
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
@@ -96,10 +99,10 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
   }, [isOpen, location, customers, form]);
 
   const createProject = useMutation({
-    mutationFn: async (data: CreateProjectFormData) => {
+    mutationFn: async (data: any) => {
       console.log("Making API request with data:", data);
       try {
-        const response = await apiRequest("/api/projects", { method: "POST", data });
+        const response = await apiRequest<any>("/api/projects", { method: "POST", data });
         console.log("API response:", response);
         return response;
       } catch (error) {
@@ -171,9 +174,18 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
     }
   };
 
+  // Log when the Dialog renders and its open state
+  console.log("Dialog about to render with isOpen:", isOpen);
+
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <Dialog 
+        open={isOpen} 
+        onOpenChange={(open) => {
+          console.log("Dialog onOpenChange triggered with value:", open);
+          if (!open) onClose();
+        }}
+      >
         <DialogContent className="sm:max-w-[525px]">
           <DialogHeader>
             <div className="flex items-center gap-3">

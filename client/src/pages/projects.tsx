@@ -30,10 +30,12 @@ export default function Projects() {
   }
 
   const handleCreateProject = () => {
+    console.log("Opening project modal");
     setIsProjectModalOpen(true);
   };
 
   const handleProjectCreated = () => {
+    console.log("Project created, closing modal and refetching");
     setIsProjectModalOpen(false);
     refetch();
   };
@@ -90,7 +92,10 @@ export default function Projects() {
 
       <ProjectForm 
         isOpen={isProjectModalOpen} 
-        onClose={() => setIsProjectModalOpen(false)} 
+        onClose={() => {
+          console.log("ProjectForm onClose called");
+          setIsProjectModalOpen(false);
+        }} 
       />
     </div>
   );
