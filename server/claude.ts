@@ -379,7 +379,7 @@ export async function generateAcceptanceCriteria(
       model: 'claude-3-haiku-20240307',
       max_tokens: 2000,
       temperature: 0.4,
-      system: "You are a business analyst specializing in creating high-quality acceptance criteria for software requirements. Generate acceptance criteria in Gherkin format and output as valid JSON.",
+      system: "You are a business analyst specializing in creating high-quality acceptance criteria for software requirements. Generate acceptance criteria in Gherkin format and output ONLY valid JSON with no additional text. Your entire response MUST be a valid JSON array containing the acceptance criteria objects. Do not include markdown formatting, explanation text, or code blocks.",
       messages: [
         { role: 'user', content: prompt }
       ]
@@ -391,26 +391,69 @@ export async function generateAcceptanceCriteria(
       : JSON.stringify(message.content[0]);
     
     try {
-      // Extract just the JSON part from the response
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const jsonText = jsonMatch[0];
-        const parsedResponse = JSON.parse(jsonText);
-        
-        console.log(`Claude generated ${parsedResponse.length} acceptance criteria`);
-        return parsedResponse;
-      } else {
-        // If no JSON array was found, try parsing the whole response
-        const parsedResponse = JSON.parse(responseText);
-        console.log(`Claude generated ${parsedResponse.length} acceptance criteria`);
-        return parsedResponse;
+      // Extract just the JSON part from the response using a more robust approach
+      // Strategy 1: Try to find a JSON array pattern
+      const jsonArrayMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (jsonArrayMatch) {
+        try {
+          const jsonText = jsonArrayMatch[0];
+          const parsedResponse = JSON.parse(jsonText);
+          console.log(`Claude generated ${parsedResponse.length} acceptance criteria`);
+          return parsedResponse;
+        } catch (err) {
+          console.log('JSON array parsing failed, trying next strategy');
+        }
       }
+      
+      // Strategy 2: Look for code blocks that might contain JSON (e.g., ```json ... ```)
+      const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        try {
+          const parsedResponse = JSON.parse(codeBlockMatch[1]);
+          console.log(`Claude generated ${Array.isArray(parsedResponse) ? parsedResponse.length : 1} acceptance criteria from code block`);
+          return Array.isArray(parsedResponse) ? parsedResponse : [parsedResponse];
+        } catch (err) {
+          console.log('Code block parsing failed, trying next strategy');
+        }
+      }
+      
+      // Strategy 3: Try parsing the whole response as JSON
+      try {
+        const parsedResponse = JSON.parse(responseText);
+        console.log(`Claude generated ${Array.isArray(parsedResponse) ? parsedResponse.length : 1} acceptance criteria from full response`);
+        return Array.isArray(parsedResponse) ? parsedResponse : [parsedResponse];
+      } catch (err) {
+        console.log('Full response parsing failed, trying next strategy');
+      }
+      
+      // Strategy 4: Try to extract individual criteria object patterns and reconstruct
+      const criteriaPatterns = responseText.match(/\{[\s\S]*?"description"[\s\S]*?\}/g);
+      if (criteriaPatterns && criteriaPatterns.length > 0) {
+        try {
+          const reconstructedJson = `[${criteriaPatterns.join(',')}]`;
+          const parsedResponse = JSON.parse(reconstructedJson);
+          console.log(`Claude generated ${parsedResponse.length} acceptance criteria from reconstructed JSON`);
+          return parsedResponse;
+        } catch (repairErr) {
+          console.log('JSON reconstruction failed:', repairErr);
+        }
+      }
+      
+      // If all strategies failed, log the response and throw a helpful error
+      console.error('All JSON parsing strategies failed for response');
+      console.error('Raw Claude response:', responseText);
+      throw new Error('Failed to parse acceptance criteria from Claude response. The AI generated an invalid JSON format.');
     } catch (parseError) {
       console.error('Error parsing Claude response for acceptance criteria:', parseError);
-      throw parseError;
+      console.error('Raw Claude response:', responseText);
+      
+      // Return an empty array instead of throwing error to make it more resilient
+      // This is a graceful failure that allows the UI to continue functioning
+      return [];
     }
   } catch (error) {
     console.error('Error generating acceptance criteria with Claude:', error);
-    throw error;
+    // Return an empty array to prevent the UI from breaking
+    return [];
   }
 }
