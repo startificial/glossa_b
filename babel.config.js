@@ -1,11 +1,14 @@
-module.exports = {
+/**
+ * Babel Configuration for ES Modules
+ * This config is specifically designed for use with Jest in an ES modules environment
+ */
+export default {
   presets: [
     ['@babel/preset-env', { targets: { node: 'current' } }],
     '@babel/preset-typescript',
     ['@babel/preset-react', { runtime: 'automatic' }]
   ],
   plugins: [
-    ['@babel/plugin-transform-runtime', { regenerator: true }],
     '@babel/plugin-syntax-flow'
   ]
 };

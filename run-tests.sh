@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-echo "Running basic tests with Node environment..."
-BABEL_CONFIG_FILE=babel.config.cjs npx jest basic-test.cjs --testEnvironment=node --config=jest.config.cjs
+echo "Running basic tests with ES modules..."
+NODE_OPTIONS=--experimental-vm-modules npx jest sum.test.js
 
 # Uncomment to run all tests when ready
-# echo "Running all tests with Jest configuration (skipping coverage)..."
-# BABEL_CONFIG_FILE=babel.config.cjs npx jest --config=jest.config.cjs --coverage=false
+# echo "Running all TypeScript tests..."
+# NODE_OPTIONS=--experimental-vm-modules npx jest
