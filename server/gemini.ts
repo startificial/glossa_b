@@ -5,6 +5,7 @@ import os from 'os';
 import VideoProcessor, { VideoScene } from './video-processor';
 import { processTextFileForRequirement, TextReference } from './text-processor';
 import { processAudioFileForRequirement, AudioTimestamp } from './audio-processor';
+import { GEMINI_REQUIREMENTS_PROMPT } from './llm_prompts';
 
 // Initialize the Gemini API with the API key
 const apiKey = process.env.GOOGLE_API_KEY || '';
@@ -130,71 +131,34 @@ export async function processTextFile(filePath: string, projectName: string, fil
         safetySettings,
       });
 
-      // Create a prompt for requirement extraction based on content type and the user-specified prompt
-      const prompt = `
-        You are a requirements analysis expert. Your task is to extract or generate software requirements from the following context:
-        Project context: ${projectName}
-        Source file: ${fileName}
-        Content type: ${contentType}
-        Chunk: ${i+1} of ${chunks.length}
-
-        The source file contains customer-specific context about their business processes, data structures, workflows, or other specifications. Your job is to generate detailed, thorough requirements from the source file that will be used by a system implementor to migrate the customer from their legacy system to Salesforce.
-        
-        The requirements should be clear, comprehensive, and detailed. They should thoroughly describe the key workflows, processes, or structures that need to be solved for in the new system. Each requirement should contain a Name, which summarizes the requirement, and a Description, which details what's needed to fulfill the requirement. Each requirement description should be at least 75 words to ensure sufficient detail.
-        
-        Each requirement should also be labeled with a single category. Most requirements will be Functional.
-        Functional: these requirements are related to business processes, workflows, data structures, and system capabilities
-        Non-Functional: these requirements are related to usability and other non-functional capabilities
-        Security: these requirements are related to permissions, access, and security
-        Performance: these requirements are related to scale, data volumes, and processing speed
-        
-        Each requirement should also be labeled with a priority. Most requirements will be Medium priority.
-        High: these requirements are essential to the success of the project overall
-        Medium: these requirements are important to the project, but if one are two are missed the project will not fail
-        Low: these requirements are nice to have, and the project will be successful without them
-        
-        The source file is tagged with the content type: ${contentType}.
-        ${contentType === 'workflow' ? 
-          `Since the content type is workflow, the content describes business workflows that should be migrated from the source system to the target system. Focus on identifying the key user flows, business processes, data transformations, and integration points that need to be considered.` 
-          : contentType === 'user_feedback' ? 
-          `Since the content type is user feedback, the content describes existing users' opinions about the legacy system. Focus on identifying the users' pain points and requested improvements so that the experience in the new system is an improvement.` 
-          : contentType === 'documentation' || contentType === 'specifications' ? 
-          `Since the content type is documentation or specifications, the content describes technical or business systems in the legacy system. Use this to identify data structures, business logic, and system behaviors in the legacy system, which may need to be recreated in the new system.` 
-          : `Please analyze this general content and extract requirements based on the text.`
-        }
-        
-        ${chunks.length > 1 ? 'Only extract requirements that appear in this specific chunk. Do not manufacture requirements based on guessing what might be in other chunks.' : ''}
-        
-        Please analyze the following content and extract as many requirements as needed (there is no upper limit):
-        
-        ${chunks[i]}
-        
-        Extract as many requirements as necessary to comprehensively cover the content provided. Do not limit yourself to a specific number - extract all valid requirements from the text. You should aim to extract at least ${minRequirements} requirements if the content supports it, but extract more if necessary.
-        
-        Format your response as a JSON array of requirements, where each requirement has:
-        1. 'title' (string): A concise title for the requirement (3-10 words)
-        2. 'description' (string): A detailed description of at least 150 words that thoroughly explains what needs to be implemented
-        3. 'category' (string): One of 'functional', 'non-functional', 'security', 'performance'
-        4. 'priority' (string): One of 'high', 'medium', 'low'
-        
-        Example format (but with much more detailed descriptions for each requirement):
-        [
-          {
-            "title": "Case Management Workflow",
-            "description": "The system must implement a comprehensive case management workflow that allows customer service representatives to...[detailed 150+ word description]",
-            "category": "functional", 
-            "priority": "high"
-          },
-          {
-            "title": "Knowledge Base Integration",
-            "description": "The Salesforce implementation must support a knowledge base integration that...[detailed 150+ word description]",
-            "category": "functional",
-            "priority": "medium"
-          }
-        ]
-        
-        Only output valid JSON with no additional text or explanations.
-      `;
+      // Prepare content type specific instructions based on content type
+      let contentTypeInstructions = '';
+      if (contentType === 'workflow') {
+        contentTypeInstructions = `Since the content type is workflow, the content describes business workflows that should be migrated from the source system to the target system. Focus on identifying the key user flows, business processes, data transformations, and integration points that need to be considered.`;
+      } else if (contentType === 'user_feedback') {
+        contentTypeInstructions = `Since the content type is user feedback, the content describes existing users' opinions about the legacy system. Focus on identifying the users' pain points and requested improvements so that the experience in the new system is an improvement.`;
+      } else if (contentType === 'documentation' || contentType === 'specifications') {
+        contentTypeInstructions = `Since the content type is documentation or specifications, the content describes technical or business systems in the legacy system. Use this to identify data structures, business logic, and system behaviors in the legacy system, which may need to be recreated in the new system.`;
+      } else {
+        contentTypeInstructions = `Please analyze this general content and extract requirements based on the text.`;
+      }
+      
+      // Prepare chunking instructions
+      const chunkingInstructions = chunks.length > 1 ? 
+        'Only extract requirements that appear in this specific chunk. Do not manufacture requirements based on guessing what might be in other chunks.' : 
+        '';
+      
+      // Create a prompt for requirement extraction using our centralized prompt
+      const prompt = GEMINI_REQUIREMENTS_PROMPT
+        .replace('{projectName}', projectName)
+        .replace('{fileName}', fileName)
+        .replace('{contentType}', contentType)
+        .replace('{chunkIndex}', (i+1).toString())
+        .replace('{totalChunks}', chunks.length.toString())
+        .replace('{contentTypeInstructions}', contentTypeInstructions)
+        .replace('{chunkingInstructions}', chunkingInstructions)
+        .replace('{chunkContent}', chunks[i])
+        .replace('{minRequirements}', minRequirements.toString());
 
       try {
         // Generate content

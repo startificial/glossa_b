@@ -225,3 +225,91 @@ This is a {fileType} file named {fileName} that needs to be analyzed to extract 
 
 Use the following keywords for focus: {keywords}
 `;
+
+// Gemini Prompts
+export const GEMINI_VIDEO_REQUIREMENTS_PROMPT = `
+You are a business process expert specializing in software migration projects with expertise in {perspectiveName}. 
+Your task is to analyze a video file that demonstrates workflows in a source system and generate specific requirements 
+for implementing these workflows in a target system. Focus specifically on {perspectiveFocus}.
+
+Project context: {projectName}
+Video file details:
+- Name: {fileName}
+- Size: {fileSize} MB
+- Created: {fileCreated}
+- Modified: {fileModified}
+- Content type: {contentType}
+- Inferred domain: {inferredDomain}
+- Analysis perspective: {perspectiveName} (focusing on {perspectiveFocus})
+
+{contentTypeInstructions}
+
+For each requirement:
+1. Provide a concise title (3-10 words) that summarizes the requirement
+2. Provide a detailed, domain-specific requirement description of at least 150 words that focuses on {perspectiveFocus} within {inferredDomain} functionality
+3. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
+4. Assign a priority level: 'high', 'medium', or 'low'
+
+Format your response as a JSON array with exactly {reqPerChunk} requirements, each with the properties 'title', 'description', 'category', and 'priority'.
+Example: [{"title": "Call Center Queue Management", "description": "The target system must implement the service call center queue management workflow with priority-based routing, skill-based assignment, and SLA tracking identical to the source system... [detailed 150+ word description that thoroughly explains the requirement]", "category": "functional", "priority": "high"}, ...]
+
+Only output valid JSON with no additional text or explanations.
+`;
+
+export const GEMINI_REQUIREMENTS_PROMPT = `
+You are a requirements analysis expert. Your task is to extract or generate software requirements from the following context:
+Project context: {projectName}
+Source file: {fileName}
+Content type: {contentType}
+Chunk: {chunkIndex} of {totalChunks}
+
+The source file contains customer-specific context about their business processes, data structures, workflows, or other specifications. Your job is to generate detailed, thorough requirements from the source file that will be used by a system implementor to migrate the customer from their legacy system to Salesforce.
+
+The requirements should be clear, comprehensive, and detailed. They should thoroughly describe the key workflows, processes, or structures that need to be solved for in the new system. Each requirement should contain a Name, which summarizes the requirement, and a Description, which details what's needed to fulfill the requirement. Each requirement description should be at least 75 words to ensure sufficient detail.
+
+Each requirement should also be labeled with a single category. Most requirements will be Functional.
+Functional: these requirements are related to business processes, workflows, data structures, and system capabilities
+Non-Functional: these requirements are related to usability and other non-functional capabilities
+Security: these requirements are related to permissions, access, and security
+Performance: these requirements are related to scale, data volumes, and processing speed
+
+Each requirement should also be labeled with a priority. Most requirements will be Medium priority.
+High: these requirements are essential to the success of the project overall
+Medium: these requirements are important to the project, but if one are two are missed the project will not fail
+Low: these requirements are nice to have, and the project will be successful without them
+
+The source file is tagged with the content type: {contentType}.
+{contentTypeInstructions}
+
+{chunkingInstructions}
+
+Please analyze the following content and extract as many requirements as needed (there is no upper limit):
+
+{chunkContent}
+
+Extract as many requirements as necessary to comprehensively cover the content provided. Do not limit yourself to a specific number - extract all valid requirements from the text. You should aim to extract at least {minRequirements} requirements if the content supports it, but extract more if necessary.
+
+Format your response as a JSON array of requirements, where each requirement has:
+1. 'title' (string): A concise title for the requirement (3-10 words)
+2. 'description' (string): A detailed description of at least 150 words that thoroughly explains what needs to be implemented
+3. 'category' (string): One of 'functional', 'non-functional', 'security', 'performance'
+4. 'priority' (string): One of 'high', 'medium', 'low'
+
+Example format (but with much more detailed descriptions for each requirement):
+[
+  {
+    "title": "Case Management Workflow",
+    "description": "The system must implement a comprehensive case management workflow that allows customer service representatives to...[detailed 150+ word description]",
+    "category": "functional", 
+    "priority": "high"
+  },
+  {
+    "title": "Knowledge Base Integration",
+    "description": "The Salesforce implementation must support a knowledge base integration that...[detailed 150+ word description]",
+    "category": "functional",
+    "priority": "medium"
+  }
+]
+
+Only output valid JSON with no additional text or explanations.
+`;
