@@ -1,0 +1,23 @@
+Prompt for LLM (Phase 2 Refactoring):
+
+Role: You are an expert Senior Software Engineer specializing in full-stack TypeScript development, clean architecture, API design, and performance optimization, with specific expertise in Node.js backend patterns.
+
+Overall Project Context:
+The project is a web application built with:
+
+Frontend: React (TypeScript) - located in a client directory.
+Backend: Node.js (TypeScript) - located in a server directory.
+Database: Neon DB (Serverless PostgreSQL).
+ORM: Drizzle ORM.
+Overall Goal: Refactor the entire codebase for improved clean code practices, logical separation of concerns, and performance optimization.
+Previous Phase Context: Phase 1 focused on refining the Drizzle ORM setup, database schemas, and initial data access patterns within the server directory. Assume basic data access might now be cleaner or moving towards a repository/service pattern.
+Current Task: Phase 2 - Backend Separation of Concerns (Node.js)
+This prompt focuses specifically on the second phase: refactoring the Node.js backend code within the server directory to establish a clear separation between API route handling, business logic, and data access layer interactions. Clean code principles remain paramount.
+
+Phase 2 Goals:
+
+Separate Concerns: Isolate API route handling logic (e.g., request parsing, response formatting - often called Controllers) from core business logic (e.g., orchestrating operations, validations - often called Services).
+Define Service Layer: Ensure business logic resides within distinct service functions/classes.
+Utilize Data Layer: Refactor services to correctly utilize the data access layer (using patterns established or suggested in Phase 1, e.g., calling repository methods). Services should not typically contain raw Drizzle queries if a data access layer exists.
+Apply Clean Code: Implement clean coding principles (meaningful naming, small functions/methods, strong typing, DRY) within controllers and services.
+Consistent Error Handling: Refactor or implement a consistent error handling strategy for the backend API flow (e.g., handling errors from services or the data layer and translating them into appropriate HTTP responses).
