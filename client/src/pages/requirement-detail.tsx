@@ -824,10 +824,11 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                                   </TableCell>
                                   <TableCell className="p-2 align-top">
                                     <Badge 
-                                      variant={criterion.status === 'approved' ? 'default' : 
+                                      variant={!criterion.status ? 'outline' :
+                                              criterion.status === 'approved' ? 'default' : 
                                               criterion.status === 'rejected' ? 'destructive' : 'outline'}
                                     >
-                                      {criterion.status.charAt(0).toUpperCase() + criterion.status.slice(1)}
+                                      {criterion.status ? criterion.status.charAt(0).toUpperCase() + criterion.status.slice(1) : 'Pending'}
                                     </Badge>
                                   </TableCell>
                                   <TableCell className="text-right p-2 align-top">
@@ -884,11 +885,12 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                             <div className="flex items-center justify-between mb-2">
                               <Badge
                                 variant={
+                                  !selectedCriterion.status ? 'outline' :
                                   selectedCriterion.status === 'approved' ? 'default' :
                                   selectedCriterion.status === 'rejected' ? 'destructive' : 'outline'
                                 }
                               >
-                                {selectedCriterion.status.charAt(0).toUpperCase() + selectedCriterion.status.slice(1)}
+                                {selectedCriterion.status ? selectedCriterion.status.charAt(0).toUpperCase() + selectedCriterion.status.slice(1) : 'Pending'}
                               </Badge>
                             </div>
                             <div className="p-4 border rounded-lg bg-muted/20 whitespace-pre-line">
