@@ -1,0 +1,32 @@
+Prompt for Coding LLM:
+
+Role: You are an expert code analysis and refactoring assistant.
+
+Context: You are analyzing a web application codebase. The technology stack is as follows:
+
+Frontend: React (written in TypeScript, likely using .ts and .tsx files)
+Backend: Node.js (written in TypeScript, using .ts files)
+Database: Neon DB (PostgreSQL)
+ORM: Drizzle ORM (likely with schema definitions and migration files in TypeScript)
+Objective: Identify and address unused or redundant files within this codebase. An unused or redundant file is one that is no longer imported, referenced, or required by any part of the active application logic, build process, or configuration. This could include:
+
+Old components that are no longer rendered.
+Utility functions or modules that are never imported/called.
+Obsolete configuration files.
+Unused type definition files (.d.ts or within .ts files).
+Potentially old, fully superseded database migration files (exercise caution here, ensure they are not needed for environment setup or history).
+Test files corresponding to deleted source files.
+Task:
+
+Analyze the entire codebase (excluding node_modules, dist, build, or similar build output directories) to find files matching the definition of unused or redundant. Pay close attention to import statements, component usage in JSX/TSX, function calls, and configuration references across both the frontend (React) and backend (Node.js) parts of the application, as well as Drizzle ORM schema/migration usage.
+Primary Action (If Capable): If your capabilities allow you to modify the file system, safely delete the identified unused/redundant files. Ensure your analysis is thorough to avoid deleting files that might be used indirectly (e.g., through dynamic imports, configuration loading, scripts in package.json).
+Fallback Action (If Deletion Not Possible): If you cannot delete files directly, provide a list of the full relative paths (from the project root) of all files identified as unused or redundant. For each file listed, provide a brief justification for why it is considered redundant (e.g., "No imports found referencing this module", "React component never rendered", "Test file for deleted source file path/to/deleted_source.ts").
+Important Considerations:
+
+Be conservative: If there is any uncertainty about whether a file is truly unused, err on the side of caution and do not delete or list it.
+Pay attention to files potentially used by scripts in package.json or deployment/CI/CD configurations if accessible.
+Double-check dynamic imports or convention-based loading mechanisms if they are used in the project.
+Output:
+
+If deleting files: A confirmation message summarizing the deletions performed.
+If listing files: A clear, formatted list of file paths and justifications.
