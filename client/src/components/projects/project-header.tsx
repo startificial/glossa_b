@@ -69,10 +69,9 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
   
   const deleteProjectMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("DELETE", `/api/projects/${projectId}`);
-      return true;
+      return await apiRequest("DELETE", `/api/projects/${projectId}`);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Project deleted",
         description: "The project and all its data have been deleted successfully.",

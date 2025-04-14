@@ -713,7 +713,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // In a real app, we might need additional cleanup for files or other resources
       
-      res.status(204).end();
+      // Return a success response with status 200 instead of 204 (no content)
+      res.status(200).json({ 
+        message: "Project deleted successfully",
+        projectId: projectId 
+      });
     } catch (error) {
       console.error("Error deleting project:", error);
       res.status(500).json({ message: "Error deleting project" });
