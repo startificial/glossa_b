@@ -4,14 +4,14 @@
  * These tests ensure that our cache service correctly
  * stores, retrieves, and invalidates cached data.
  */
-import { CacheService } from './cache-service';
+// @jest-environment node
+import { cacheService } from './cache-service';
 
 describe('CacheService', () => {
-  let cacheService: CacheService;
   
   beforeEach(() => {
-    // Create a new cache service before each test
-    cacheService = new CacheService();
+    // Clear the cache service before each test
+    cacheService.clear();
   });
   
   describe('set and get', () => {
