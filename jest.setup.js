@@ -7,56 +7,60 @@
 
 // Add React Testing Library's custom matchers
 import '@testing-library/jest-dom';
+import { jest } from '@jest/globals';
 
 // Mock global fetch API
 globalThis.fetch = jest.fn();
 
-// Mock matchMedia for tests (required for some UI components)
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-});
+// Set up browser environment mocks only if we're running in a browser-like environment
+if (typeof window !== 'undefined') {
+  // Mock matchMedia for tests (required for some UI components)
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
 
-// Mock IntersectionObserver (required for some UI components)
-global.IntersectionObserver = class IntersectionObserver {
-  constructor(callback) {
-    this.callback = callback;
-  }
-  observe() {
-    return null;
-  }
-  unobserve() {
-    return null;
-  }
-  disconnect() {
-    return null;
-  }
-};
+  // Mock IntersectionObserver (required for some UI components)
+  global.IntersectionObserver = class IntersectionObserver {
+    constructor(callback) {
+      this.callback = callback;
+    }
+    observe() {
+      return null;
+    }
+    unobserve() {
+      return null;
+    }
+    disconnect() {
+      return null;
+    }
+  };
 
-// Mock ResizeObserver (required for some UI components)
-global.ResizeObserver = class ResizeObserver {
-  constructor(callback) {
-    this.callback = callback;
-  }
-  observe() {
-    return null;
-  }
-  unobserve() {
-    return null;
-  }
-  disconnect() {
-    return null;
-  }
-};
+  // Mock ResizeObserver (required for some UI components)
+  global.ResizeObserver = class ResizeObserver {
+    constructor(callback) {
+      this.callback = callback;
+    }
+    observe() {
+      return null;
+    }
+    unobserve() {
+      return null;
+    }
+    disconnect() {
+      return null;
+    }
+  };
+}
 
 // Mock console.error and console.warn to make tests fail on warnings/errors
 const originalConsoleError = console.error;
@@ -93,6 +97,9 @@ console.warn = function(message) {
   // Log but don't fail the test for warnings
   originalConsoleWarn.apply(console, arguments);
 };
+
+// Import afterEach from Jest globals
+import { afterEach } from '@jest/globals';
 
 // Cleanup after each test
 afterEach(() => {
