@@ -1,10 +1,17 @@
 /**
- * Jest Configuration
+ * Jest Configuration for ES Modules
  * 
  * This configuration sets up Jest for testing both the frontend and backend
  * components of the application with appropriate transformers and module mappings.
  */
 export default {
+  // Enable support for ES modules
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
+  transform: {
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      useESM: true,
+    }],
+  },
   // Use ts-jest for TypeScript files
   preset: 'ts-jest',
   

@@ -1,5 +1,5 @@
 /**
- * Jest Setup
+ * Jest Setup for ES Modules
  * 
  * This file configures the test environment for React components
  * and sets up global mocks and utilities.
@@ -9,7 +9,7 @@
 import '@testing-library/jest-dom';
 
 // Mock global fetch API
-global.fetch = jest.fn();
+globalThis.fetch = jest.fn();
 
 // Mock matchMedia for tests (required for some UI components)
 Object.defineProperty(window, 'matchMedia', {
