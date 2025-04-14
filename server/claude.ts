@@ -1,6 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { AcceptanceCriterion, GherkinStructure } from '../shared/types';
 import { ImplementationTask } from '../shared/schema';
+import { 
+  REQUIREMENTS_GENERATION_PROMPT, 
+  ACCEPTANCE_CRITERIA_PROMPT,
+  IMPLEMENTATION_TASKS_PROMPT,
+  CLAUDE_SYSTEM_PROMPT_WORKFLOW
+} from './llm_prompts';
 
 // Initialize the Claude API with the API key
 const apiKey = process.env.ANTHROPIC_API_KEY || '';
@@ -32,35 +38,13 @@ export async function generateRequirementsWithClaude(
 
     console.log(`Generating requirements with Claude for ${fileName}, content type: ${contentType}`);
     
-    // Create a Claude-specific prompt for requirement generation
-    const prompt = `
-    You are a business analyst with expertise in software migration projects. Analyze the provided content and extract clear, detailed requirements for implementing the described functionality in a target system.
-
-    Project: ${projectName}
-    Content Type: ${contentType}
-    File: ${fileName}
-
-    Content to analyze:
-    ${context}
-
-    Extract at least ${minRequirements} requirements from this content. For each requirement:
-    1. Provide a concise title (3-10 words) that summarizes the requirement
-    2. Provide a detailed, specific description of at least 150 words that thoroughly explains what needs to be implemented
-    3. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
-    4. Assign a priority level: 'high', 'medium', or 'low'
-
-    Format your response as a JSON array of requirements, each with the properties 'title', 'description', 'category', and 'priority'.
-    
-    Example:
-    [
-      {
-        "title": "Customer Data Migration",
-        "description": "The system must implement a comprehensive customer data migration process that preserves all customer information... [detailed 150+ word description]",
-        "category": "functional",
-        "priority": "high"
-      }
-    ]
-    `;
+    // Create a Claude-specific prompt for requirement generation using template from llm_prompts
+    let prompt = REQUIREMENTS_GENERATION_PROMPT
+      .replace('{projectName}', projectName)
+      .replace('{contentType}', contentType)
+      .replace('{fileName}', fileName)
+      .replace('{context}', context)
+      .replace('{minRequirements}', minRequirements.toString());
 
     // Call Claude API to generate requirements
     const message = await anthropic.messages.create({
@@ -139,66 +123,13 @@ export async function generateImplementationTasks(
       return `Acceptance Criterion ${index + 1}: ${ac.description}`;
     }).join('\n\n');
 
-    // Create a prompt for generating Salesforce-specific implementation tasks
-    const prompt = `
-      You are an AI assistant tasked with generating detailed implementation tasks for a software migration project. Your responses should be grounded in the provided documentation of the Target System.
-
-      **Please use the following information to generate one implementation task:**
-
-      **Project Description:** ${projectDescription || `Migration from ${sourceSystem} to ${targetSystem}`}
-
-      **Target System:** ${targetSystem}
-
-      **Requirement Description:** ${requirementText}
-
-      **Acceptance Criteria:**
-      ${formattedCriteria}
-
-      **Based on the above information and your understanding of the Target System, generate a single implementation task with the following structure, returned as a structured JSON object:**
-
-      {
-        "title": "[A concise and descriptive title for the task]",
-        "description": "[A detailed overview of what the task entails, at least 50 words]",
-        "status": "pending",
-        "priority": "[high, medium, or low - derive from the requirement priority]",
-        "system": "[source, target, or both - what system is this task for]",
-        "requirementId": ${requirementId},
-        "estimatedHours": [reasonable hour estimate for the task],
-        "complexity": "[low, medium, or high]",
-        "taskType": "[data-mapping, workflow, ui, integration, security, testing, etc.]",
-        "implementationSteps": [
-          {
-            "stepNumber": 1,
-            "stepDescription": "[A specific, actionable step grounded in the Target System's documentation. Include a reference to the relevant documentation within the description if possible.]"
-          },
-          {
-            "stepNumber": 2,
-            "stepDescription": "[Another specific, actionable step grounded in the Target System's documentation. Include a reference to the relevant documentation within the description if possible.]"
-          }
-          // ... more steps as needed
-        ],
-        "relevantDocuments": [
-          {
-            "documentTitle": "[Title of the relevant document]",
-            "link": "[Link to the document or descriptive reference]"
-          },
-          {
-            "documentTitle": "[Title of another relevant document]",
-            "link": "[Link to the document or descriptive reference]"
-          }
-          // ... more relevant documents as needed
-        ],
-        "sfDocumentationLinks": [
-          {
-            "title": "[Documentation Title]",
-            "url": "[Documentation URL]"
-          }
-        ],
-        "overallDocumentationLinks": ["[Link 1]", "[Link 2]"]
-      }
-      
-      Only output valid JSON with no additional text or explanations. Focus on creating a single high-quality, detailed task rather than multiple tasks.
-    `;
+    // Create a prompt for generating implementation tasks using template from llm_prompts
+    let prompt = IMPLEMENTATION_TASKS_PROMPT
+      .replace('{projectName}', projectName)
+      .replace('{sourceSystem}', sourceSystem)
+      .replace('{targetSystem}', targetSystem)
+      .replace('{requirementText}', requirementText)
+      .replace('{acceptanceCriteria}', formattedCriteria);
 
     // Generate content using Claude
     const message = await anthropic.messages.create({
@@ -437,47 +368,11 @@ export async function generateAcceptanceCriteria(
 
     console.log(`Generating acceptance criteria with Claude for: ${requirementText.substring(0, 100)}...`);
     
-    // Create a prompt for Claude to generate acceptance criteria
-    const prompt = `
-    You are a business analyst with expertise in software development projects. Your task is to create comprehensive acceptance criteria in Gherkin format for the following requirement.
-
-    Project Name: ${projectName}
-    Project Description: ${projectDescription}
-    
-    Requirement: ${requirementText}
-
-    Generate 5-8 acceptance criteria in Gherkin format for this requirement. Each criterion should:
-    
-    1. Start with "Scenario:" followed by a brief title
-    2. Follow the Given-When-Then format:
-      - Given: the initial context
-      - When: the action being taken
-      - Then: the expected outcome
-      - (And: additional conditions or outcomes where appropriate)
-    3. Be specific, measurable, and testable
-    4. Cover different aspects of the requirement
-    5. Be realistic and implementable
-
-    Format your response as a JSON array of acceptance criteria, each with an "id" (UUID), "description" (the full Gherkin scenario), "status" (always "pending"), "notes" (empty string), and "gherkin" object with structured components.
-
-    Example:
-    [
-      {
-        "id": "a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6",
-        "description": "Scenario: Successful data migration\\nGiven the source system contains customer data\\nWhen the migration process is executed\\nThen all customer records should be transferred to the target system\\nAnd data integrity should be maintained",
-        "status": "pending",
-        "notes": "",
-        "gherkin": {
-          "scenario": "Successful data migration",
-          "given": "the source system contains customer data",
-          "when": "the migration process is executed",
-          "and": [],
-          "then": "all customer records should be transferred to the target system",
-          "andThen": ["data integrity should be maintained"]
-        }
-      }
-    ]
-    `;
+    // Create a prompt for Claude to generate acceptance criteria using template from llm_prompts
+    let prompt = ACCEPTANCE_CRITERIA_PROMPT
+      .replace('{projectName}', projectName)
+      .replace('{projectDescription}', projectDescription)
+      .replace('{requirementText}', requirementText);
 
     // Generate acceptance criteria using Claude
     const message = await anthropic.messages.create({
