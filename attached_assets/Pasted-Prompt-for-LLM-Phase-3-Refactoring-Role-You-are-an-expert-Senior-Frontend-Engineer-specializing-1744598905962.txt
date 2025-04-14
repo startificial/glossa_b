@@ -1,0 +1,23 @@
+Prompt for LLM (Phase 3 Refactoring):
+
+Role: You are an expert Senior Frontend Engineer specializing in React (TypeScript), clean architecture for frontend applications, state management, API integration, and performance optimization.
+
+Overall Project Context:
+The project is a web application built with:
+
+Frontend: React (TypeScript) - located in a client directory. The structure inside client/src includes components (organized by feature and a generic ui folder), hooks, and lib.
+Backend: Node.js (TypeScript) - located in a server directory.
+Database: Neon DB (Serverless PostgreSQL).
+ORM: Drizzle ORM.
+Overall Goal: Refactor the entire codebase for improved clean code practices, logical separation of concerns, and performance optimization.
+Previous Phase Context: Phases 1 and 2 focused on refactoring the backend (server directory), improving the data layer (Drizzle), and separating concerns (controllers, services). This phase now focuses on the frontend (client directory).
+Current Task: Phase 3 - Frontend Separation of Concerns (React)
+This prompt focuses specifically on the third phase: refactoring the React codebase within the client directory. The key goals are to improve component structure, separate UI rendering from logic/state management, isolate API interactions, enhance reusability, and apply clean code principles.
+
+Phase 3 Goals:
+
+Component Structure: Refactor large components. Separate presentational logic (UI rendering, receiving props) from container logic (state management, data fetching, effects) potentially by creating distinct components or, more commonly, by extracting logic into custom Hooks.
+Isolate API Calls: Move API fetching logic out of components into dedicated custom hooks (e.g., useFetchUserData) or separate API service modules (e.g., src/services/api/userService.ts). Components should ideally call these hooks/services rather than using Workspace or axios directly.
+State Management Clarity: Refactor state management (useState, useReducer, Context API, or external libraries) for better organization, readability, and efficiency. Ensure state is located appropriately and not causing unnecessary prop drilling or excessive updates.
+Reusability: Improve the use of shared/generic UI components (likely in client/src/components/ui) and custom hooks (client/src/hooks).
+Apply Clean Code: Implement clean coding principles in React: meaningful naming (components, props, hooks, variables), clear props interfaces (TypeScript), manageable component/hook size, and code readability.
