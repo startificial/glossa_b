@@ -42,7 +42,7 @@ export const users = pgTable("users", {
   company: text("company"),
   avatarUrl: text("avatar_url"),
   role: text("role").default("user").notNull(), // Valid values: 'user', 'admin'
-  invitedBy: integer("invited_by").references(() => users.id), // Self-reference to track who invited this user
+  invitedBy: integer("invited_by"), // Self-reference to track who invited this user
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -63,20 +63,32 @@ export const insertUserSchema = createInsertSchema(users).pick({
   invitedBy: true,
 });
 
-// Customer schema
+/**
+ * Customers Table - Organizations that use the system
+ * 
+ * Represents client organizations for which projects are executed.
+ * Stores company details and contact information.
+ * 
+ * Relationships:
+ * - One-to-many with Projects (a customer can have multiple projects)
+ */
 export const customers = pgTable("customers", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  industry: text("industry"),
-  backgroundInfo: text("background_info"),
-  website: text("website"),
-  contactEmail: text("contact_email"),
-  contactPhone: text("contact_phone"),
+  name: text("name").notNull(), // Company name
+  description: text("description"), // Brief description of the customer
+  industry: text("industry"), // Customer's industry sector
+  backgroundInfo: text("background_info"), // Additional background information
+  website: text("website"), // Company website URL
+  contactEmail: text("contact_email"), // Primary contact email
+  contactPhone: text("contact_phone"), // Primary contact phone number
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/**
+ * Customer insert validation schema
+ * Defines fields required when creating a new customer
+ */
 export const insertCustomerSchema = createInsertSchema(customers).pick({
   name: true,
   description: true,
@@ -87,17 +99,29 @@ export const insertCustomerSchema = createInsertSchema(customers).pick({
   contactPhone: true,
 });
 
-// Invites schema
+/**
+ * Invites Table - User invitation system
+ * 
+ * Tracks invitations sent to new users to join the system.
+ * Each invite has a unique token and tracks status.
+ * 
+ * Relationships:
+ * - Many-to-one with User (invites are created by a user)
+ */
 export const invites = pgTable("invites", {
   id: serial("id").primaryKey(),
-  token: text("token").notNull().unique(),
-  email: text("email"),
-  createdById: integer("created_by_id").references(() => users.id),
-  expiresAt: timestamp("expires_at").notNull(),
-  used: boolean("used").default(false).notNull(),
+  token: text("token").notNull().unique(), // Unique token for validating invite links
+  email: text("email"), // Recipient email address
+  createdById: integer("created_by_id").references(() => users.id), // User who created the invite
+  expiresAt: timestamp("expires_at").notNull(), // Expiration timestamp
+  used: boolean("used").default(false).notNull(), // Whether the invite has been used
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+/**
+ * Invite insert validation schema
+ * Defines the fields required when creating a new invite
+ */
 export const insertInviteSchema = createInsertSchema(invites).pick({
   token: true,
   email: true,
@@ -148,20 +172,34 @@ export const insertProjectSchema = createInsertSchema(projects).pick({
   targetSystem: true,
 });
 
-// Input data schema
+/**
+ * Input Data Table - Stores uploaded files and source content
+ * 
+ * Represents files uploaded by users that serve as the source material
+ * for AI-assisted requirement generation. Tracks processing status
+ * and metadata about the content.
+ * 
+ * Relationships:
+ * - Many-to-one with Project (input data belongs to a project)
+ * - One-to-many with Requirements (input data can generate multiple requirements)
+ */
 export const inputData = pgTable("input_data", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  type: text("type").notNull(), // audio, video, text, etc.
-  contentType: text("content_type").default("general"), // workflow, user_feedback, documentation, specifications, etc.
-  size: integer("size").notNull(), // in bytes
-  projectId: integer("project_id").notNull(),
-  status: text("status").notNull().default("processing"), // processing, completed, failed
-  metadata: jsonb("metadata"), // Additional info about the file
-  processed: boolean("processed").default(false),
+  type: text("type").notNull(), // File type: 'audio', 'video', 'text', 'image', etc.
+  contentType: text("content_type").default("general"), // Content category: 'workflow', 'user_feedback', 'documentation', 'specifications', etc.
+  size: integer("size").notNull(), // File size in bytes
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  status: text("status").notNull().default("processing"), // Processing status: 'processing', 'completed', 'failed'
+  metadata: jsonb("metadata"), // Additional structured information about the file
+  processed: boolean("processed").default(false), // Flag indicating if AI processing is complete
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+/**
+ * Input Data insert validation schema
+ * Defines fields required when uploading new input data
+ */
 export const insertInputDataSchema = createInsertSchema(inputData).pick({
   name: true,
   type: true,
@@ -172,25 +210,41 @@ export const insertInputDataSchema = createInsertSchema(inputData).pick({
   metadata: true,
 });
 
-// Requirements schema
+/**
+ * Requirements Table - Core entity for project requirements management
+ * 
+ * Represents a single requirement with its metadata, priority, and 
+ * references to source input data. Requirements are the central focus
+ * of the application's functionality.
+ * 
+ * Relationships:
+ * - Many-to-one with Project (requirements belong to one project)
+ * - Many-to-one with InputData (requirements may be derived from input files)
+ * - One-to-many with ImplementationTasks (requirements can have multiple implementation tasks)
+ */
 export const requirements = pgTable("requirements", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  category: text("category").notNull(), // functional, non-functional, etc.
-  priority: text("priority").notNull().default("medium"), // high, medium, low
-  projectId: integer("project_id").notNull(),
-  inputDataId: integer("input_data_id"), // Optional, if derived from input data
-  acceptanceCriteria: jsonb("acceptance_criteria").default([]), // Array of acceptance criteria items
+  category: text("category").notNull(), // Valid values: 'functional', 'non-functional', 'technical', 'business', etc.
+  priority: text("priority").notNull().default("medium"), // Valid values: 'high', 'medium', 'low'
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  inputDataId: integer("input_data_id").references(() => inputData.id), // Optional, if derived from input data
+  acceptanceCriteria: jsonb("acceptance_criteria").default([]), // Array of acceptance criteria items in Gherkin format
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  codeId: text("code_id"), // REQ-001, REQ-002, etc.
-  source: text("source"), // Source of the requirement
+  codeId: text("code_id"), // Requirement identifier (e.g., REQ-001, REQ-002)
+  source: text("source"), // Source of the requirement (e.g., 'stakeholder', 'document', 'interview')
+  // Multimedia reference storage fields
   videoScenes: jsonb("video_scenes").default([]), // Array of video scene references (timestamps, etc.)
   textReferences: jsonb("text_references").default([]), // Array of text passage references
   audioTimestamps: jsonb("audio_timestamps").default([]), // Array of audio timestamp references
 });
 
+/**
+ * Requirement insert validation schema
+ * Defines the fields required when creating a new requirement
+ */
 export const insertRequirementSchema = createInsertSchema(requirements).pick({
   title: true,
   description: true,
@@ -206,17 +260,31 @@ export const insertRequirementSchema = createInsertSchema(requirements).pick({
   audioTimestamps: true,
 });
 
-// Activity schema
+/**
+ * Activities Table - Audit log for user and system events
+ * 
+ * Records all significant activities performed by users and automated
+ * processes within the system. Used for tracking project history and
+ * providing an audit trail.
+ * 
+ * Relationships:
+ * - Many-to-one with User (activities are performed by a user)
+ * - Many-to-one with Project (activities occur within a project)
+ */
 export const activities = pgTable("activities", {
   id: serial("id").primaryKey(),
-  type: text("type").notNull(), // created_project, updated_requirement, etc.
-  description: text("description").notNull(),
-  userId: integer("user_id").notNull(),
-  projectId: integer("project_id").notNull(),
-  relatedEntityId: integer("related_entity_id"), // Optional
+  type: text("type").notNull(), // Activity type: 'created_project', 'updated_requirement', 'generated_tasks', etc.
+  description: text("description").notNull(), // Human-readable description of the activity
+  userId: integer("user_id").notNull().references(() => users.id),
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  relatedEntityId: integer("related_entity_id"), // Optional ID of the entity being acted upon (requirement, task, etc.)
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+/**
+ * Activity insert validation schema
+ * Defines fields required when recording a new activity
+ */
 export const insertActivitySchema = createInsertSchema(activities).pick({
   type: true,
   description: true,
@@ -225,26 +293,43 @@ export const insertActivitySchema = createInsertSchema(activities).pick({
   relatedEntityId: true,
 });
 
-// Implementation Tasks schema
+/**
+ * Implementation Tasks Table - Detailed work items derived from requirements
+ * 
+ * Represents specific implementation tasks that need to be completed to
+ * fulfill a requirement. Includes tracking for status, priority, complexity,
+ * and implementation details.
+ * 
+ * Relationships:
+ * - Many-to-one with Requirement (tasks implement a requirement)
+ */
 export const implementationTasks = pgTable("implementation_tasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  status: text("status").notNull().default("pending"), // pending, in-progress, completed, blocked
-  priority: text("priority").notNull().default("medium"), // high, medium, low
-  system: text("system").notNull(), // source, target, both
-  requirementId: integer("requirement_id").notNull(),
-  estimatedHours: integer("estimated_hours"), // Optional
-  complexity: text("complexity").default("medium"), // low, medium, high
-  assignee: text("assignee"), // Optional
-  taskType: text("task_type"), // data-mapping, workflow, ui, integration, etc.
+  status: text("status").notNull().default("pending"), // Valid values: 'pending', 'in-progress', 'completed', 'blocked'
+  priority: text("priority").notNull().default("medium"), // Valid values: 'high', 'medium', 'low'
+  system: text("system").notNull(), // Valid values: 'source', 'target', 'both'
+  requirementId: integer("requirement_id").notNull().references(() => requirements.id),
+  estimatedHours: integer("estimated_hours"), // Estimated effort in hours
+  complexity: text("complexity").default("medium"), // Valid values: 'low', 'medium', 'high'
+  assignee: text("assignee"), // Name or identifier of person assigned
+  taskType: text("task_type"), // Type of task: 'data-mapping', 'workflow', 'ui', 'integration', etc.
+  
+  // Documentation and implementation guidance
   sfDocumentationLinks: jsonb("sf_documentation_links").default([]), // Array of Salesforce documentation links
   implementationSteps: jsonb("implementation_steps").default([]), // Array of detailed implementation steps
   overallDocumentationLinks: jsonb("overall_documentation_links").default([]), // Array of general documentation links
+  
+  // Audit fields
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/**
+ * Implementation Task insert validation schema
+ * Defines fields required when creating a new implementation task
+ */
 export const insertImplementationTaskSchema = createInsertSchema(implementationTasks).pick({
   title: true,
   description: true,
@@ -286,22 +371,37 @@ export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type ImplementationTask = typeof implementationTasks.$inferSelect;
 export type InsertImplementationTask = z.infer<typeof insertImplementationTaskSchema>;
 
-// Document Template schema
+/**
+ * Document Templates Table - Reusable document design templates
+ * 
+ * Stores templates for generating standardized project documents like
+ * statements of work, implementation plans, and requirements specifications.
+ * 
+ * Relationships:
+ * - Many-to-one with User (templates are created by a user)
+ * - Many-to-one with Project (optional, for project-specific templates)
+ * - One-to-many with Documents (templates are used to generate documents)
+ * - One-to-many with FieldMappings (templates have field mappings for data population)
+ */
 export const documentTemplates = pgTable("document_templates", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  category: text("category").notNull(), // sow, implementation-plan, requirement-spec, etc.
-  isGlobal: boolean("is_global").default(true).notNull(), // true if template can be used by any project
-  userId: integer("user_id").notNull(),
-  projectId: integer("project_id"), // null if global template
-  template: jsonb("template").notNull(), // pdfme template structure
-  schema: jsonb("schema").notNull(), // schema for the template fields
-  thumbnail: text("thumbnail"), // base64 encoded thumbnail
+  category: text("category").notNull(), // Document category: 'sow', 'implementation-plan', 'requirement-spec', etc.
+  isGlobal: boolean("is_global").default(true).notNull(), // Flag indicating if template can be used by any project
+  userId: integer("user_id").notNull().references(() => users.id),
+  projectId: integer("project_id").references(() => projects.id), // null if global template
+  template: jsonb("template").notNull(), // PDFMe template structure JSON
+  schema: jsonb("schema").notNull(), // Schema definition for template fields
+  thumbnail: text("thumbnail"), // Base64 encoded thumbnail image
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/**
+ * Document Template insert validation schema
+ * Defines fields required when creating a new document template
+ */
 export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates).pick({
   name: true,
   description: true,
@@ -314,7 +414,17 @@ export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates
   thumbnail: true,
 });
 
-// Document schema (generated documents based on templates)
+/**
+ * Documents Table - Generated project documents
+ * 
+ * Stores documents generated from templates with custom data.
+ * These are the final deliverables like SOWs, implementation plans, etc.
+ * 
+ * Relationships:
+ * - Many-to-one with DocumentTemplate (documents are based on a template)
+ * - Many-to-one with Project (documents belong to a project)
+ * - Many-to-one with User (documents are created by a user)
+ */
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -322,14 +432,18 @@ export const documents = pgTable("documents", {
   templateId: integer("template_id").references(() => documentTemplates.id).notNull(),
   projectId: integer("project_id").references(() => projects.id).notNull(),
   userId: integer("user_id").references(() => users.id).notNull(),
-  data: jsonb("data").notNull(), // form data used to generate the document
-  pdfPath: text("pdf_path"), // path to the generated PDF
-  status: text("status").default("draft").notNull(), // draft, final, archived
-  version: integer("version").default(1).notNull(),
+  data: jsonb("data").notNull(), // Form data used to populate the document
+  pdfPath: text("pdf_path"), // File path to the generated PDF
+  status: text("status").default("draft").notNull(), // Document status: 'draft', 'final', 'archived'
+  version: integer("version").default(1).notNull(), // Document version number
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/**
+ * Document insert validation schema
+ * Defines fields required when creating a new document
+ */
 export const insertDocumentSchema = createInsertSchema(documents).pick({
   name: true,
   description: true,
@@ -342,31 +456,50 @@ export const insertDocumentSchema = createInsertSchema(documents).pick({
   version: true,
 });
 
-// Field Mapping schema (maps schema fields to AI or DB data sources)
+/**
+ * Field Mappings Table - Maps template fields to data sources
+ * 
+ * Defines how fields in document templates are populated with data
+ * from the system (database) or AI-generated content.
+ * 
+ * Relationships:
+ * - Many-to-one with DocumentTemplate (mappings belong to a template)
+ */
 export const fieldMappings = pgTable("field_mappings", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  type: text("type").notNull(), // database, ai-generated
+  type: text("type").notNull(), // Mapping type: 'database', 'ai-generated'
   templateId: integer("template_id").references(() => documentTemplates.id).notNull(),
-  fieldKey: text("field_key").notNull(), // the key in the template
-  dataSource: text("data_source"), // table name or AI prompt type
+  fieldKey: text("field_key").notNull(), // Template field identifier
+  
+  // Data source configuration
+  dataSource: text("data_source"), // Table name or AI prompt type
   dataPath: text("data_path"), // Legacy: JSON path or column name
   columnField: text("column_field"), // Specific column name from the table
-  prompt: text("prompt"), // AI prompt template if AI-generated
-  defaultValue: text("default_value"), // default value if data not found
-  selectionMode: text("selection_mode").default("single"), // single, all, or custom - how to handle multiple records
-  recordId: text("record_id"), // ID of specific record if selectionMode is single
-  selectionFilter: text("selection_filter"), // Filter expression if selectionMode is custom
-  // AI-specific data source flags
-  includeProject: boolean("include_project").default(true), // Include project data for AI generation
-  includeRequirements: boolean("include_requirements").default(true), // Include requirements data
-  includeTasks: boolean("include_tasks").default(true), // Include implementation tasks data
-  includeCustomer: boolean("include_customer").default(true), // Include customer data
+  prompt: text("prompt"), // AI prompt template for generated content
+  defaultValue: text("default_value"), // Default value if data not found
+  
+  // Selection configuration
+  selectionMode: text("selection_mode").default("single"), // How to handle multiple records: 'single', 'all', 'custom'
+  recordId: text("record_id"), // ID of specific record if selectionMode is 'single'
+  selectionFilter: text("selection_filter"), // Filter expression if selectionMode is 'custom'
+  
+  // AI content generation configuration
+  includeProject: boolean("include_project").default(true), // Include project data in context
+  includeRequirements: boolean("include_requirements").default(true), // Include requirements data in context
+  includeTasks: boolean("include_tasks").default(true), // Include implementation tasks in context
+  includeCustomer: boolean("include_customer").default(true), // Include customer data in context
+  
+  // Audit fields
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/**
+ * Field Mapping insert validation schema
+ * Defines fields required when creating a new field mapping
+ */
 export const insertFieldMappingSchema = createInsertSchema(fieldMappings).pick({
   name: true,
   description: true,
@@ -397,20 +530,36 @@ export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type FieldMapping = typeof fieldMappings.$inferSelect;
 export type InsertFieldMapping = z.infer<typeof insertFieldMappingSchema>;
 
-// Workflow schema - stores project workflow definitions
+/**
+ * Workflows Table - Visual process definitions
+ * 
+ * Stores workflow diagrams that represent business processes, implementation
+ * sequences, or other procedural designs. Used for planning and documentation.
+ * 
+ * Relationships:
+ * - Many-to-one with Project (workflows belong to a project)
+ */
 export const workflows = pgTable("workflows", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
   projectId: integer("project_id").notNull().references(() => projects.id),
-  version: integer("version").default(1).notNull(),
-  status: text("status").default("draft").notNull(), // draft, published, archived
-  nodes: jsonb("nodes").default([]).notNull(), // Array of workflow nodes (steps, gateways, etc.)
+  version: integer("version").default(1).notNull(), // Version number for tracking changes
+  status: text("status").default("draft").notNull(), // Workflow status: 'draft', 'published', 'archived'
+  
+  // Workflow diagram structure (ReactFlow format)
+  nodes: jsonb("nodes").default([]).notNull(), // Array of workflow nodes (tasks, decisions, etc.)
   edges: jsonb("edges").default([]).notNull(), // Array of connections between nodes
+  
+  // Audit fields
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/**
+ * Workflow insert validation schema
+ * Defines fields required when creating a new workflow
+ */
 export const insertWorkflowSchema = createInsertSchema(workflows).pick({
   name: true,
   description: true,
@@ -421,7 +570,12 @@ export const insertWorkflowSchema = createInsertSchema(workflows).pick({
   edges: true,
 });
 
-// WorkflowNode Type Definitions (for documentation and TypeScript)
+/**
+ * WorkflowNode Interface - Defines node structure in workflow diagrams
+ * 
+ * Represents a single step, decision, or endpoint in a workflow diagram.
+ * Used for visual representation and may reference project requirements or tasks.
+ */
 export interface WorkflowNode {
   id: string;
   type: 'task' | 'decision' | 'start' | 'end' | 'subprocess';
@@ -429,22 +583,27 @@ export interface WorkflowNode {
   data: {
     label: string;
     description?: string;
-    requirementId?: number;
-    taskId?: number;
-    properties?: Record<string, any>;
+    requirementId?: number; // Optional reference to a requirement
+    taskId?: number; // Optional reference to an implementation task
+    properties?: Record<string, any>; // Additional custom properties
   };
 }
 
-// WorkflowEdge Type Definitions (for documentation and TypeScript)
+/**
+ * WorkflowEdge Interface - Defines edge structure in workflow diagrams
+ * 
+ * Represents a connection between nodes in a workflow diagram, showing
+ * the flow path and conditional logic.
+ */
 export interface WorkflowEdge {
   id: string;
-  source: string;
-  target: string;
-  label?: string;
-  type?: 'default' | 'conditional' | 'exception';
-  animated?: boolean;
-  style?: Record<string, any>;
-  data?: Record<string, any>;
+  source: string; // ID of source node
+  target: string; // ID of target node
+  label?: string; // Optional label for the connection (e.g., "Yes", "No", "On success")
+  type?: 'default' | 'conditional' | 'exception'; // Type of edge connection
+  animated?: boolean; // Visual property for animation of the edge line
+  style?: Record<string, any>; // Visual styling properties
+  data?: Record<string, any>; // Additional data for the edge
 }
 
 export type Workflow = typeof workflows.$inferSelect;
