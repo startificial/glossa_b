@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { ImplementationTask, Requirement } from '@/lib/types';
@@ -29,32 +29,63 @@ function useRequirementsTasks(requirementIds: number[] = []) {
   // Ensure requirementIds is an array before mapping
   const safeRequirementIds = Array.isArray(requirementIds) ? requirementIds : [];
   
-  const queries = safeRequirementIds.map(reqId => {
-    return useQuery<ImplementationTask[]>({
+  // We always return an object with the same structure
+  // to maintain hook calling order consistency
+  const isLoading = useRef(false);
+  const isError = useRef(false);
+  const queryResults = useRef<Array<ReturnType<typeof useQuery>>>([]);
+  
+  // Fixed maximum number of queries we'll support
+  // This ensures we always call the same number of hooks
+  const MAX_QUERIES = 50;
+  
+  // Create an array of fixed size to hold our queries
+  const queries: Array<ReturnType<typeof useQuery>> = [];
+  
+  // First, create all the required queries for actual requirement IDs
+  for (let i = 0; i < Math.min(safeRequirementIds.length, MAX_QUERIES); i++) {
+    const reqId = safeRequirementIds[i];
+    const query = useQuery<ImplementationTask[]>({
       queryKey: [`/api/requirements/${reqId}/tasks`],
       enabled: !!reqId,
     });
-  });
-
-  // If there are no queries, return empty defaults to prevent errors
-  if (queries.length === 0) {
-    return { data: [], isLoading: false, isError: false };
+    queries.push(query);
   }
-
-  const isLoading = queries.some(query => query.isLoading);
-  const isError = queries.some(query => query.isError);
   
-  // Combine all task data
+  // Then fill the rest with disabled queries to maintain the hook call count
+  for (let i = safeRequirementIds.length; i < MAX_QUERIES; i++) {
+    const query = useQuery<ImplementationTask[]>({
+      queryKey: [`/api/requirements/placeholder-${i}/tasks`],
+      enabled: false, // This query will never run
+    });
+    queries.push(query);
+  }
+  
+  // Combine all task data with useMemo to avoid unnecessary recalculations
   const allTasks = useMemo(() => {
-    return queries.reduce((acc: ImplementationTask[], query) => {
+    // Only use the actual queries that correspond to real requirement IDs
+    const activeQueries = queries.slice(0, safeRequirementIds.length);
+    
+    // Update loading and error states
+    isLoading.current = activeQueries.some(query => query.isLoading);
+    isError.current = activeQueries.some(query => query.isError);
+    
+    // Store query results for debugging if needed
+    queryResults.current = activeQueries;
+    
+    return activeQueries.reduce((acc: ImplementationTask[], query) => {
       if (query.data && Array.isArray(query.data)) {
         return [...acc, ...query.data];
       }
       return acc;
     }, []);
-  }, [queries]);
+  }, [queries, safeRequirementIds]);
 
-  return { data: allTasks, isLoading, isError };
+  return { 
+    data: allTasks, 
+    isLoading: isLoading.current, 
+    isError: isError.current 
+  };
 }
 
 export function ProjectTasks({ projectId }: ProjectTasksProps) {
