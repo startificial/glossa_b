@@ -1,0 +1,164 @@
+Okay, let's outline a technical approach to automatically generating a Statement of Work (SOW) PDF for a software migration, pulling data from requirements, Acceptance Criteria (ACs), and implementation tasks originating from a TypeScript/React web app context. The focus will be on the automation pipeline and customization hooks, rather than specific UI features.
+Core Concept:
+The process involves extracting structured data from various sources, transforming and organizing it according to a predefined SOW template structure, rendering it (likely via an intermediate format like HTML), and finally converting it to a well-formatted PDF.
+Technical Approach & Steps:
+ * Data Acquisition & Parsing:
+   * Identify Sources: Determine where Requirements, ACs, and Tasks reside. Common sources include:
+     * Task Management Systems: Jira, Azure DevOps, Asana (via APIs).
+     * Documentation Platforms: Confluence (via APIs), Markdown files in a Git repository.
+     * Code Comments: Specially formatted comments within the TS/React codebase (e.g., using JSDoc tags or custom annotations).
+     * Version Control: Git commit messages or specific branches/tags.
+   * Extraction:
+     * APIs: Use Node.js libraries (axios, node-fetch) to interact with REST or GraphQL APIs of task management/documentation systems. Handle authentication (API keys, OAuth).
+     * File System: Use Node.js fs module to read Markdown files or source code files from a local clone of the repository.
+     * Parsing:
+       * JSON (from APIs): Use JSON.parse().
+       * Markdown: Use libraries like marked or remark to parse Markdown into an Abstract Syntax Tree (AST) or HTML. This allows extracting specific sections or metadata.
+       * Source Code: Use Abstract Syntax Tree (AST) parsers for TypeScript like typescript (the official TS compiler API) or potentially @babel/parser if targeting JavaScript features within TS. Search the AST for specific comment patterns or annotations. Regex can be a simpler but more brittle alternative for well-defined comment formats (e.g., // @requirement: [ID] Description...).
+   * Normalization: Convert the extracted data from various sources into a consistent internal data structure. Define TypeScript interfaces for Requirement, AcceptanceCriterion, ImplementationTask, MigrationPhase, etc. Ensure relationships are captured (e.g., task IDs linked to requirement IDs).
+   // Example Interfaces
+interface Requirement {
+  id: string;
+  source: string; // e.g., 'JIRA-123', 'docs/spec.md#section-2'
+  description: string;
+  relatedACIds?: string[];
+  relatedTaskIds?: string[];
+}
+
+interface AcceptanceCriterion {
+  id: string;
+  source: string;
+  description: string;
+  requirementId: string;
+}
+
+interface ImplementationTask {
+  id: string;
+  source: string;
+  description: string;
+  status?: string; // e.g., 'ToDo', 'InProgress', 'Done'
+  assignee?: string;
+  estimatedHours?: number;
+  requirementId?: string;
+  // Specific migration fields
+  migrationArea?: string; // e.g., 'Database Schema', 'API Endpoint', 'UI Component'
+  sourceComponent?: string; // e.g., 'LegacyOrderForm.jsx'
+  targetComponent?: string; // e.g., 'NewOrderForm.tsx'
+}
+
+ * Data Structuring & SOW Logic:
+   * Define SOW Schema: Create a TypeScript interface or class representing the entire SOW document structure. This defines the sections needed for a migration SOW.
+     * Introduction/Overview
+     * Project Goals & Objectives (Derived from high-level requirements)
+     * Scope of Work (Detailed breakdown, often linking requirements to migration areas)
+       * In-Scope Components/Modules/Features (List derived from tasks/requirements)
+       * Out-of-Scope Items (Crucial for clarity - might need manual input or rules)
+     * Migration Approach/Phases (e.g., Assessment, Planning, Data Migration, Code Migration, Testing, Deployment, Post-Go-Live Support)
+     * Key Deliverables (Tied to ACs and completed migration tasks)
+     * Technical Assumptions (e.g., environment availability, data volume)
+     * Dependencies (Internal/External)
+     * Timeline/Milestones (Can be estimated based on task counts/estimates, grouped by phase)
+     * Team Roles & Responsibilities (May need manual input)
+     * Acceptance Criteria Summary (Aggregated from ACs)
+   * Mapping Logic: Write functions (in TypeScript) to process the normalized data and populate the SOW schema.
+     * Group tasks by migrationArea or relate them to requirements.
+     * Summarize requirements for the Goals and Scope sections.
+     * List ACs under Deliverables or Acceptance Criteria Summary.
+     * Estimate timeline sections based on task counts or summed estimates (acknowledging this is rough).
+     * Categorize tasks into different Migration Phases.
+ * Templating & Content Generation:
+   * Choose a Templating Engine: Use a Node.js-compatible engine like Handlebars, EJS, or Nunjucks. These allow embedding logic (loops, conditionals) within templates.
+   * Create SOW Template(s): Design the SOW layout using HTML and CSS. Use template engine syntax for placeholders where data will be injected.
+     <h2>Scope of Work</h2>
+<h3>In-Scope Requirements</h3>
+<ul>
+  {{#each scope.inScopeRequirements}}
+    <li><strong>{{this.id}}:</strong> {{this.description}}</li>
+  {{/each}}
+</ul>
+
+<h3>Migration Tasks by Area</h3>
+{{#each migrationTasksByArea}}
+  <h4>{{@key}}</h4>
+  <ul>
+    {{#each this}}
+      <li>[{{this.id}}] {{this.description}} (Status: {{this.status}})</li>
+    {{/each}}
+  </ul>
+{{/each}}
+
+   * Render the Template: Pass the populated SOW data object (from Step 2) to the templating engine to generate a complete HTML string. Include necessary CSS for formatting (either inline, in a <style> block, or linked if the PDF generator supports it).
+ * PDF Generation:
+   * Choose a PDF Generation Library:
+     * Puppeteer: (Recommended for high fidelity from HTML/CSS) Uses a headless instance of Chromium to "print" a web page to PDF. It accurately renders HTML and CSS.
+     * pdfkit: Lower-level programmatic PDF creation. More complex layout control needed, less ideal if starting from complex HTML/CSS.
+     * jsPDF: Primarily for client-side, but can be run server-side with Node.js. Similar trade-offs to pdfkit.
+   * Implementation (using Puppeteer):
+     * Install Puppeteer (npm install puppeteer).
+     * Write a function that takes the generated HTML string.
+     * Launch Puppeteer, create a new page.
+     * Set the page content to the generated HTML (page.setContent(htmlString, { waitUntil: 'networkidle0' })).
+     * Generate the PDF using page.pdf(), configuring options like format (A4, Letter), margins, header/footer templates, etc.
+     * Save the resulting PDF buffer to a file or return it via an API response.
+   import puppeteer from 'puppeteer';
+import fs from 'fs/promises';
+
+async function generatePdf(htmlContent: string, outputPath: string): Promise<void> {
+  let browser;
+  try {
+    browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] }); // Use --no-sandbox in containerized environments if needed
+    const page = await browser.newPage();
+
+    // Emulate screen media type for better CSS application if designed for screen
+    await page.emulateMediaType('screen');
+
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' }); // Wait for images, fonts etc.
+
+    // Basic PDF options - customize extensively
+    const pdfOptions: puppeteer.PDFOptions = {
+      path: outputPath,
+      format: 'A4',
+      printBackground: true, // Include background colors/images from CSS
+      margin: {
+        top: '20mm',
+        right: '20mm',
+        bottom: '20mm',
+        left: '20mm',
+      },
+      // Example Header/Footer (can include page numbers, dates)
+      displayHeaderFooter: true,
+      headerTemplate: `<div style="font-size: 9px; margin-left: 20mm;">My Company - Software Migration SOW</div>`,
+      footerTemplate: `<div style="font-size: 9px; width: 100%; text-align: center;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>`,
+    };
+
+    await page.pdf(pdfOptions);
+    console.log(`PDF successfully generated at ${outputPath}`);
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    throw error; // Re-throw for upstream handling
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+}
+
+ * Customization & Flexibility:
+   * Template Selection: Allow users to choose different HTML/CSS templates for different SOW styles or levels of detail.
+   * Configuration Files: Use JSON or YAML config files to define:
+     * API endpoints and credentials (use environment variables for secrets).
+     * Paths to source files/repositories.
+     * Rules for mapping data (e.g., tag patterns, status mappings).
+     * Standard boilerplate text (introductions, standard assumptions, legal clauses) that can be injected into the SOW data structure before templating.
+   * Intermediate Review/Edit: (Optional, adds complexity) Before PDF generation, you could expose the generated HTML or the structured SOW data (JSON) via a simple web interface (could use React) allowing a user to review and make manual edits before finalizing the PDF.
+   * Parameterization: Allow overriding certain sections or parameters via command-line arguments or API calls when triggering the generation (e.g., specifying project name, client name, specific version/tag to analyze).
+Putting it Together (Example Workflow):
+ * A script (e.g., node generate-sow.js --project MyMigration --output ./sow.pdf) or an API endpoint is triggered.
+ * The script reads configuration (project details, source locations, API keys).
+ * It calls functions to fetch data from Jira, Git (Markdown files, code comments).
+ * Data is parsed and normalized into the defined TypeScript interfaces.
+ * Mapping logic processes the normalized data, creating the structured SowDocument object. Boilerplate text from config is merged in.
+ * The SowDocument object is passed to the Handlebars engine along with the chosen HTML template.
+ * The engine renders the final HTML string.
+ * The generatePdf function (using Puppeteer) takes the HTML, renders it in headless Chrome, and saves the output PDF file.
+This approach provides a robust, automated pipeline while keeping the core logic (data extraction, mapping, PDF generation) separate, allowing for easier maintenance and customization through configuration and template adjustments rather than hardcoded features.
