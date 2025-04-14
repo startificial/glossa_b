@@ -2,7 +2,7 @@
  * Jest Configuration for TypeScript
  * This configuration specifically supports TypeScript testing
  */
-export default {
+module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   extensionsToTreatAsEsm: ['.ts', '.tsx'],

@@ -1,6 +1,7 @@
 /**
  * Tests for string utility functions
  */
+import { describe, expect, it } from '@jest/globals';
 import { 
   capitalizeFirstLetter,
   truncateString,
