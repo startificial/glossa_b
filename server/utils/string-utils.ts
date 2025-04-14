@@ -44,9 +44,13 @@ export function toKebabCase(str: string): string {
  */
 export function toCamelCase(str: string): string {
   if (!str) return str;
-  return str
-    .replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => {
-      return index === 0 ? word.toLowerCase() : word.toUpperCase();
-    })
-    .replace(/\s+|[-_]/g, '');
+  
+  // First replace any separators (spaces, hyphens, underscores) with spaces
+  const withSpaces = str.replace(/[-_]/g, ' ');
+  
+  // Then convert to camelCase
+  return withSpaces
+    .replace(/\s+(.)/g, (_, char) => char.toUpperCase())
+    .replace(/\s/g, '')
+    .replace(/^(.)/, (firstChar) => firstChar.toLowerCase());
 }
