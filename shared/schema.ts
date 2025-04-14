@@ -1,24 +1,56 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+/**
+ * Database Schema Module
+ * 
+ * This module defines the PostgreSQL database schema using Drizzle ORM.
+ * It includes table definitions, relations, and Zod validation schemas.
+ * 
+ * The schema is organized into logical sections:
+ * 1. Core entities (users, customers)
+ * 2. Project management (projects, requirements, activities)
+ * 3. Implementation entities (tasks, workflows)
+ * 4. Document management (templates, documents, field mappings)
+ */
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, primaryKey, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { Template as PDFMeTemplate } from "@pdfme/common";
 
-// User schema with extended profile information
+/**
+ * Type definition for database relations
+ * This improves type checking for relationships between tables
+ */
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+
+/**
+ * User Table - Core entity for authentication and user management
+ * 
+ * Represents a user in the system with authentication details,
+ * profile information, and role-based access control.
+ * 
+ * Relationships:
+ * - One-to-many with Projects (a user can own multiple projects)
+ * - One-to-many with Activities (a user can have multiple activities)
+ * - Self-referential for tracking user invitations
+ */
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  password: text("password").notNull(), // Should be stored as a hash in a production environment
   firstName: text("first_name"),
   lastName: text("last_name"),
   email: text("email").unique(),
   company: text("company"),
   avatarUrl: text("avatar_url"),
-  role: text("role").default("user").notNull(), // user, admin
-  invitedBy: integer("invited_by"),
+  role: text("role").default("user").notNull(), // Valid values: 'user', 'admin'
+  invitedBy: integer("invited_by").references(() => users.id), // Self-reference to track who invited this user
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/**
+ * User insert validation schema
+ * Defines required and optional fields for creating a new user
+ */
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -73,14 +105,27 @@ export const insertInviteSchema = createInsertSchema(invites).pick({
   expiresAt: true,
 });
 
-// Project schema
+/**
+ * Project Table - Central entity for requirement management
+ * 
+ * Represents a customer project with source and target system details
+ * and all associated requirements and implementation tasks.
+ * 
+ * Relationships:
+ * - Many-to-one with User (a project is owned by one user)
+ * - Many-to-one with Customer (a project belongs to one customer)
+ * - One-to-many with Input Data (a project can have multiple input files)
+ * - One-to-many with Requirements (a project has multiple requirements)
+ * - One-to-many with Activities (a project has activity logs)
+ * - One-to-many with Workflows (a project can have multiple workflow definitions)
+ */
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  type: text("type").notNull(),
-  userId: integer("user_id").notNull(),
-  customerId: integer("customer_id").references(() => customers.id), // Reference to customer table
+  type: text("type").notNull(), // Type of project (e.g., 'migration', 'implementation', 'analysis')
+  userId: integer("user_id").notNull().references(() => users.id),
+  customerId: integer("customer_id").references(() => customers.id),
   customer: text("customer"), // Legacy field for backward compatibility
   sourceSystem: text("source_system"), // System being migrated from
   targetSystem: text("target_system"), // System being migrated to
@@ -88,13 +133,17 @@ export const projects = pgTable("projects", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/**
+ * Project insert validation schema
+ * Defines the fields required when creating a new project
+ */
 export const insertProjectSchema = createInsertSchema(projects).pick({
   name: true,
   description: true,
   type: true,
   userId: true,
   customerId: true,
-  customer: true,
+  customer: true, 
   sourceSystem: true,
   targetSystem: true,
 });
