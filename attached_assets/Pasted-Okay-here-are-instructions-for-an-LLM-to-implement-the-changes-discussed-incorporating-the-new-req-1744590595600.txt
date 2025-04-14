@@ -1,0 +1,144 @@
+Okay, here are instructions for an LLM to implement the changes discussed, incorporating the new requirements about prompt management and route responsibilities.
+
+---
+
+**LLM Instructions: Refactoring Backend Routes and LLM Interactions**
+
+**Objective:**
+
+Your primary goal is to ensure the backend API implementation, specifically the routing layer (`routes.ts`), adheres to strict principles of responsibility separation. This involves:
+
+1.  Confirming and completing standardized CRUD operations for all database entities within `routes.ts`.
+2.  Strictly separating any Large Language Model (LLM) interaction logic (prompt definition, API calls) from the routing layer.
+3.  Establishing a centralized, external location for storing all LLM prompts.
+
+**Context:**
+
+* You have access to a `database.ts` file which defines database connection logic (using Drizzle ORM and Neon) and includes SQL statements to create tables (`users`, `invites`, `projects`, `input_data`, `requirements`, `implementation_tasks`, `activities`, `session`).
+* A `routes.ts` file has been generated (or should be reviewed/generated) using Express.js to provide API endpoints for these database entities.
+
+**Core Requirements & Constraints:**
+
+1.  **CRUD Completeness:**
+    * The `routes.ts` file MUST contain complete, standard RESTful CRUD endpoints for **all** relevant data entities defined in `database.ts`.
+    * Entities requiring CRUD routes: `users`, `invites`, `projects`, `input_data`, `requirements`, `implementation_tasks`, `activities`.
+    * For each entity, ensure the following endpoints exist and function correctly:
+        * `GET /api/<entity-plural>` (List all, potentially with filtering)
+        * `GET /api/<entity-plural>/:id` (Get one by ID)
+        * `POST /api/<entity-plural>` (Create new)
+        * `PUT /api/<entity-plural>/:id` (Update existing by ID - PATCH is also acceptable)
+        * `DELETE /api/<entity-plural>/:id` (Delete existing by ID)
+    * These routes should interact directly with the Drizzle ORM (`db`) instance or call dedicated data access/service functions.
+
+2.  **Route Responsibility:**
+    * The `routes.ts` file MUST **only** be responsible for:
+        * Defining API endpoint paths and HTTP methods (GET, POST, PUT, DELETE, etc.).
+        * Parsing incoming request data (path parameters, query strings, request bodies).
+        * Performing basic input validation (e.g., checking for required fields, ID format). Complex business logic validation should reside in service layers.
+        * Calling appropriate functions from the data layer (e.g., `db.select(...)`, `db.insert(...)`) or service layer (e.g., `userService.createUser(...)`) to perform the requested operation.
+        * Formatting the response (setting status codes, sending JSON data or error messages).
+        * Handling HTTP-specific errors (e.g., 404 Not Found, 400 Bad Request).
+    * The `routes.ts` file **MUST NOT** contain logic for:
+        * Complex business logic.
+        * **Defining LLM prompts.**
+        * **Calling external LLM APIs directly.**
+
+3.  **LLM Prompt Management:**
+    * All prompts used for interacting with LLMs MUST be stored in a **separate, dedicated file**. Suggested location: `src/llm_prompts.ts` or within a `src/prompts/` directory.
+    * This file should export the prompts as constants or variables (e.g., `export const GENERATE_SUMMARY_PROMPT = '...';`).
+    * Use descriptive names for the exported prompt variables.
+
+4.  **LLM Interaction Logic:**
+    * Any function or module that needs to call an LLM API MUST import the required prompt(s) from the dedicated prompts file (`src/llm_prompts.ts`).
+    * Prompts MUST be used via these imported references/variables. **Do not define prompt strings inline** within the functions that make the LLM calls.
+    * The logic for interacting with the LLM (making the API call, handling the LLM's response) should reside in dedicated service functions or helper modules (e.g., `src/services/analysisService.ts`, `src/lib/llmClient.ts`), **not** within `routes.ts`.
+
+**Implementation Steps:**
+
+1.  **Analyze `database.ts`:** Identify all tables intended for data storage and API interaction (`users`, `invites`, `projects`, `input_data`, `requirements`, `implementation_tasks`, `activities`).
+2.  **Review/Generate `routes.ts`:**
+    * For each entity identified in Step 1, verify or implement the five standard CRUD endpoints (GET list, GET ID, POST, PUT/PATCH, DELETE).
+    * Ensure these routes correctly use the `db` instance and schema from `database.ts` for database operations.
+3.  **Identify LLM Logic:** Scan the *entire codebase* (especially `routes.ts` and any service layers if they exist) for:
+    * Inline definitions of strings that look like LLM prompts.
+    * Direct calls to LLM APIs (e.g., using libraries like `openai`, `langchain`, or `Workspace` to an LLM endpoint).
+4.  **Refactor LLM Logic (if found outside dedicated services/helpers):**
+    * If LLM API calls are found in `routes.ts`, move the calling logic to a new or existing service function (e.g., `src/services/someService.ts`). The route handler should then only call this service function.
+    * If LLM prompts are defined inline anywhere, proceed to Step 5.
+5.  **Create Prompt File:**
+    * Create the file `src/llm_prompts.ts` (or similar).
+    * Identify all unique LLM prompts used throughout the application.
+    * Define each prompt in `src/llm_prompts.ts` and export it as a constant (e.g., `export const SUMMARIZE_PROJECT_PROMPT = \`Provide a concise summary...\`;`).
+6.  **Update LLM Call Sites:**
+    * Modify any service or helper function that calls an LLM API.
+    * Remove any inline prompt definitions.
+    * Import the required prompt constant(s) from `src/llm_prompts.ts`.
+    * Use the imported prompt variable when calling the LLM API.
+7.  **Final Verification:**
+    * Confirm `routes.ts` strictly adheres to its responsibilities (routing, request/response handling, calling services/db).
+    * Confirm `routes.ts` contains no inline prompts or direct LLM API calls.
+    * Confirm all prompts are externalized to `src/llm_prompts.ts` and exported.
+    * Confirm LLM-calling functions import and use prompts from `src/llm_prompts.ts`.
+    * Confirm all specified entities have complete CRUD endpoints in `routes.ts`.
+
+**Example Snippets (Conceptual):**
+
+```typescript
+// src/llm_prompts.ts
+export const GENERATE_TASK_DESCRIPTION_PROMPT = `Based on the requirement title "{reqTitle}" and description "{reqDesc}", generate a detailed implementation task description for the {system} system.`;
+
+// src/services/taskService.ts
+import { db } from '../database';
+import * as schema from '@shared/schema';
+import { GENERATE_TASK_DESCRIPTION_PROMPT } from '../llm_prompts';
+import { callLLM } from '../lib/llmClient'; // Assume this helper exists
+
+export async function createTaskWithGeneratedDescription(data: any) {
+  // ... validation ...
+  let prompt = GENERATE_TASK_DESCRIPTION_PROMPT;
+  prompt = prompt.replace('{reqTitle}', data.reqTitle)
+                 .replace('{reqDesc}', data.reqDesc)
+                 .replace('{system}', data.system);
+
+  const generatedDescription = await callLLM(prompt); // Use imported prompt
+
+  const newTaskData: schema.InsertImplementationTask = {
+    requirement_id: data.requirement_id,
+    title: data.title,
+    description: generatedDescription || data.fallbackDescription, // Use generated desc
+    system: data.system,
+    // ... other fields
+  };
+  const newTask = await db.insert(schema.implementationTasks).values(newTaskData).returning();
+  return newTask[0];
+}
+
+// src/routes.ts
+import express from 'express';
+import * as taskService from '../services/taskService'; // Import service
+
+const router = express.Router();
+router.use(express.json());
+
+// ... other CRUD routes for tasks ...
+
+// Example of a route potentially using the service
+router.post('/api/implementation-tasks/generate', async (req, res) => {
+  try {
+    // Basic validation of req.body
+    if (!req.body.requirement_id || !req.body.title /* ... */) {
+      return res.status(400).json({ message: 'Missing required fields.' });
+    }
+    // CALL THE SERVICE - NO LLM LOGIC HERE
+    const newTask = await taskService.createTaskWithGeneratedDescription(req.body);
+    res.status(201).json(newTask);
+  } catch (error) {
+     // Handle error (e.g., using the handleError helper from previous example)
+     handleError(res, error, 'create', 'generated task');
+  }
+});
+
+export default router;
+```
+
+---
