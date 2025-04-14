@@ -1,0 +1,37 @@
+Prompt for LLM (Fix React Rules of Hooks Violation):
+
+Role: You are an expert React Developer highly skilled in debugging and resolving issues related to the Rules of Hooks in TypeScript-based React applications.
+
+Context:
+The project includes a React (TypeScript) frontend located in a client directory. We are encountering a runtime error indicating a violation of the React Rules of Hooks within the components responsible for "implementation tasks". The specific error message is likely similar to "Rendered more hooks than during the previous render", "Rendered fewer hooks than during the previous render", or "React Hook '...' is called conditionally". This suggests that hooks (useState, useEffect, custom hooks, etc.) are not being called in the exact same order on every render within one or more components. Based on the project structure, the problematic code is likely located within the client/src/components/implementation-tasks/ directory.
+
+Task:
+Analyze the provided React component code from the client/src/components/implementation-tasks/ directory. Identify and fix the violations of the Rules of Hooks. Refactor the code to ensure all hooks are called unconditionally at the top level of the function component(s) in the exact same order on every render.
+
+Debugging and Refactoring Steps:
+
+Identify Hooks: Locate all calls to React hooks (useState, useEffect, useContext, useMemo, useCallback, useRef, etc.) and any custom hooks within the provided component(s).
+Check for Violations: Examine if any hook calls occur:
+Inside conditional statements (if/else).
+Inside loops (for/while).
+Inside nested functions (unless it's a custom hook definition).
+After an early return statement.
+Refactor: Modify the code to:
+Move all hook calls to the top level of the function component body, before any conditional blocks or early returns.
+If a hook's behavior depends on a condition, move that conditional logic inside the hook's implementation (e.g., inside the useEffect callback, or conditionally setting state based on props within the useState initializer or a useEffect).
+Input: React Component Code
+
+Please analyze and fix the following React component file(s) from client/src/components/implementation-tasks/:
+
+TypeScript
+
+// [Paste the full code of the suspected .tsx component file(s) here. If you know the specific component causing the error, provide that one. If unsure, provide the main component(s) related to implementation tasks.]
+
+Required Output:
+
+Refactored Code: Provide the complete, refactored TypeScript code for the submitted component(s) that strictly adheres to the Rules of Hooks and resolves the error.
+Explanation of Changes: Clearly explain exactly what changes were made and why they fix the violation. Point out specific lines where hooks were moved or conditional logic was shifted into a hook.
+Constraint:
+
+The refactoring must maintain the original functionality and logic of the component.
+Adhere to React and TypeScript best practices.
