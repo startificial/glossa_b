@@ -21,6 +21,12 @@ export default {
   // Different test environments for backend and frontend
   projects: [
     {
+      // Basic tests configuration
+      displayName: 'basic',
+      testMatch: ['<rootDir>/*.test.js', '<rootDir>/*.spec.js', '<rootDir>/basic-test.js'],
+      testEnvironment: 'node',
+    },
+    {
       // Backend tests configuration
       displayName: 'backend',
       testMatch: ['<rootDir>/server/**/*.test.ts', '<rootDir>/server/**/*.spec.ts'],
