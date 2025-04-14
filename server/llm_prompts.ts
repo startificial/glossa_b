@@ -27,6 +27,25 @@ You MUST use *only* the following node types when defining the \`nodeType\` in t
 | Notification      | Rectangle              | Orange / Grey                 | Bell symbol (optional) | Solid             |
 | Send Event        | Rectangle              | Light Green / Grey            | Send symbol (optional) | Solid             |
 | Receive Event     | Rectangle              | Light Blue / Grey             | Receive symbol (optnl) | Solid             |
+| Wait / Delay      | Circle                 | Brown / Yellow                | Clock                  | Intermediate Solid|
+| Message Event     | Circle                 | Orange / Teal                 | Envelope               | Intermediate Solid|
+| Error Event       | Circle                 | Red Border                    | Lightning Bolt         | Thick/Intermediate|
+| Annotation        | Open Rectangle [\`]     | No Fill / Grey Text           | None                   | (Connected via Dotted Line) |
+\`\`\`
+
+**2. Requirement to Implement:**
+
+Analyze the following requirement carefully:
+
+\`\`\`
+Requirement ID: {requirementId}
+Requirement Title: {requirementTitle}
+
+Description:
+{requirementDescription}
+
+Acceptance Criteria:
+{acceptanceCriteria}
 \`\`\`
 
 **2. Required Node Properties:**
