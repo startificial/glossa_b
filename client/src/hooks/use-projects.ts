@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from './use-toast';
 import { Project, InsertProject } from '@shared/schema';
 import * as projectService from '@/services/api/projectService';
+import { ProjectWithStringDates } from '@/types/extended-types';
 
 // Query keys
 export const projectKeys = {
@@ -22,9 +23,9 @@ export const projectKeys = {
 export function useProjects() {
   const { toast } = useToast();
   
-  const query = useQuery<Project[]>({
+  const query = useQuery<ProjectWithStringDates[]>({
     queryKey: projectKeys.all,
-    queryFn: () => projectService.getAllProjects(),
+    queryFn: () => projectService.getAllProjects() as Promise<ProjectWithStringDates[]>,
   });
   
   return {
@@ -39,9 +40,9 @@ export function useProjects() {
 export function useProject(projectId: number) {
   const { toast } = useToast();
   
-  const query = useQuery<Project>({
+  const query = useQuery<ProjectWithStringDates>({
     queryKey: projectKeys.details(projectId),
-    queryFn: () => projectService.getProjectById(projectId),
+    queryFn: () => projectService.getProjectById(projectId) as Promise<ProjectWithStringDates>,
   });
   
   return {
