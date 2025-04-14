@@ -2,8 +2,8 @@
 set -e
 
 echo "Running basic tests with Node environment..."
-npx jest basic-test.js --testEnvironment=node
+BABEL_CONFIG_FILE=babel.config.cjs npx jest basic-test.cjs --testEnvironment=node --config=jest.config.cjs
 
-# Disable running all TypeScript tests for now due to dependency issues
+# Uncomment to run all tests when ready
 # echo "Running all tests with Jest configuration (skipping coverage)..."
-# npx jest --config=jest.config.js --coverage=false
+# BABEL_CONFIG_FILE=babel.config.cjs npx jest --config=jest.config.cjs --coverage=false
