@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { downloadJSON } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,7 +46,7 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
 
   const exportMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest<ExportData>("GET", `/api/projects/${projectId}/export`);
+      return await apiRequest<ExportData>(`/api/projects/${projectId}/export`);
     },
     onSuccess: (data) => {
       downloadJSON(data, `${data.project.name.replace(/\s+/g, '_')}_requirements.json`);
@@ -69,13 +69,19 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
   
   const deleteProjectMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("DELETE", `/api/projects/${projectId}`);
+      return await apiRequest<any>(`/api/projects/${projectId}`, { method: "DELETE" });
     },
     onSuccess: (data) => {
+      // Invalidate all queries that might include the deleted project
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+      
       toast({
         title: "Project deleted",
         description: "The project and all its data have been deleted successfully.",
       });
+      
       // Redirect to projects list
       setLocation("/");
     },

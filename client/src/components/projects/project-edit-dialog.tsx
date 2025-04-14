@@ -90,9 +90,11 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
   const updateMutation = useMutation({
     mutationFn: async (data: ProjectEditFormValues) => {
       return apiRequest(
-        "PUT",
         `/api/projects/${project.id}`,
-        data
+        { 
+          method: "PUT",
+          data
+        }
       );
     },
     onSuccess: () => {
