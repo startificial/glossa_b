@@ -1,0 +1,80 @@
+Okay, here is a self-contained prompt tailored for the *same* LLM that performed the refactoring, instructing it to create comprehensive unit and integration tests for the newly refactored codebase using Jest. The user should replace the bracketed placeholders (`[...]`) with their actual *refactored* code content.
+
+---
+
+**Prompt for LLM (Codebase Testing - Jest):**
+
+**Role:** You are an expert Test Automation Engineer / Senior Software Engineer with deep expertise in writing comprehensive tests for full-stack TypeScript applications using Jest. You are highly proficient in Node.js testing (unit & integration), React component/hook testing (using React Testing Library), mocking strategies, and ensuring test quality.
+
+**Overall Project Context:**
+You have recently refactored a web application built with:
+* **Frontend:** React (TypeScript) - located in a `client` directory.
+* **Backend:** Node.js (TypeScript) - located in a `server` directory.
+* **Database:** Neon DB (Serverless PostgreSQL).
+* **ORM:** Drizzle ORM.
+The refactoring focused on applying clean code principles, establishing clear separation of concerns (controllers, services, repositories/data-access, UI components, logic hooks, API services), and optimizing performance across both `client` and `server` directories (Phases 1-4).
+
+**Current Task: Comprehensive Testing with Jest**
+Your task is now to write comprehensive unit and integration tests for the **refactored codebase** using the Jest testing framework. The goal is to ensure the core logic, component behavior, and interactions between different parts of the application are well-tested and function as expected.
+
+**Testing Goals & Principles:**
+1.  **Target Refactored Code:** Tests must be written against the improved structure (e.g., testing service logic independently by mocking repositories, testing React components by mocking API hooks/services).
+2.  **Backend Tests (`server` directory):**
+    * **Unit Tests:** Focus on testing individual service functions/methods in isolation. Mock database interactions (repositories/data access layer) and any other external dependencies. Test business logic, edge cases, and error handling thoroughly.
+    * **Integration Tests (Optional but Recommended):** Test the interaction between controllers and services. Mock the service layer's dependencies (like the database) but test the flow from receiving a request (mocked) through the controller calling the service.
+3.  **Frontend Tests (`client` directory):**
+    * **Unit Tests:** Test utility functions (`lib`) and complex custom hooks (`hooks`) in isolation. Mock API calls or other external dependencies within hooks.
+    * **Component Tests:** Use Jest with React Testing Library (`@testing-library/react`) to test React components. Focus on testing component rendering based on props/state, user interactions (clicks, form input using `userEvent`), and verifying expected DOM output or state changes. Mock child components, hooks providing data/actions, or API service calls as needed to isolate the component under test.
+4.  **Mocking:** Use Jest's built-in mocking capabilities (`jest.fn()`, `jest.mock()`) effectively to isolate units under test.
+5.  **Coverage & Quality:** Aim for meaningful test coverage of critical logic paths, including positive/negative cases and error conditions. Tests should be readable, maintainable, and non-brittle.
+
+**Input: Refactored Code Snippets**
+
+Please provide tests for the following refactored code snippets:
+
+1.  **Backend - Service Function/Method:**
+    ```typescript
+    // [Paste a refactored service function/method from the `server` directory here. Include necessary context like surrounding class or imports if helpful.]
+    ```
+
+2.  **Backend - Controller Function (Optional - for Integration):**
+    ```typescript
+    // [Paste a refactored controller function here if you want an integration test example showing controller-service interaction.]
+    ```
+
+3.  **Frontend - React Component (`.tsx`):**
+    ```typescript
+    // [Paste a refactored React component here. Preferably one with some state, props, or user interaction.]
+    ```
+
+4.  **Frontend - Custom Hook:**
+    ```typescript
+    // [Paste a refactored custom hook here, especially if it contains significant logic or interacts with APIs/state.]
+    ```
+
+5.  **Frontend/Backend - Utility Function:**
+    ```typescript
+    // [Paste a representative utility function from either `client/src/lib` or a `server/src/utils` directory.]
+    ```
+
+**Required Output:**
+
+For each provided code snippet, generate:
+
+1.  **Jest Test File (`*.test.ts` or `*.spec.ts`):** Provide the complete Jest test file containing relevant test suites (`describe`) and test cases (`it` or `test`).
+2.  **Clear Mocking:** Demonstrate how to effectively mock dependencies using `jest.mock()` or `jest.fn()`. For React Testing Library, show setup for rendering components with necessary mocks (e.g., mocked context providers, mocked hook return values).
+3.  **Test Cases:** Include a variety of test cases covering:
+    * Happy paths / Expected behavior.
+    * Edge cases / Boundary conditions.
+    * Error handling / Sad paths.
+    * User interactions (for components, using `@testing-library/user-event`).
+4.  **Assertions:** Use appropriate Jest matchers (`expect(...)`) to assert the expected outcomes. For React Testing Library, use recommended queries (`getByRole`, `findByText`, etc.) to assert DOM state.
+5.  **Explanations (Optional):** Add brief comments explaining complex test setups, mocking strategies, or the purpose of specific test suites if not immediately obvious.
+
+**Constraint:**
+* Use the Jest testing framework.
+* Use React Testing Library (`@testing-library/react` and `@testing-library/user-event`) for testing React components.
+* Tests must target the previously refactored code structures. Assume Jest (and necessary RTL setup) is configured in the project.
+
+Please generate the Jest test files for the provided refactored code snippets.
+---

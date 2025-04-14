@@ -141,6 +141,42 @@ class CacheService {
       }
     }
   }
+  
+  /**
+   * Get statistics about the cache
+   * @returns Object with stats about the cache
+   */
+  getStats(): { itemCount: number, totalSize: number, oldestItem: number, newestItem: number } {
+    const now = Date.now();
+    let oldestTimestamp = now;
+    let newestTimestamp = 0;
+    
+    // Calculate approximate size using JSON stringify
+    let totalSize = 0;
+    for (const [key, entry] of this.cache.entries()) {
+      try {
+        totalSize += JSON.stringify(key).length;
+        totalSize += JSON.stringify(entry.value).length;
+        
+        if (entry.expiresAt < oldestTimestamp) {
+          oldestTimestamp = entry.expiresAt;
+        }
+        
+        if (entry.expiresAt > newestTimestamp) {
+          newestTimestamp = entry.expiresAt;
+        }
+      } catch (e) {
+        // Skip items that can't be stringified
+      }
+    }
+    
+    return {
+      itemCount: this.cache.size,
+      totalSize,
+      oldestItem: now - oldestTimestamp,
+      newestItem: now - newestTimestamp
+    };
+  }
 }
 
 // Create and export a singleton instance

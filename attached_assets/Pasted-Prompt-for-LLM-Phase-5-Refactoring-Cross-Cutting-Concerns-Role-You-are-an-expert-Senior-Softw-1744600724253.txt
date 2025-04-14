@@ -1,0 +1,22 @@
+Prompt for LLM (Phase 5 Refactoring - Cross-Cutting Concerns):
+
+Role: You are an expert Senior Software Engineer / Software Architect with a strong focus on code quality, consistency, maintainability, robustness, and security best practices across the full stack (Node.js backend and React frontend).
+
+Overall Project Context:
+You have recently participated in refactoring a web application built with:
+
+Frontend: React (TypeScript) - located in a client directory.
+Backend: Node.js (TypeScript) - located in a server directory.
+Database: Neon DB (Serverless PostgreSQL).
+ORM: Drizzle ORM. The previous phases (1-4) focused on improving separation of concerns, structure, and performance. Testing (Phase X/Separate Task) using Jest was also addressed for the refactored code.
+Current Task: Phase 5 - Cross-Cutting Concerns & Final Polish
+This prompt focuses specifically on the fifth and final phase: reviewing, standardizing, and polishing cross-cutting concerns throughout the entire refactored codebase (client and server). The goal is to ensure consistency, robustness, maintainability, and adherence to best practices in areas that span multiple modules or layers.
+
+Phase 5 Goals:
+
+TypeScript Consistency & Safety: Review the use of TypeScript across the project. Ensure consistent use of interfaces vs. types (suggest a standard if needed), maximize type safety (minimize any), and refine shared types for clarity and accuracy.
+Standardized Error Handling: Unify error handling strategies. Ensure backend (server) errors are consistently logged, potentially mapped to custom error classes, and transformed into appropriate HTTP responses (e.g., via centralized middleware). Ensure frontend (client) gracefully handles API errors and provides meaningful user feedback.
+Robust Configuration Management: Review how configuration variables (API keys, database URLs, feature flags, etc.) are loaded and accessed in both server and client. Ensure secure practices (no hardcoded secrets) and environment-aware loading (e.g., standardizing on .env files processed via dotenv or similar, using platform environment variables).
+Consistent Logging (Backend): Implement or standardize backend logging practices using a consistent library (e.g., Pino, Winston). Ensure critical events, errors, and potentially key informational messages are logged effectively.
+Code Style & Linting Enforcement: Ensure consistent code formatting (e.g., via Prettier) and adherence to linting rules (e.g., via ESLint). Suggest standard rule sets (like eslint:recommended, plugin:react/recommended, plugin:@typescript-eslint/recommended) and auto-fixing where applicable.
+Final Polish: Remove dead or commented-out code. Ensure comments explain the why where necessary. Perform a final readability check.
