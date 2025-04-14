@@ -4,7 +4,7 @@
  * This configuration sets up Jest for testing both the frontend and backend
  * components of the application with appropriate transformers and module mappings.
  */
-module.exports = {
+export default {
   // Use ts-jest for TypeScript files
   preset: 'ts-jest',
   
