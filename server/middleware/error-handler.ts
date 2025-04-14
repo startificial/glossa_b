@@ -1,68 +1,70 @@
 /**
  * Error Handler Middleware
  * 
- * Provides centralized error handling for Express routes.
- * Transforms ApiError instances into appropriate HTTP responses.
+ * Provides middleware for handling errors in the application.
  */
 import { Request, Response, NextFunction } from 'express';
-import { ApiError } from '../error/api-error';
+import { ApiError, NotFoundError } from '../error/api-error';
 import { ZodError } from 'zod';
+import { formatZodError } from '../error/zod-formatter';
+
+// Type to make async route handlers compatible with Express
+type AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => Promise<any>;
 
 /**
- * Express error handling middleware
- * Handles:
- * - Custom API errors
- * - Zod validation errors
- * - Generic errors
+ * Wraps an async route handler to automatically catch errors and pass them to the error middleware
+ * @param fn Async route handler function
+ * @returns Express middleware function with error handling
+ */
+export function asyncHandler(fn: AsyncRequestHandler) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
+
+/**
+ * Middleware for handling 404 errors
+ * @param req Express request object
+ * @param res Express response object
+ * @param next Express next function
+ */
+export function notFoundHandler(req: Request, res: Response, next: NextFunction) {
+  next(new NotFoundError(`Route not found: ${req.method} ${req.originalUrl}`));
+}
+
+/**
+ * Global error handler middleware
+ * @param err Error object
+ * @param req Express request object
+ * @param res Express response object
+ * @param next Express next function
  */
 export function errorHandler(err: Error, req: Request, res: Response, next: NextFunction) {
-  console.error('Error caught by errorHandler:', err);
+  console.error(`Error handling request to ${req.method} ${req.path}:`, err);
   
-  // Handle our custom API errors
+  // Handle API errors
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
+      status: 'error',
       message: err.message,
-      ...(err.data && { data: err.data })
+      code: err.errorCode
     });
   }
   
   // Handle Zod validation errors
   if (err instanceof ZodError) {
     return res.status(400).json({
+      status: 'error',
       message: 'Validation error',
-      data: err.errors
+      errors: formatZodError(err)
     });
   }
   
-  // Handle DuplicateKeyError (for database operations)
-  if (err.message && err.message.includes('duplicate key value violates unique constraint')) {
-    return res.status(409).json({
-      message: 'Resource already exists',
-      detail: err.message
-    });
-  }
-  
-  // Default to 500 server error
-  return res.status(500).json({
-    message: 'Internal Server Error',
-    ...(process.env.NODE_ENV !== 'production' && { detail: err.message })
+  // Default error handling
+  res.status(500).json({
+    status: 'error',
+    message: 'Internal server error',
+    // Only include stack trace in development
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
 }
-
-/**
- * Handler for 404 routes
- * Used when no routes match the requested URL
- */
-export function notFoundHandler(req: Request, res: Response) {
-  res.status(404).json({
-    message: `Cannot ${req.method} ${req.path}`
-  });
-}
-
-/**
- * Async handler wrapper to catch errors from async route handlers
- * Eliminates need for try/catch in route handlers
- */
-export const asyncHandler = (fn: Function) => (req: Request, res: Response, next: NextFunction) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
-};

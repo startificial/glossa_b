@@ -2,7 +2,7 @@
  * Services Module Index
  * 
  * Exports all service classes.
- * Services provide business logic between controllers and repositories.
+ * Services handle business logic and abstract away data access.
  */
 
 export * from './user-service';
@@ -13,8 +13,12 @@ export * from './requirement-service';
 import { UserService } from './user-service';
 import { ProjectService } from './project-service';
 import { RequirementService } from './requirement-service';
+import { repositoryFactory } from '../repositories/repository-factory';
 
-// Singleton instances for dependency injection
-export const userService = new UserService();
-export const projectService = new ProjectService();
-export const requirementService = new RequirementService();
+// Singleton instances
+export const userService = new UserService(repositoryFactory.getUserRepository());
+export const projectService = new ProjectService(repositoryFactory.getProjectRepository());
+export const requirementService = new RequirementService(
+  repositoryFactory.getRequirementRepository(),
+  repositoryFactory.getProjectRepository()
+);

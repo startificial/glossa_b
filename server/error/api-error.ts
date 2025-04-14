@@ -1,113 +1,110 @@
 /**
- * API Error Module
+ * API Error Classes
  * 
- * Provides standardized error classes for API responses.
- * Ensures consistent error formatting and status codes.
+ * Defines custom error classes for handling API errors.
  */
 
 /**
- * Base API Error class
- * Extends Error with HTTP status code and optional data
+ * Base class for API errors
  */
 export class ApiError extends Error {
   statusCode: number;
-  data?: any;
-
+  errorCode: string;
+  
   /**
-   * Create a new API error
-   * @param statusCode HTTP status code to return
+   * Create an API error
    * @param message Error message
-   * @param data Additional error data (optional)
+   * @param statusCode HTTP status code
+   * @param errorCode Application-specific error code
    */
-  constructor(statusCode: number, message: string, data?: any) {
+  constructor(message: string, statusCode: number = 500, errorCode: string = 'INTERNAL_ERROR') {
     super(message);
-    this.statusCode = statusCode;
-    this.data = data;
     this.name = this.constructor.name;
+    this.statusCode = statusCode;
+    this.errorCode = errorCode;
     
-    // Maintains proper stack trace for where error was thrown (node.js)
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, this.constructor);
-    }
+    // Ensures proper stack trace for debugging 
+    Error.captureStackTrace(this, this.constructor);
   }
 }
 
 /**
- * 400 Bad Request Error
- * Use for validation failures, malformed request syntax, etc.
+ * Error for bad requests (400)
  */
 export class BadRequestError extends ApiError {
-  constructor(message = 'Bad Request', data?: any) {
-    super(400, message, data);
+  constructor(message: string = 'Bad request', errorCode: string = 'BAD_REQUEST') {
+    super(message, 400, errorCode);
   }
 }
 
 /**
- * 401 Unauthorized Error
- * Use when authentication is required but missing or invalid
+ * Error for unauthorized requests (401)
  */
 export class UnauthorizedError extends ApiError {
-  constructor(message = 'Unauthorized', data?: any) {
-    super(401, message, data);
+  constructor(message: string = 'Authentication required', errorCode: string = 'UNAUTHORIZED') {
+    super(message, 401, errorCode);
   }
 }
 
 /**
- * 403 Forbidden Error
- * Use when user doesn't have permission for the requested operation
+ * Error for forbidden access (403)
  */
 export class ForbiddenError extends ApiError {
-  constructor(message = 'Forbidden', data?: any) {
-    super(403, message, data);
+  constructor(message: string = 'Access forbidden', errorCode: string = 'FORBIDDEN') {
+    super(message, 403, errorCode);
   }
 }
 
 /**
- * 404 Not Found Error
- * Use when requested resource doesn't exist
+ * Error for not found resources (404)
  */
 export class NotFoundError extends ApiError {
-  constructor(message = 'Not Found', data?: any) {
-    super(404, message, data);
+  constructor(message: string = 'Resource not found', errorCode: string = 'NOT_FOUND') {
+    super(message, 404, errorCode);
   }
 }
 
 /**
- * 409 Conflict Error
- * Use when the request conflicts with current state of the server
+ * Error for conflict errors (409)
  */
 export class ConflictError extends ApiError {
-  constructor(message = 'Conflict', data?: any) {
-    super(409, message, data);
+  constructor(message: string = 'Resource conflict', errorCode: string = 'CONFLICT') {
+    super(message, 409, errorCode);
   }
 }
 
 /**
- * 422 Unprocessable Entity Error
- * Use for semantic validation errors
+ * Error for validation errors (422)
  */
-export class UnprocessableEntityError extends ApiError {
-  constructor(message = 'Unprocessable Entity', data?: any) {
-    super(422, message, data);
+export class ValidationError extends ApiError {
+  constructor(message: string = 'Validation error', errorCode: string = 'VALIDATION_ERROR') {
+    super(message, 422, errorCode);
   }
 }
 
 /**
- * 500 Internal Server Error
- * Use for unhandled server errors
+ * Error for rate limiting (429)
+ */
+export class RateLimitError extends ApiError {
+  constructor(message: string = 'Too many requests', errorCode: string = 'RATE_LIMIT') {
+    super(message, 429, errorCode);
+  }
+}
+
+/**
+ * Error for internal server errors (500)
  */
 export class InternalServerError extends ApiError {
-  constructor(message = 'Internal Server Error', data?: any) {
-    super(500, message, data);
+  constructor(message: string = 'Internal server error', errorCode: string = 'INTERNAL_ERROR') {
+    super(message, 500, errorCode);
   }
 }
 
 /**
- * 503 Service Unavailable Error
- * Use when the server is temporarily unable to handle the request
+ * Error for service unavailable errors (503)
  */
 export class ServiceUnavailableError extends ApiError {
-  constructor(message = 'Service Unavailable', data?: any) {
-    super(503, message, data);
+  constructor(message: string = 'Service unavailable', errorCode: string = 'SERVICE_UNAVAILABLE') {
+    super(message, 503, errorCode);
   }
 }
