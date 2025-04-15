@@ -102,11 +102,12 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
       await fs.access(documentPath);
       console.log('Document file verified, exists on disk');
       
-      // Return document path for frontend to download
+      // Return document path and download URL for frontend to download
       return res.json({ 
         success: true,
         documentPath: documentPath.replace(process.cwd(), ''),
-        fileName: fileName
+        fileName: fileName,
+        downloadUrl: `/api/documents/download-pdf/${fileName}`
       });
     } catch (error) {
       const accessError = error instanceof Error ? error : new Error(String(error));
@@ -184,15 +185,18 @@ router.get('/api/documents/download-pdf/:fileName', async (req, res) => {
     const stats = await fs.stat(filePath);
     
     // Force PDF content type and attachment download
-    res.contentType('application/pdf');
+    res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.setHeader('Content-Length', stats.size);
     
-    console.log('Set PDF headers, sending file. Size:', stats.size);
+    console.log('Set PDF headers, sending file. Content-Type:', res.getHeader('Content-Type'));
+    console.log('Content-Length:', stats.size);
     
-    // Read the file and send it directly
-    const fileData = await fs.readFile(filePath);
-    return res.end(fileData);
+    // Use a stream to send the file directly
+    const fileStream = createReadStream(filePath);
+    fileStream.pipe(res);
+    
+    // We don't use res.end() here as the stream will handle that
   } catch (error) {
     console.error('Error downloading PDF:', error);
     return res.status(500).json({ error: 'Failed to download PDF document' });
