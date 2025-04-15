@@ -36,6 +36,9 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
       return res.status(400).json({ error: 'Document type is required' });
     }
     
+    // Set content type for JSON responses
+    res.setHeader('Content-Type', 'application/json');
+    
     // Validate document type
     const validTypes = ['sow', 'implementation-plan', 'requirement-spec', 'user-guide', 'training-manual', 'feature-guide'];
     if (!validTypes.includes(documentType)) {
@@ -51,7 +54,7 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
     
     if (!project) {
       console.error(`Project not found for ID: ${projectId}`);
-      return res.status(404).json({ error: 'Project not found' });
+      return res.status(400).json({ error: 'Project not found' });
     }
     
     console.log(`Project found: ${project.name}`);
@@ -112,7 +115,7 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
       };
       
       console.log('Sending response to client:', JSON.stringify(responseObj));
-      return res.json(responseObj);
+      return res.status(200).json(responseObj);
     } catch (error) {
       const accessError = error instanceof Error ? error : new Error(String(error));
       console.error('Document file does not exist despite generation:', accessError);
@@ -153,13 +156,21 @@ router.get('/api/documents/download/:fileName', async (req, res) => {
       console.error('File not found:', err);
       return res.status(404).json({ error: 'Document not found' });
     }
-    
-    // Return filename and direct download URL for static middleware
-    return res.json({
-      success: true,
-      downloadUrl: `/downloads/documents/${fileName}`,
-      fileName: fileName
-    });
+
+    if (req.query.json === 'true') {
+      // Return JSON response if specifically requested
+      return res.json({
+        success: true,
+        downloadUrl: `/downloads/documents/${fileName}`,
+        fileName: fileName
+      });
+    } else {
+      // Send the file directly
+      console.log('Sending file directly with proper content type');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      return res.sendFile(filePath);
+    }
   } catch (error) {
     console.error('Error preparing document download:', error);
     return res.status(500).json({ error: 'Failed to prepare document download' });

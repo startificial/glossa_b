@@ -55,9 +55,14 @@ if (!fs.existsSync(documentsDir)) {
   fs.mkdirSync(documentsDir, { recursive: true });
 }
 // Use express.static with mime type overrides for PDF
-app.use('/downloads/documents', express.static(documentsDir, {
+app.use('/downloads/documents', (req, res, next) => {
+  console.log('Received request for static document:', req.url);
+  next();
+}, express.static(documentsDir, {
   setHeaders: (res, filePath) => {
+    console.log('Serving static file:', filePath);
     if (filePath.endsWith('.pdf')) {
+      console.log('Setting PDF headers for file:', filePath);
       res.setHeader('Content-Type', 'application/pdf');
       // Add content disposition for downloads
       const fileName = path.basename(filePath);

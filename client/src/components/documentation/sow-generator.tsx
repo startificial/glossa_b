@@ -185,7 +185,7 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
         // Ensure we have a valid download URL before setting it
         if (documentData && typeof documentData === 'object' && 'downloadUrl' in documentData) {
           console.log("Setting document download URL:", documentData.downloadUrl);
-          setGeneratedDocumentUrl(documentData.downloadUrl);
+          setGeneratedDocumentUrl(String(documentData.downloadUrl));
         } else {
           console.error("Missing download URL in response:", JSON.stringify(documentData));
           throw new Error("Document generation failed: Missing download URL in response");
@@ -199,7 +199,7 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
           }, 500); // Small delay to show the complete progress
         }, 500);
         
-        return documentData;
+        return documentData as any;
       } catch (error) {
         clearInterval(interval);
         setIsGenerating(false);
