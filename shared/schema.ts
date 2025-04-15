@@ -239,6 +239,8 @@ export const requirements = pgTable("requirements", {
   videoScenes: jsonb("video_scenes").default([]), // Array of video scene references (timestamps, etc.)
   textReferences: jsonb("text_references").default([]), // Array of text passage references
   audioTimestamps: jsonb("audio_timestamps").default([]), // Array of audio timestamp references
+  // AI Expert review data
+  expertReview: jsonb("expert_review"), // Contains AI expert evaluation of the requirement quality
 });
 
 /**
@@ -258,6 +260,7 @@ export const insertRequirementSchema = createInsertSchema(requirements).pick({
   videoScenes: true,
   textReferences: true,
   audioTimestamps: true,
+  expertReview: true,
 });
 
 /**

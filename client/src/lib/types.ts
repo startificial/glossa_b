@@ -107,6 +107,14 @@ export interface AudioTimestamp {
   relevance?: number;
 }
 
+export interface ExpertReview {
+  evaluation: {
+    rating: 'good' | 'good with caveats' | 'bad';
+    explanation: string;
+    follow_up_questions: string[];
+  }
+}
+
 export interface Requirement {
   id: number;
   title: string;
@@ -123,6 +131,7 @@ export interface Requirement {
   videoScenes?: VideoScene[];
   textReferences?: TextReference[];
   audioTimestamps?: AudioTimestamp[];
+  expertReview?: ExpertReview;
 }
 
 export interface Activity {
