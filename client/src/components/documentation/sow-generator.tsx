@@ -153,13 +153,13 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
         // Set progress to 80% after server processing
         setProgress(80);
         
-        // Ensure we have a valid filename before setting the download URL
-        if (response && response.fileName) {
-          console.log("Setting document URL with filename:", response.fileName);
-          setGeneratedDocumentUrl(`/api/documents/download/${response.fileName}`);
+        // Ensure we have a valid download URL before setting it
+        if (response && response.downloadUrl) {
+          console.log("Setting document download URL:", response.downloadUrl);
+          setGeneratedDocumentUrl(response.downloadUrl);
         } else {
-          console.error("Missing filename in response:", response);
-          throw new Error("Document generation failed: Missing filename in response");
+          console.error("Missing download URL in response:", response);
+          throw new Error("Document generation failed: Missing download URL in response");
         }
         
         // Complete the progress
