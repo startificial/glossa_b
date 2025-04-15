@@ -8,6 +8,7 @@ import { Project, Requirement, ImplementationTask } from '@shared/schema';
 import path from 'path';
 import fs from 'fs/promises';
 import { createWriteStream } from 'fs';
+import { jsPDF } from 'jspdf';
 
 /**
  * Helper function to safely convert a string to HTML
@@ -21,6 +22,128 @@ function safeHtml(str: string | null | undefined): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+/**
+ * Generate SOW plain text content for PDF
+ */
+function generateSowPdfContent(
+  project: Project,
+  requirements: Requirement[],
+  tasks: ImplementationTask[]
+): string {
+  // Calculate totals
+  const totalHours = tasks.reduce((sum, task) => sum + (task.estimatedHours || 0), 0);
+  const hourlyRate = 150;
+  const totalCost = totalHours * hourlyRate;
+  
+  // Format date
+  const currentDate = new Date().toISOString().split('T')[0];
+  // Format end date (90 days from now)
+  const endDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  
+  let content = '';
+  
+  // Title
+  content += `STATEMENT OF WORK\n\n`;
+  content += `Project: ${project.name}\n`;
+  content += `Date: ${currentDate}\n\n`;
+  
+  // Introduction
+  content += `1. INTRODUCTION\n\n`;
+  content += `Client: ${project.customer || 'Client'}\n`;
+  content += `Source System: ${project.sourceSystem || 'Legacy System'}\n`;
+  content += `Target System: ${project.targetSystem || 'New System'}\n\n`;
+  content += `This Statement of Work (SOW) outlines the software implementation work to be performed `;
+  content += `for the migration from ${project.sourceSystem || 'Legacy System'} to ${project.targetSystem || 'New System'}.\n\n`;
+  
+  // Project Description
+  content += `2. PROJECT DESCRIPTION\n\n`;
+  content += `${project.description || 'No description provided.'}\n\n`;
+  
+  // Requirements
+  content += `3. REQUIREMENTS (${requirements.length})\n\n`;
+  requirements.forEach(req => {
+    content += `REQ-${req.id}: ${req.description}\n`;
+    content += `Category: ${req.category} | Priority: ${req.priority}\n\n`;
+  });
+  
+  // Implementation Tasks
+  content += `4. IMPLEMENTATION TASKS (${tasks.length})\n\n`;
+  tasks.forEach(task => {
+    content += `TASK-${task.id}: ${task.title}\n`;
+    content += `Status: ${task.status} | Estimated Hours: ${task.estimatedHours || 'Not specified'}\n\n`;
+  });
+  
+  // Timeline & Cost
+  content += `5. TIMELINE & COST\n\n`;
+  content += `Estimated Hours: ${totalHours}\n`;
+  content += `Hourly Rate: $${hourlyRate}\n`;
+  content += `Estimated Cost: $${totalCost.toLocaleString()}\n`;
+  content += `Start Date: ${currentDate}\n`;
+  content += `End Date: ${endDate}\n\n`;
+  
+  // Signatures
+  content += `6. SIGNATURES\n\n`;
+  content += `Client Representative: ________________________  Date: __________\n\n`;
+  content += `Implementation Team Lead: _____________________ Date: __________\n\n`;
+  
+  return content;
+}
+
+/**
+ * Generate Implementation Plan plain text content for PDF
+ */
+function generateImplementationPlanPdfContent(
+  project: Project,
+  requirements: Requirement[],
+  tasks: ImplementationTask[]
+): string {
+  // Calculate totals
+  const totalHours = tasks.reduce((sum, task) => sum + (task.estimatedHours || 0), 0);
+  
+  // Format date
+  const currentDate = new Date().toISOString().split('T')[0];
+  // Format end date (90 days from now)
+  const endDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  
+  let content = '';
+  
+  // Title
+  content += `IMPLEMENTATION PLAN\n\n`;
+  content += `Project: ${project.name}\n`;
+  content += `Date: ${currentDate}\n\n`;
+  
+  // Overview
+  content += `1. OVERVIEW\n\n`;
+  content += `This implementation plan outlines the steps required to successfully migrate `;
+  content += `from ${project.sourceSystem || 'Legacy System'} to ${project.targetSystem || 'New System'}.\n\n`;
+  
+  // Implementation Approach
+  content += `2. IMPLEMENTATION APPROACH\n\n`;
+  content += `The implementation will follow a phased approach to ensure minimal disruption to business operations.\n\n`;
+  
+  // Implementation Tasks
+  content += `3. IMPLEMENTATION TASKS (${tasks.length})\n\n`;
+  tasks.forEach((task, index) => {
+    content += `TASK ${index + 1}: ${task.title}\n`;
+    content += `Status: ${task.status} | Priority: ${task.priority} | Complexity: ${task.complexity || 'N/A'}\n`;
+    content += `Estimated Hours: ${task.estimatedHours || 'Not specified'}\n`;
+    content += `${task.description || 'No description provided.'}\n\n`;
+  });
+  
+  // Timeline
+  content += `4. TIMELINE\n\n`;
+  content += `Estimated Total Hours: ${totalHours}\n`;
+  content += `Start Date: ${currentDate}\n`;
+  content += `End Date: ${endDate}\n\n`;
+  
+  // Approval
+  content += `5. APPROVAL\n\n`;
+  content += `Implementation Team Lead: _____________________ Date: __________\n\n`;
+  content += `Project Sponsor: _____________________________ Date: __________\n\n`;
+  
+  return content;
 }
 
 /**
@@ -55,46 +178,55 @@ export async function generateDocument(
     console.log('Creating directory if not exists:', outputDir);
     await fs.mkdir(outputDir, { recursive: true });
     
-    // Generate file name - using HTML for now since we're skipping Puppeteer
+    // Generate file name with PDF extension
     const timestamp = Date.now();
-    const fileName = `${documentType}-${safeProjectName}-${timestamp}.html`;
+    const fileName = `${documentType}-${safeProjectName}-${timestamp}.pdf`;
     const outputPath = path.join(outputDir, fileName);
     
     console.log(`Will save document to: ${outputPath}`);
     
-    // Generate HTML content
-    let htmlContent = '';
+    // Generate content for the PDF
+    let pdfContent = '';
+    let title = '';
     
     switch (documentType) {
       case 'sow':
-        htmlContent = generateSowHtml(project, requirements, tasks);
+        title = `Statement of Work - ${safeHtml(project.name)}`;
+        pdfContent = generateSowPdfContent(project, requirements, tasks);
         break;
       case 'implementation-plan':
-        htmlContent = generateImplementationPlanHtml(project, requirements, tasks);
+        title = `Implementation Plan - ${safeHtml(project.name)}`;
+        pdfContent = generateImplementationPlanPdfContent(project, requirements, tasks);
         break;
       default:
-        htmlContent = `<html><body><h1>Document type "${documentType}" not yet implemented.</h1></body></html>`;
+        title = `Document - ${documentType}`;
+        pdfContent = `Document type "${documentType}" not yet implemented.`;
     }
     
-    if (!htmlContent || htmlContent.trim() === '') {
-      throw new Error(`Generated HTML content is empty for document type: ${documentType}`);
-    }
+    console.log(`Generating PDF for: ${title}`);
     
-    console.log(`Generated HTML content length: ${htmlContent.length} bytes`);
-    
-    // Write HTML directly to file
     try {
-      // Make sure htmlContent is not empty or undefined
-      if (!htmlContent) {
-        throw new Error('HTML content is empty or undefined');
-      }
-      
       // Ensure the directory exists before writing
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
       
-      // Write the file
-      await fs.writeFile(outputPath, htmlContent, 'utf-8');
-      console.log(`Generated HTML document at: ${outputPath}`);
+      // Create PDF document
+      const doc = new jsPDF();
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.text(title, 20, 20);
+      doc.setFontSize(12);
+      
+      // Add content
+      // Split content into lines that fit within the page width
+      const textLines = doc.splitTextToSize(pdfContent, 170);
+      doc.text(textLines, 20, 30);
+      
+      // Save the PDF
+      const pdfOutput = doc.output();
+      await fs.writeFile(outputPath, Buffer.from(pdfOutput, 'binary'));
+      
+      console.log(`Generated PDF document at: ${outputPath}`);
       
       // Verify the file was created
       await fs.access(outputPath);
@@ -115,6 +247,10 @@ export async function generateDocument(
 
 /**
  * Generate SOW HTML content
+ */
+
+/**
+ * Generate SOW HTML content - kept for reference
  */
 function generateSowHtml(
   project: Project,
