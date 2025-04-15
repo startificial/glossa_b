@@ -96,19 +96,23 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
     const fileName = path.basename(documentPath);
     console.log('Generated document:', documentPath);
     console.log('Filename to return:', fileName);
+    console.log('Download URL will be:', `/downloads/documents/${fileName}`);
     
     // Verify the file was created and accessible before returning
     try {
       await fs.access(documentPath);
       console.log('Document file verified, exists on disk');
       
-      // Return document path and direct static download URL for frontend to download
-      return res.json({ 
+      // Create response object
+      const responseObj = { 
         success: true,
         documentPath: documentPath.replace(process.cwd(), ''),
         fileName: fileName,
         downloadUrl: `/downloads/documents/${fileName}`
-      });
+      };
+      
+      console.log('Sending response to client:', JSON.stringify(responseObj));
+      return res.json(responseObj);
     } catch (error) {
       const accessError = error instanceof Error ? error : new Error(String(error));
       console.error('Document file does not exist despite generation:', accessError);
