@@ -1,0 +1,558 @@
+%PDF-1.3
+%ºß¬à
+3 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 22947
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F1 18 Tf
+20.6999999999999993 TL
+0 g
+56.6929133858267775 785.1970866141732586 Td
+(Statement of Work - Soren's Project) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0 g
+56.6929133858267775 756.8506299212598378 Td
+() Tj
+T* (Statement of Work \(SOW\) for Soren's Project) Tj
+T* () Tj
+T* (1. PROJECT OVERVIEW) Tj
+T* (Move a customer from Oracle to SAP) Tj
+T* () Tj
+T* (2. SCOPE OF WORK) Tj
+T* (This Statement of Work outlines the deliverables and services to be provided for the) Tj
+T* (Soren's Project project.) Tj
+T* () Tj
+T* (3. REQUIREMENTS) Tj
+T* (1. Warranty Claims Processing) Tj
+T* (   The system must support the entire warranty claims process, from initial claim) Tj
+T* (submission by Field Service Technicians to final approval and financial reporting.) Tj
+T* (Technicians should be able to submit claims including customer information, product) Tj
+T* (details, problem description, root cause analysis, parts used, and labor hours.  The system) Tj
+T* (should support a review and approval process for claims exceeding a specified threshold) Tj
+T* (\(e.g., $500\).  Integration with inventory management is required to track parts usage.  The) Tj
+T* (system should generate financial reports based on warranty claims data, categorized by) Tj
+T* (product line, failure type, and component.  The system should also maintain a complete) Tj
+T* (history of all warranty claims, including status, approvals, and associated documentation.) Tj
+T* () Tj
+T* (2. Warranty Performance Reporting) Tj
+T* (   The system must generate various reports related to warranty performance, including) Tj
+T* (warranty costs, extended warranty profitability, and failure analysis.  These reports should) Tj
+T* (be customizable by product line, warranty type, and other relevant criteria.  The system) Tj
+T* (should provide data visualization capabilities to identify trends and patterns in warranty) Tj
+T* (claims.  Reports should include metrics such as failure rates, top failure modes, and mean) Tj
+T* (time to failure.  The system should also facilitate the integration of warranty data with) Tj
+T* (manufacturing data for comprehensive analysis.) Tj
+T* () Tj
+T* (3. System Integration with other Business Systems) Tj
+T* (   The new system must integrate with other relevant business systems, such as ERP,) Tj
+T* (CRM, and Finance systems.  This integration should enable seamless data exchange) Tj
+T* (between systems and avoid manual data entry.  The system should support real-time) Tj
+T* (updates to inventory levels, customer information, and financial records.  The integration) Tj
+T* (should be robust and reliable to ensure data consistency and accuracy across all systems. ) Tj
+T* (The system should also adhere to industry best practices for system integration.) Tj
+T* () Tj
+T* (4. Extended Warranty Sales Management) Tj
+T* (   The target system must support the sale and management of extended warranties. This) Tj
+T* (includes allowing sales representatives to present and document extended warranty) Tj
+T* (options during initial product sales and for post-purchase sales. The system must integrate) Tj
+T* (with VertexCore ERP to verify product eligibility for extended warranties.  It should facilitate) Tj
+T* (the completion and processing of extended warranty applications, generate invoices for) Tj
+T* (extended warranties in VertexCore ERP, and track extended warranty sales information. ) Tj
+T* (The system should automate the process of verifying product eligibility, generating) Tj
+T* (invoices, and updating relevant records, replacing the manual process involving "Extended) Tj
+T* (Warranty Application Form" and "Extended Warranty Tracking.xlsx". Reporting functionality) Tj
+T* (on extended warranty sales and profitability is also required.) Tj
+T* () Tj
+T* (5. Recall and Service Bulletin Management) Tj
+T* (   The target system must support the management of product recalls and service bulletins.) Tj
+T* (This includes identifying the need for a recall or service bulletin based on warranty claim) Tj
+T* (patterns, documenting the issue and corrective action, coordinating with Product) Tj
+T* (Engineering, drafting the notice, and obtaining approval from the Director of Operations. ) Tj
+T* (The system should facilitate the extraction of affected customer lists from VertexCore ERP,) Tj
+T* (notification of customers, scheduling of preventive service visits, and tracking of completion) Tj
+T* (status.  This functionality should replace the manual spreadsheet "Recall Tracking.xlsx") Tj
+T* (and provide reporting and analysis capabilities related to recalls and service bulletins.) Tj
+T* () Tj
+T* (6. Integration with CustomerConnect CRM) Tj
+T* (   The target system must integrate with the CustomerConnect CRM system to access) Tj
+T* (customer history and information. This integration is essential for assessing customer) Tj
+T* (history during goodwill repair requests. The system should be able to retrieve relevant) Tj
+T* (customer data from CustomerConnect CRM, such as past purchases, warranty claims, and) Tj
+T* (service interactions, to inform decision-making regarding goodwill repairs.) Tj
+T* () Tj
+T* (7. Warranty Cost Analysis and ROI Calculation) Tj
+T* (   The system must provide comprehensive warranty cost tracking and analysis) Tj
+T* (capabilities. It should capture all cost dimensions, including parts, labor, shipping, and) Tj
+T* (administrative overhead. These costs should be allocable to specific products,) Tj
+T* (manufacturing lots, or even production shifts to facilitate root cause analysis of quality) Tj
+T* (issues.  The system must also calculate the ROI of warranty programs, including extended) Tj
+T* (warranties, by tracking revenue against claims costs.  Furthermore, it should support the) Tj
+T* (implementation of custom Key Performance Indicators \(KPIs\) to correlate warranty) Tj
+T* (satisfaction with customer retention and lifetime value, enabling a more complete) Tj
+T* (understanding of the financial impact of warranty programs.) Tj
+T* () Tj
+T* (8. Streamlined Warranty Claims Processing) Tj
+T* (   The system must streamline the warranty claims process for the service team. This) Tj
+T* (includes providing mobile access for technicians to instantly verify warranty coverage at the) Tj
+T* (customer site, document issues with photos and notes, and process claims on the spot. ) Tj
+T* (The system should automate the approval workflow based on configurable business rules,) Tj
+T* (with escalation paths for exceptions.  Integration with inventory management is required for) Tj
+T* (efficient parts ordering for warranty repairs.  The system must track the status of open) Tj
+T* (warranty claims, providing visibility to all stakeholders, especially for repairs requiring) Tj
+T* (multiple visits or parts orders.  This streamlined process should significantly reduce manual) Tj
+T* (effort and improve service efficiency.) Tj
+T* () Tj
+T* (9. Real-time Data Visibility and Reporting) Tj
+T* (   The system must provide near real-time data visibility and reporting capabilities,) Tj
+T* (leveraging in-memory database technology.  This real-time access to data will enable) Tj
+T* (proactive identification of emerging issues and faster decision-making. Dashboards and) Tj
+T* (reports should reflect current data, allowing stakeholders to monitor warranty performance) Tj
+T* (and identify trends as they develop. This is crucial for timely intervention and preventing) Tj
+T* (widespread quality problems.  The system should be able to handle large datasets and still) Tj
+T* (provide real-time analytics.) Tj
+T* () Tj
+T* (10. Warranty Parts Management) Tj
+T* (   The system must manage warranty parts, including inventory tracking, purchase) Tj
+T* (requisitions, and order tracking.  This includes checking parts availability, reserving parts) Tj
+T* (for work orders, and generating purchase requisitions when parts are out of stock.  The) Tj
+T* (system should provide notifications for low stock levels and track the status of open orders.) Tj
+T* ( Integration with the purchasing system is required to streamline the procurement process. ) Tj
+T* (The system should also support expedited parts requests and provide updates to) Tj
+T* (customers regarding parts availability.) Tj
+T* () Tj
+T* (11. Data Migration from Legacy Systems) Tj
+T* (   The system must facilitate the migration of existing warranty data from the legacy) Tj
+T* (systems, including VertexCore ERP, Excel spreadsheets, CustomerConnect CRM,) Tj
+T* (QualityTrack, and ServicePro.  This includes extracting data from various sources,) Tj
+T* (transforming it into a compatible format, and loading it into the new system.  Data integrity) Tj
+T* (must be maintained throughout the migration process.  A comprehensive data validation) Tj
+T* (plan should be implemented to ensure the accuracy and completeness of the migrated) Tj
+T* (data.  The migration process should minimize disruption to existing business operations.) Tj
+T* () Tj
+T* (12. RMA Process Automation) Tj
+T* (   The target system must automate the Return Material Authorization \(RMA\) process. This) Tj
+T* (includes generating unique RMA numbers, creating and managing RMA records,) Tj
+T* (facilitating communication between Customer Service Representatives \(CSRs\), the) Tj
+T* (Receiving Department, and Quality Control.  The system should allow CSRs to initiate an) Tj
+T* (RMA request, verify warranty coverage, assign an RMA number, and automatically) Tj
+T* (generate and send RMA forms with shipping instructions to the customer. Upon receipt of) Tj
+T* (the returned product, the Receiving Department should be able to update the RMA record) Tj
+T* (with the receipt date and transfer the product to Quality Control. Quality Control should) Tj
+T* (then be able to document evaluation findings, authorize replacement or repair for valid) Tj
+T* (warranty claims, and generate quotes for non-warranty repairs. All updates and actions) Tj
+T* (within the RMA process should be tracked and logged within the system, eliminating the) Tj
+T* (need for manual spreadsheets like "RMA Tracking.xlsx". The system should also provide) Tj
+T* (reporting capabilities on RMA metrics.) Tj
+T* () Tj
+T* (13. Goodwill Repair Management) Tj
+T* (   The target system must provide functionality to manage goodwill repairs.  Service) Tj
+T* (Managers should be able to review out-of-warranty repair requests, assess customer) Tj
+T* (history, product age, and the nature of the failure, and document their decision with) Tj
+T* (justification within the system. The system should allow for specifying the percentage of) Tj
+T* (coverage for approved goodwill repairs \(e.g., 50%, 100%\).  This functionality should) Tj
+T* (replace the manual spreadsheet "Goodwill Repairs.xlsx" and provide reporting and tracking) Tj
+T* (capabilities for goodwill repair approvals and associated costs.  Integration with) Tj
+T* (CustomerConnect CRM for accessing customer history is also required.) Tj
+T* () Tj
+T* (14. Integration with VertexCore ERP) Tj
+T* (   The target system must seamlessly integrate with the existing VertexCore ERP system.) Tj
+T* (This integration is crucial for retrieving customer information, product details, warranty) Tj
+T* (eligibility, and generating invoices.  Data exchange between the two systems should be) Tj
+T* (automated and reliable to ensure data consistency and accuracy.  Specific integration) Tj
+T* (points include verifying product eligibility for extended warranties, generating invoices for) Tj
+T* (extended warranties, and extracting customer lists for recalls and service bulletins.) Tj
+T* () Tj
+T* (15. Warranty Period and Terms Tracking) Tj
+T* (   The system must accurately track warranty periods and terms for all product lines within) Tj
+T* (a single, integrated system. This includes supporting different warranty structures for) Tj
+T* (precision machinery \(tiered warranties with optional extended coverage up to 5 years\),) Tj
+T* (industrial pumps \(24-month base warranty with varying terms based on operating) Tj
+T* (conditions\), and automation components \(18-month warranties with varying service level) Tj
+T* (agreements\). The system should manage multiple overlapping warranties \(e.g., base +) Tj
+T* (extended\) and clearly indicate coverage under each.  It should also allow for rule-based) Tj
+T* (determination of warranty validity based on factors such as product type, customer, and) Tj
+T* (installation date.  This centralized tracking will eliminate the current fragmented approach) Tj
+T* (using disparate systems and spreadsheets, providing a single source of truth for warranty) Tj
+T* (information.) Tj
+T* () Tj
+T* (16. Enhanced Warranty Reporting and Analytics) Tj
+T* (   The system must provide enhanced reporting and analytics capabilities for warranty data.) Tj
+T* (This includes standard reports on metrics such as claim frequency, average cost per claim,) Tj
+T* (and time-to-resolution.  The system should also support customizable dashboards, tailored) Tj
+T* (to different stakeholders \(executives, product engineers, etc.\), combining warranty data) Tj
+T* (with quality management and financial data.  These dashboards should provide near) Tj
+T* (real-time visibility into warranty performance, leveraging in-memory database technology. ) Tj
+T* (Furthermore, the system should support trend analysis and predictive analytics to identify) Tj
+T* (emerging quality issues before they escalate into widespread problems.  The required) Tj
+T* (reports should include failure rates by product, component, manufacturing batch,) Tj
+T* (manufacturing line, and shift.) Tj
+T* () Tj
+T* (17. System Integration with Existing Systems) Tj
+T* (   The new SAP S/4HANA system must integrate seamlessly with existing systems,) Tj
+T* (including sales, service, inventory, manufacturing, and finance modules within SAP.  For) Tj
+T* (any external systems that need to remain in place, APIs must be developed for data) Tj
+T* (exchange.  This integration is crucial for ensuring data consistency and avoiding data silos.) Tj
+T* ( During the implementation process, historical warranty data from the legacy system must) Tj
+T* (be migrated to the new system to maintain continuity in reporting and ensure ongoing) Tj
+T* (warranty coverage for existing customers.) Tj
+T* () Tj
+T* (18. Mobile Access for Technicians) Tj
+T* (   The system must provide mobile access for service technicians, enabling them to) Tj
+T* (perform key warranty-related tasks in the field. This includes verifying warranty coverage,) Tj
+T* (documenting issues with photos and notes, and processing claims directly from the) Tj
+T* (customer site.  The mobile interface should be user-friendly and intuitive, even for) Tj
+T* (technicians who are not particularly tech-savvy.  This mobile access will significantly) Tj
+T* (improve service efficiency and reduce the time required to resolve warranty claims.) Tj
+T* () Tj
+T* (19. Data Migration from Legacy System) Tj
+T* (   The implementation must include a comprehensive data migration process to transfer) Tj
+T* (historical warranty data from the legacy system to the new SAP S/4HANA system.  This) Tj
+T* (migration should ensure data integrity and completeness, preserving all relevant historical) Tj
+T* (warranty information.  The migrated data should be readily accessible for reporting and) Tj
+T* (analysis, enabling continuity in tracking warranty performance and maintaining accurate) Tj
+T* (records of existing customer warranties.  This is crucial for providing seamless warranty) Tj
+T* (coverage and avoiding disruptions during the transition.) Tj
+T* () Tj
+T* (20. API for External System Integration) Tj
+T* (   The system must provide APIs \(Application Programming Interfaces\) to facilitate data) Tj
+T* (exchange with external systems that are not part of the SAP S/4HANA landscape. These) Tj
+T* (APIs should allow for secure and reliable data transfer between the warranty management) Tj
+T* (system and external systems, ensuring that all relevant warranty information is accessible) Tj
+T* (and up-to-date.  The APIs should support both real-time and batch data exchange, and) Tj
+T* (should be well-documented to facilitate integration efforts. This requirement ensures that) Tj
+T* (the warranty management system can interact with any necessary legacy systems or) Tj
+T* (third-party applications.) Tj
+T* () Tj
+T* (21. Comprehensive Training Program) Tj
+T* (   A comprehensive training program must be provided to all users of the warranty) Tj
+T* (management system. This program should include role-based training tailored to the) Tj
+T* (specific needs of different user groups, such as service technicians, customer service) Tj
+T* (representatives, and management.  The training should cover all aspects of the system,) Tj
+T* (from basic navigation to advanced features. Detailed documentation and ongoing support) Tj
+T* (should also be provided to ensure users can effectively utilize the system.  A "super user") Tj
+T* (program should be established to provide advanced training to selected team members) Tj
+T* (who can then provide day-to-day support to their colleagues.) Tj
+T* () Tj
+T* (22. Integration with SAP S/4HANA Modules) Tj
+T* (   The warranty management system must be fully integrated with existing SAP S/4HANA) Tj
+T* (modules, including Sales, Service, Inventory, Manufacturing, and Finance. This integration) Tj
+T* (should enable seamless data flow between these modules, eliminating manual data entry) Tj
+T* (and ensuring data consistency across the organization.  For example, when a product is) Tj
+T* (sold, the warranty information should automatically be registered in the warranty) Tj
+T* (management system.  When a warranty claim is processed, the relevant inventory and) Tj
+T* (financial transactions should be automatically updated. This integration is crucial for) Tj
+T* (real-time visibility into warranty costs, claims processing, and overall warranty) Tj
+T* (performance.) Tj
+T* () Tj
+T* (23. Historical Warranty Data Migration) Tj
+T* (   The implementation must include a process for migrating historical warranty data from) Tj
+T* (existing systems into the new SAP S/4HANA warranty management system. This migration) Tj
+T* (should ensure data integrity and completeness, preserving all relevant historical warranty) Tj
+T* (information, including warranty claims, repairs, and customer interactions.  The migrated) Tj
+T* (data should be validated to ensure accuracy and consistency. This historical data is) Tj
+T* (essential for maintaining continuity in reporting, analyzing trends, and honoring existing) Tj
+T* (warranty obligations to customers.) Tj
+T* () Tj
+T* (24. Phased Implementation Approach) Tj
+T* (   The implementation of the warranty management component should follow a phased) Tj
+T* (approach.  The first phase should focus on establishing the core warranty terms and) Tj
+T* (validation processes. The second phase should build out the claims processing workflows.) Tj
+T* (The final phase should implement the advanced analytics and reporting capabilities. This) Tj
+T* (phased approach allows for iterative development, testing, and user feedback, minimizing) Tj
+T* (risks and ensuring a smooth transition to the new system.) Tj
+T* () Tj
+T* (25. Warranty Coverage Verification) Tj
+T* (   The system must provide a mechanism to verify warranty coverage based on product,) Tj
+T* (purchase date, installation environment \(for Industrial Pumps\), and any extended warranty) Tj
+T* (purchased.  This functionality should be accessible by both Customer Service) Tj
+T* (Representatives and Field Service Technicians.  The system should be able to determine) Tj
+T* (the applicable warranty period based on product line and specific product details.  For) Tj
+T* (Industrial Pumps, the system must consider the installation environment \(normal, corrosive,) Tj
+T* (high-temperature\) to determine coverage.  The system should also handle cases where the) Tj
+T* (standard warranty has expired but an extended warranty is in place.  Finally, the system) Tj
+T* (should provide a clear indication of the warranty status \(active, expired, or other relevant) Tj
+T* (status\).) Tj
+T* () Tj
+T* (26. Return Material Authorization \(RMA\) Process) Tj
+T* (   The system must manage the Return Material Authorization \(RMA\) process, including) Tj
+T* (generating RMA numbers, tracking returned products, and managing the evaluation) Tj
+T* (process.  This includes verifying warranty coverage, assigning RMA numbers, providing) Tj
+T* (shipping instructions to customers, and tracking the status of returned products.  The) Tj
+T* (system should integrate with the Quality Control process to document evaluation findings) Tj
+T* (and determine the validity of warranty claims.  The system should maintain a complete) Tj
+T* (history of all RMAs, including customer information, product details, reason for return, and) Tj
+T* (evaluation results.) Tj
+T* () Tj
+T* (27. Warranty Registration Management) Tj
+T* (   The system must manage warranty registrations, including capturing customer and) Tj
+T* (product information, extended warranty details, and supporting documentation.  This) Tj
+T* (includes validating product serial numbers against shipping records and providing) Tj
+T* (confirmation to the customer. The system should allow for various submission methods) Tj
+T* (\(email, fax, mail\) for the registration form.  Data captured should include customer details,) Tj
+T* (product details \(including model and serial number\), purchase date, and any extended) Tj
+T* (warranty information.  The system should generate a unique registration identifier and store) Tj
+T* (a copy of the registration form.  Finally, the system should automate the confirmation email) Tj
+T* (to the customer upon successful registration.) Tj
+T* () Tj
+T* (4. IMPLEMENTATION TASKS) Tj
+T* (1. Define warranty rules and parameters \(40 hours\)) Tj
+T* (2. Configure warranty material master data \(24 hours\)) Tj
+T* (3. Develop warranty check custom function \(80 hours\)) Tj
+T* (4. Test warranty check scenarios \(40 hours\)) Tj
+T* (5. Integrate warranty check in service transactions \(32 hours\)) Tj
+T* (6. Create Warranty Registration custom object \(8 hours\)) Tj
+T* (7. Implement serial number validation integration \(24 hours\)) Tj
+T* (8. Build multi-channel registration submission support \(32 hours\)) Tj
+T* (9. Set up automated registration confirmation emails \(8 hours\)) Tj
+T* (10. Test warranty registration functionality \(16 hours\)) Tj
+T* () Tj
+T* (5. TIMELINE AND MILESTONES) Tj
+T* (Project Start: 4/15/2025) Tj
+T* (Estimated Completion: 7/14/2025) Tj
+T* () Tj
+T* (6. ACCEPTANCE CRITERIA) Tj
+T* (The project will be considered complete when all requirements have been implemented) Tj
+T* (and accepted by the client.) Tj
+T* () Tj
+T* (7. COSTS AND PAYMENT) Tj
+T* (Total Estimated Hours: 304) Tj
+T* (Hourly Rate: $150/hour) Tj
+T* (Total Estimated Cost: $45,600) Tj
+T* () Tj
+ET
+endstream
+endobj
+1 0 obj
+<</Type /Pages
+/Kids [3 0 R ]
+/Count 1
+>>
+endobj
+5 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+6 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+7 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+8 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+9 0 obj
+<<
+/Type /Font
+/BaseFont /Courier
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+10 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+11 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+12 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+13 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Roman
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+14 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+15 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Italic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+16 0 obj
+<<
+/Type /Font
+/BaseFont /Times-BoldItalic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+17 0 obj
+<<
+/Type /Font
+/BaseFont /ZapfDingbats
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+18 0 obj
+<<
+/Type /Font
+/BaseFont /Symbol
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+2 0 obj
+<<
+/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
+/Font <<
+/F1 5 0 R
+/F2 6 0 R
+/F3 7 0 R
+/F4 8 0 R
+/F5 9 0 R
+/F6 10 0 R
+/F7 11 0 R
+/F8 12 0 R
+/F9 13 0 R
+/F10 14 0 R
+/F11 15 0 R
+/F12 16 0 R
+/F13 17 0 R
+/F14 18 0 R
+>>
+/XObject <<
+>>
+>>
+endobj
+19 0 obj
+<<
+/Producer (jsPDF 3.0.1)
+/Title (Statement of Work - Soren's Project)
+/Subject (Document for Soren's Project)
+/Author (Document Generator)
+/Keywords (sow)
+/Creator (Requirements Management System)
+/CreationDate (D:20250415035232-00'00')
+>>
+endobj
+20 0 obj
+<<
+/Type /Catalog
+/Pages 1 0 R
+/OpenAction [3 0 R /FitH null]
+/PageLayout /OneColumn
+>>
+endobj
+xref
+0 21
+0000000000 65535 f 
+0000023152 00000 n 
+0000024969 00000 n 
+0000000015 00000 n 
+0000000152 00000 n 
+0000023209 00000 n 
+0000023334 00000 n 
+0000023464 00000 n 
+0000023597 00000 n 
+0000023734 00000 n 
+0000023857 00000 n 
+0000023986 00000 n 
+0000024118 00000 n 
+0000024254 00000 n 
+0000024382 00000 n 
+0000024509 00000 n 
+0000024638 00000 n 
+0000024771 00000 n 
+0000024873 00000 n 
+0000025217 00000 n 
+0000025475 00000 n 
+trailer
+<<
+/Size 21
+/Root 20 0 R
+/Info 19 0 R
+/ID [ <3D39C671097446B98BDD808413A7BA90> <3D39C671097446B98BDD808413A7BA90> ]
+>>
+startxref
+25579
+%%EOF
