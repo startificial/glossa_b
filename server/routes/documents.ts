@@ -149,36 +149,53 @@ router.get('/api/documents/download/:fileName', async (req, res) => {
       return res.status(404).json({ error: 'Document not found' });
     }
     
-    // Set headers and send file
-    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-    
-    // Set content type based on file extension
-    const fileExtension = fileName.split('.').pop()?.toLowerCase();
-    if (fileExtension === 'pdf') {
-      res.setHeader('Content-Type', 'application/pdf');
-    } else if (fileExtension === 'html') {
-      res.setHeader('Content-Type', 'text/html');
-    } else {
-      res.setHeader('Content-Type', 'application/octet-stream'); // Default
-    }
-    
-    console.log('Headers set with Content-Type for', fileExtension, 'sending file');
-    
-    const fileStream = createReadStream(filePath);
-    fileStream.pipe(res);
-    
-    // Log when the file stream ends
-    fileStream.on('end', () => {
-      console.log('File download complete');
-    });
-    
-    // Log any errors with the file stream
-    fileStream.on('error', (err) => {
-      console.error('Error in file stream:', err);
+    // Return filename and location instead of the file
+    // We'll use a separate endpoint for the actual download
+    return res.json({
+      success: true,
+      downloadUrl: `/api/documents/download-pdf/${fileName}`,
+      fileName: fileName
     });
   } catch (error) {
-    console.error('Error downloading document:', error);
-    return res.status(500).json({ error: 'Failed to download document' });
+    console.error('Error preparing document download:', error);
+    return res.status(500).json({ error: 'Failed to prepare document download' });
+  }
+});
+
+// Separate route specifically for PDF download
+router.get('/api/documents/download-pdf/:fileName', async (req, res) => {
+  try {
+    const { fileName } = req.params;
+    console.log('PDF download requested:', fileName);
+    
+    const filePath = path.join(process.cwd(), 'uploads', 'documents', fileName);
+    console.log('Looking for PDF at:', filePath);
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath);
+      console.log('PDF file exists, proceeding with download');
+    } catch (err) {
+      console.error('PDF file not found:', err);
+      return res.status(404).json({ error: 'PDF document not found' });
+    }
+    
+    // Get file stats to determine size
+    const stats = await fs.stat(filePath);
+    
+    // Force PDF content type and attachment download
+    res.contentType('application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', stats.size);
+    
+    console.log('Set PDF headers, sending file. Size:', stats.size);
+    
+    // Read the file and send it directly
+    const fileData = await fs.readFile(filePath);
+    return res.end(fileData);
+  } catch (error) {
+    console.error('Error downloading PDF:', error);
+    return res.status(500).json({ error: 'Failed to download PDF document' });
   }
 });
 
