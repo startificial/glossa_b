@@ -5,6 +5,7 @@ import { db } from "./db";
 import { createProjectInDb, updateProjectInDb } from "./database";
 import documentTemplateRoutes from './routes/document-templates';
 import documentRoutes from './routes/documents';
+import pdfRoutes from './routes/pdf-route';
 import { 
   insertProjectSchema, 
   insertInputDataSchema, 
@@ -2956,6 +2957,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Documents routes
   app.use('/api/documents', documentRoutes);
+  
+  // Simple PDF generator routes will be registered separately
 
   // Requirement contradiction analysis endpoint
   app.post('/api/requirements/analyze-contradictions', async (req: Request, res: Response) => {

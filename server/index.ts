@@ -13,6 +13,7 @@ import { setupGoogleCredentials, cleanupCredentials } from "./google-credentials
 import { VideoProcessor } from "./video-processor";
 import { warmAllModels, scheduleModelWarming } from "./model-warming-service";
 import { initDocumentMiddleware } from "./document-middleware";
+import { registerPdfRoutes } from "./simple-pdf-generator";
 
 // Always use PostgreSQL database if available
 // This ensures consistent data retrieval and proper handling of complex fields like acceptanceCriteria
@@ -172,6 +173,9 @@ app.use((req, res, next) => {
 
     // Initialize document middleware
     initDocumentMiddleware(app);
+    
+    // Register PDF generation routes
+    registerPdfRoutes(app);
     
     const server = await registerRoutes(app);
 
