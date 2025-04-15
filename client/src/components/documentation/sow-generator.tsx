@@ -184,11 +184,14 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
         variant: "default",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error generating document:", error);
+      const errorMessage = error?.response?.data?.details || error?.message || "Failed to generate document.";
+      console.error("Error details:", errorMessage);
+      
       toast({
         title: "Error",
-        description: "Failed to generate document. Please try again.",
+        description: `Failed to generate document: ${errorMessage}. Please try again.`,
         variant: "destructive",
       });
       setIsGenerating(false);

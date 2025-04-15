@@ -23,6 +23,9 @@ const router = Router();
 router.post('/api/projects/:projectId/generate-document', async (req, res) => {
   try {
     console.log('Document generation request received');
+    console.log('Request body:', req.body); // Log full request body
+    console.log('Request params:', req.params); // Log parameters
+    
     const { projectId } = req.params;
     const { documentType } = req.body;
     
@@ -102,7 +105,12 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
     });
   } catch (error) {
     console.error('Error generating document:', error);
-    return res.status(500).json({ error: 'Failed to generate document' });
+    // Send detailed error to help with debugging
+    return res.status(500).json({ 
+      error: 'Failed to generate document', 
+      details: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
   }
 });
 

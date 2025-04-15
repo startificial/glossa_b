@@ -10,6 +10,20 @@ import fs from 'fs/promises';
 import { createWriteStream } from 'fs';
 
 /**
+ * Helper function to safely convert a string to HTML
+ * This helps prevent XSS and other injection attacks
+ */
+function safeHtml(str: string | null | undefined): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Main function to generate a document
  */
 export async function generateDocument(
@@ -21,13 +35,28 @@ export async function generateDocument(
 ): Promise<string> {
   try {
     console.log(`Generating ${documentType} document for project ${projectId}`);
+    console.log(`Project data:`, JSON.stringify(project, null, 2));
+    console.log(`Requirements count: ${requirements.length}`);
+    console.log(`Tasks count: ${tasks.length}`);
+    
+    if (!project || !project.name) {
+      throw new Error("Invalid project data: project name is required");
+    }
+    
+    // Sanitize project name for filename (remove special characters)
+    const safeProjectName = (project.name || "untitled")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
     
     // Ensure output directory exists
     const outputDir = path.join(process.cwd(), 'uploads', 'documents');
     await fs.mkdir(outputDir, { recursive: true });
     
     // Generate file name - using HTML for now since we're skipping Puppeteer
-    const fileName = `${documentType}-${project.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.html`;
+    const timestamp = Date.now();
+    const fileName = `${documentType}-${safeProjectName}-${timestamp}.html`;
     const outputPath = path.join(outputDir, fileName);
     
     console.log(`Will save document to: ${outputPath}`);
@@ -47,10 +76,19 @@ export async function generateDocument(
     }
     
     // Write HTML directly to file
-    await fs.writeFile(outputPath, htmlContent, 'utf-8');
-    
-    console.log(`Generated HTML document at: ${outputPath}`);
-    return outputPath;
+    try {
+      await fs.writeFile(outputPath, htmlContent, 'utf-8');
+      console.log(`Generated HTML document at: ${outputPath}`);
+      
+      // Verify the file was created
+      await fs.access(outputPath);
+      
+      return outputPath;
+    } catch (error) {
+      console.error(`Error writing document to file:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to write document to file: ${errorMessage}`);
+    }
   } catch (error) {
     console.error(`Error generating ${documentType} document:`, error);
     throw error;
@@ -80,7 +118,7 @@ function generateSowHtml(
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Statement of Work - ${project.name}</title>
+  <title>Statement of Work - ${safeHtml(project.name)}</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -163,32 +201,32 @@ function generateSowHtml(
 <body>
   <div class="header">
     <h1>STATEMENT OF WORK</h1>
-    <p>Project: ${project.name}</p>
+    <p>Project: ${safeHtml(project.name)}</p>
     <p>Date: ${currentDate}</p>
   </div>
   
   <div class="section">
     <h2>1. INTRODUCTION</h2>
-    <p><span class="meta-label">Client:</span> ${project.customer || 'Client'}</p>
-    <p><span class="meta-label">Source System:</span> ${project.sourceSystem || 'Legacy System'}</p>
-    <p><span class="meta-label">Target System:</span> ${project.targetSystem || 'New System'}</p>
+    <p><span class="meta-label">Client:</span> ${safeHtml(project.customer) || 'Client'}</p>
+    <p><span class="meta-label">Source System:</span> ${safeHtml(project.sourceSystem) || 'Legacy System'}</p>
+    <p><span class="meta-label">Target System:</span> ${safeHtml(project.targetSystem) || 'New System'}</p>
     <p>This Statement of Work (SOW) outlines the software implementation work to be performed 
-    for the migration from ${project.sourceSystem || 'Legacy System'} to ${project.targetSystem || 'New System'}.</p>
+    for the migration from ${safeHtml(project.sourceSystem) || 'Legacy System'} to ${safeHtml(project.targetSystem) || 'New System'}.</p>
   </div>
   
   <div class="section">
     <h2>2. PROJECT DESCRIPTION</h2>
-    <p>${project.description || 'No description provided.'}</p>
+    <p>${safeHtml(project.description) || 'No description provided.'}</p>
   </div>
   
   <div class="section">
     <h2>3. REQUIREMENTS (${requirements.length})</h2>
     ${requirements.map(req => `
       <div class="req-item">
-        <div class="req-title">REQ-${req.id}: ${req.description}</div>
+        <div class="req-title">REQ-${req.id}: ${safeHtml(req.description)}</div>
         <div class="req-meta">
-          <span class="meta-label">Category:</span> ${req.category} | 
-          <span class="meta-label">Priority:</span> ${req.priority}
+          <span class="meta-label">Category:</span> ${safeHtml(req.category)} | 
+          <span class="meta-label">Priority:</span> ${safeHtml(req.priority)}
         </div>
       </div>
     `).join('')}
@@ -198,9 +236,9 @@ function generateSowHtml(
     <h2>4. IMPLEMENTATION TASKS (${tasks.length})</h2>
     ${tasks.map(task => `
       <div class="task-item">
-        <div class="task-title">TASK-${task.id}: ${task.title}</div>
+        <div class="task-title">TASK-${task.id}: ${safeHtml(task.title)}</div>
         <div class="task-meta">
-          <span class="meta-label">Status:</span> ${task.status} | 
+          <span class="meta-label">Status:</span> ${safeHtml(task.status)} | 
           <span class="meta-label">Estimated Hours:</span> ${task.estimatedHours || 'Not specified'}
         </div>
       </div>
@@ -276,7 +314,7 @@ function generateImplementationPlanHtml(
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Implementation Plan - ${project.name}</title>
+  <title>Implementation Plan - ${safeHtml(project.name)}</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -365,14 +403,14 @@ function generateImplementationPlanHtml(
 <body>
   <div class="header">
     <h1>IMPLEMENTATION PLAN</h1>
-    <p>Project: ${project.name}</p>
+    <p>Project: ${safeHtml(project.name)}</p>
     <p>Date: ${currentDate}</p>
   </div>
   
   <div class="section">
     <h2>1. OVERVIEW</h2>
     <p>This implementation plan outlines the steps required to successfully migrate 
-    from ${project.sourceSystem || 'Legacy System'} to ${project.targetSystem || 'New System'}.</p>
+    from ${safeHtml(project.sourceSystem) || 'Legacy System'} to ${safeHtml(project.targetSystem) || 'New System'}.</p>
   </div>
   
   <div class="section">
@@ -384,15 +422,15 @@ function generateImplementationPlanHtml(
     <h2>3. IMPLEMENTATION TASKS (${tasks.length})</h2>
     ${tasks.map((task, index) => `
       <div class="task-item">
-        <div class="task-title">TASK ${index + 1}: ${task.title}</div>
+        <div class="task-title">TASK ${index + 1}: ${safeHtml(task.title)}</div>
         <div class="task-meta">
-          <span class="meta-label">Status:</span> ${task.status} | 
-          <span class="meta-label">Priority:</span> ${task.priority} | 
-          <span class="meta-label">Complexity:</span> ${task.complexity} | 
+          <span class="meta-label">Status:</span> ${safeHtml(task.status)} | 
+          <span class="meta-label">Priority:</span> ${safeHtml(task.priority)} | 
+          <span class="meta-label">Complexity:</span> ${safeHtml(task.complexity)} | 
           <span class="meta-label">Estimated Hours:</span> ${task.estimatedHours || 'Not specified'}
         </div>
         <div class="task-description">
-          ${task.description || 'No description provided.'}
+          ${safeHtml(task.description) || 'No description provided.'}
         </div>
       </div>
     `).join('')}
