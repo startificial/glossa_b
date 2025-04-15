@@ -690,7 +690,6 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   <TabsTrigger className="text-xs sm:text-sm" value="metadata">Metadata</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="acceptance">Acceptance Criteria</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="tasks">Implementation Tasks</TabsTrigger>
-                  <TabsTrigger className="text-xs sm:text-sm" value="expert-review">Expert Review</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="references">Reference Data</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="history">History</TabsTrigger>
                 </TabsList>
@@ -1027,95 +1026,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="expert-review">
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-medium">AI Expert Review</h3>
-                      <div className="relative group">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={handleGenerateExpertReview}
-                          disabled={isGeneratingExpertReview}
-                        >
-                          {isGeneratingExpertReview ? (
-                            <>
-                              <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent mr-2"></div>
-                              Analyzing...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="h-4 w-4 mr-2" />
-                              Generate Review
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {/* Use the parsed expert review */}
-                    {parsedExpertReview ? (
-                      <div className="border rounded-lg divide-y">
-                        <div className="p-4">
-                          <div className="flex items-center gap-2 mb-3">
-                            <h4 className="font-medium">Overall Rating:</h4>
-                            <Badge 
-                              variant={
-                                parsedExpertReview.evaluation.rating === 'good' ? 'default' :
-                                parsedExpertReview.evaluation.rating === 'bad' ? 'destructive' :
-                                'outline'
-                              }
-                            >
-                              {parsedExpertReview.evaluation.rating === 'good' ? 'Good' : 
-                               parsedExpertReview.evaluation.rating === 'good with caveats' ? 'Good with Caveats' : 
-                               'Needs Improvement'}
-                            </Badge>
-                          </div>
-                          <div className="mb-4">
-                            <h4 className="font-medium mb-2">Expert Explanation:</h4>
-                            <div className="p-3 bg-muted/50 rounded-md whitespace-pre-line">
-                              {parsedExpertReview.evaluation.explanation}
-                            </div>
-                          </div>
-                          <div>
-                            <h4 className="font-medium mb-2">Follow-up Questions to Consider:</h4>
-                            <ul className="list-disc list-inside space-y-1">
-                              {parsedExpertReview.evaluation.follow_up_questions.map((question: string, index: number) => (
-                                <li key={index} className="ml-2">{question}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-8 border rounded-md bg-muted/10">
-                        <p className="text-muted-foreground mb-4">No expert review generated yet</p>
-                        <p className="text-sm text-muted-foreground mb-6 max-w-md text-center">
-                          Generate an AI-powered expert review using Google Gemini to evaluate this requirement's 
-                          clarity, completeness, and consistency.
-                        </p>
-                        <Button 
-                          variant="outline" 
-                          onClick={handleGenerateExpertReview}
-                          disabled={isGeneratingExpertReview}
-                          className="gap-2"
-                        >
-                          {isGeneratingExpertReview ? (
-                            <>
-                              <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent"></div>
-                              Analyzing Requirement...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="h-4 w-4 mr-2" />
-                              Generate Expert Review
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
+
                 
                 <TabsContent value="references">
                   <ReferenceDataTab 
@@ -1195,6 +1106,91 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardTitle>AI Expert Review</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleGenerateExpertReview}
+                disabled={isGeneratingExpertReview}
+              >
+                {isGeneratingExpertReview ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent mr-2"></div>
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Review
+                  </>
+                )}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {/* Use the parsed expert review */}
+              {parsedExpertReview ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <h4 className="font-medium">Overall Rating:</h4>
+                    <Badge 
+                      variant={
+                        parsedExpertReview.evaluation.rating === 'good' ? 'default' :
+                        parsedExpertReview.evaluation.rating === 'bad' ? 'destructive' :
+                        'outline'
+                      }
+                    >
+                      {parsedExpertReview.evaluation.rating === 'good' ? 'Good' : 
+                       parsedExpertReview.evaluation.rating === 'good with caveats' ? 'Good with Caveats' : 
+                       'Needs Improvement'}
+                    </Badge>
+                  </div>
+                  <div className="mb-4">
+                    <h4 className="font-medium mb-2">Expert Explanation:</h4>
+                    <div className="p-3 bg-muted/50 rounded-md whitespace-pre-line">
+                      {parsedExpertReview.evaluation.explanation}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2">Follow-up Questions to Consider:</h4>
+                    <ul className="list-disc list-inside space-y-1">
+                      {parsedExpertReview.evaluation.follow_up_questions.map((question: string, index: number) => (
+                        <li key={index} className="ml-2">{question}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 border rounded-md bg-muted/10">
+                  <p className="text-muted-foreground mb-4">No expert review generated yet</p>
+                  <p className="text-sm text-muted-foreground mb-6 max-w-md text-center">
+                    Generate an AI-powered expert review using Google Gemini to evaluate this requirement's 
+                    clarity, completeness, and consistency.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleGenerateExpertReview}
+                    disabled={isGeneratingExpertReview}
+                    className="gap-2"
+                  >
+                    {isGeneratingExpertReview ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent"></div>
+                        Analyzing Requirement...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate Expert Review
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
