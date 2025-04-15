@@ -228,15 +228,46 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
     }
   });
 
-  const downloadDocument = () => {
+  const downloadDocument = async () => {
     if (generatedDocumentUrl) {
-      // Create a temporary anchor and trigger download
-      const a = document.createElement('a');
-      a.href = generatedDocumentUrl;
-      a.download = generatedDocumentUrl.split('/').pop() || `${selectedDocType}-document.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      try {
+        console.log('Initiating document download from:', generatedDocumentUrl);
+        
+        // Approach 1: Direct download via URL
+        window.open(generatedDocumentUrl, '_blank');
+        
+        // Approach 2: Use fetch API as backup
+        setTimeout(async () => {
+          try {
+            const response = await fetch(generatedDocumentUrl);
+            if (!response.ok) throw new Error('Failed to fetch PDF');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = generatedDocumentUrl.split('/').pop() || `${selectedDocType}-document.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+          } catch (err) {
+            console.error('Backup download method failed:', err);
+            
+            // Approach 3: Final fallback to direct PDF API
+            const directPdfUrl = `/api/documents/download-pdf/${generatedDocumentUrl.split('/').pop()}`;
+            window.open(directPdfUrl, '_blank');
+          }
+        }, 500); // Slight delay to avoid conflicts
+      } catch (error) {
+        console.error('Error during document download:', error);
+        toast({
+          title: 'Download Error',
+          description: 'Failed to download the document. Please try again.',
+          variant: 'destructive',
+        });
+      }
     }
   };
 

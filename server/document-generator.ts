@@ -222,7 +222,16 @@ export async function generateDocument(
       const textLines = doc.splitTextToSize(pdfContent, 170);
       doc.text(textLines, 20, 30);
       
-      // Save the PDF
+      // Add metadata to help with debugging
+      doc.setProperties({
+        title: title,
+        subject: `Document for ${project.name}`,
+        author: 'Document Generator',
+        keywords: documentType,
+        creator: 'Requirement Management System'
+      });
+      
+      // Save the PDF - use binary output
       const pdfOutput = doc.output();
       await fs.writeFile(outputPath, Buffer.from(pdfOutput, 'binary'));
       
