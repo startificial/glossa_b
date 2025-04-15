@@ -146,7 +146,10 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
           try {
             const response = await fetch(`/api/projects/${projectId}/generate-document`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json' // Explicitly request JSON
+              },
               body: JSON.stringify({ documentType: selectedDocType })
             });
             

@@ -21,10 +21,14 @@ const router = Router();
  * - documentType: Type of document to generate ('sow', 'implementation-plan', etc.)
  */
 router.post('/api/projects/:projectId/generate-document', async (req, res) => {
+  // Set content type for JSON responses upfront
+  res.setHeader('Content-Type', 'application/json');
+  
   try {
     console.log('Document generation request received');
     console.log('Request body:', req.body); // Log full request body
     console.log('Request params:', req.params); // Log parameters
+    console.log('Request headers:', req.headers); // Log headers
     
     const { projectId } = req.params;
     const { documentType } = req.body;
@@ -33,17 +37,20 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
     
     if (!documentType) {
       console.error('Document type is missing in request');
-      return res.status(400).json({ error: 'Document type is required' });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Document type is required' 
+      });
     }
-    
-    // Set content type for JSON responses
-    res.setHeader('Content-Type', 'application/json');
     
     // Validate document type
     const validTypes = ['sow', 'implementation-plan', 'requirement-spec', 'user-guide', 'training-manual', 'feature-guide'];
     if (!validTypes.includes(documentType)) {
       console.error(`Invalid document type: ${documentType}`);
-      return res.status(400).json({ error: 'Invalid document type' });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid document type' 
+      });
     }
     
     // Get project data
@@ -54,7 +61,10 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
     
     if (!project) {
       console.error(`Project not found for ID: ${projectId}`);
-      return res.status(400).json({ error: 'Project not found' });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Project not found' 
+      });
     }
     
     console.log(`Project found: ${project.name}`);
@@ -114,17 +124,26 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
         downloadUrl: `/downloads/documents/${fileName}`
       };
       
-      console.log('Sending response to client:', JSON.stringify(responseObj));
+      console.log('Sending response to client with Content-Type:', res.getHeader('Content-Type'));
+      console.log('Response body:', JSON.stringify(responseObj));
+      
       return res.status(200).json(responseObj);
     } catch (error) {
       const accessError = error instanceof Error ? error : new Error(String(error));
       console.error('Document file does not exist despite generation:', accessError);
-      throw new Error(`Document file was not successfully created: ${accessError.message}`);
+      
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to generate document',
+        details: `Document file was not successfully created: ${accessError.message}`
+      });
     }
   } catch (error) {
     console.error('Error generating document:', error);
-    // Send detailed error to help with debugging
+    
+    // Send detailed error as JSON
     return res.status(500).json({ 
+      success: false,
       error: 'Failed to generate document', 
       details: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
