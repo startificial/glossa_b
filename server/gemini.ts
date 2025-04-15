@@ -5,7 +5,18 @@ import os from 'os';
 import VideoProcessor, { VideoScene } from './video-processor';
 import { processTextFileForRequirement, TextReference } from './text-processor';
 import { processAudioFileForRequirement, AudioTimestamp } from './audio-processor';
-import { GEMINI_REQUIREMENTS_PROMPT } from './llm_prompts';
+import { GEMINI_REQUIREMENTS_PROMPT, EXPERT_REVIEW_PROMPT } from './llm_prompts';
+
+/**
+ * Expert Review type definition that matches the ExpertReview interface in client/src/lib/types.ts
+ */
+export interface ExpertReview {
+  evaluation: {
+    rating: 'good' | 'good with caveats' | 'bad';
+    explanation: string;
+    follow_up_questions: string[];
+  }
+}
 
 // Initialize the Gemini API with the API key
 const apiKey = process.env.GOOGLE_API_KEY || '';
@@ -822,6 +833,63 @@ export async function generateRequirementsForFile(
     return uniqueRequirements;
   } catch (error) {
     console.error("Error generating requirements with Gemini:", error);
+    throw error;
+  }
+}
+
+/**
+ * Generate an expert review for a requirement using Google Gemini
+ * @param requirementText The text of the requirement to review
+ * @returns Promise resolving to the expert review results
+ */
+export async function generateExpertReview(requirementText: string): Promise<ExpertReview> {
+  try {
+    console.log(`Generating expert review for requirement: ${requirementText.substring(0, 50)}...`);
+    
+    // Get the Gemini model
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-pro",
+      generationConfig,
+      safetySettings,
+    });
+
+    // Create a prompt for expert review using our centralized prompt
+    const prompt = EXPERT_REVIEW_PROMPT
+      .replace('{requirementText}', requirementText);
+
+    // Generate content
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Parse the JSON response
+    try {
+      // Extract just the JSON part from the response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const jsonText = jsonMatch[0];
+        return JSON.parse(jsonText);
+      } else {
+        // If no JSON object was found, try parsing the whole response
+        return JSON.parse(text);
+      }
+    } catch (parseError) {
+      console.error('Error parsing expert review response:', parseError);
+      console.error('Raw response:', text);
+      
+      // Return a default error response if parsing fails
+      return {
+        evaluation: {
+          rating: "bad",
+          explanation: "Error processing review. The AI model did not return a valid JSON response.",
+          follow_up_questions: [
+            "Please try again with a clearer requirement description."
+          ]
+        }
+      };
+    }
+  } catch (error) {
+    console.error("Error generating expert review with Gemini:", error);
     throw error;
   }
 }
