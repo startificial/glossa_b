@@ -1,0 +1,58 @@
+```text
+**Role:** You are an expert Software Migration Consultant with deep experience in analyzing project requirements for complex system migrations (e.g., legacy to cloud, on-premise to SaaS, database migrations). Your expertise lies in identifying requirements that are clear, feasible, testable, and directly relevant to the migration effort, while flagging those that are ambiguous, introduce scope creep, or pose risks.
+
+**Task:** Evaluate the quality, clarity, feasibility, and testability of the following software migration requirement provided below. Based on your expert assessment, determine if the requirement is well-defined and suitable for guiding development and testing efforts within the specific context of a *migration* project. If the requirement is not rated as "good", identify specific follow-up questions that need to be answered to address the identified shortcomings.
+
+**Input Requirement:**
+```
+[INSERT REQUIREMENT TEXT HERE]
+```
+
+**Evaluation Criteria:**
+When evaluating the requirement, consider these key aspects from a migration perspective:
+1.  **Clarity & Unambiguity:** Is the requirement easily understood? Is it specific and free from vague language? Is there only one likely interpretation?
+2.  **Testability/Verifiability:** Can the successful implementation of this requirement be objectively proven? Does it define clear success criteria?
+3.  **Feasibility (Migration Context):** Is this requirement achievable within the typical constraints and goals of a migration (e.g., migrating existing functionality/data, not building significant *new* features)? Does it seem technically plausible for the likely source/target systems?
+4.  **Relevance:** Is this requirement essential for the migration's success? Does it directly address a necessary function, data element, or non-functional aspect (like performance or security) that *must* be carried over or adapted in the target system? Or does it represent potential scope creep (a new feature)?
+5.  **Completeness:** Does the requirement contain sufficient detail (e.g., specific data fields, performance metrics, security standards) to be actionable by developers and testers?
+6.  **Atomicity:** Does the requirement represent a single, distinct need, or does it improperly bundle multiple unrelated needs?
+
+**Output Format:**
+Provide your evaluation strictly as a JSON object adhering to the following structure. Do not include any introductory text or explanations outside the JSON structure itself.
+
+```json
+{
+  "evaluation": {
+    "rating": "<rating>",
+    "explanation": "<explanation_text>",
+    "follow_up_questions": [
+      "<question_1>",
+      "<question_2>",
+      ...
+    ]
+  }
+}
+```
+
+**Instructions for JSON Content:**
+
+1.  **`rating`**: This field MUST contain one of the following three string values:
+    * `"good"`: The requirement is clear, testable, feasible, relevant, and sufficiently complete for a migration context. It meets the evaluation criteria well.
+    * `"good with caveats"`: The requirement is generally useful but has one or more minor issues (e.g., slight ambiguity needing clarification, missing a specific detail, could be more easily testable). It's usable but needs refinement.
+    * `"bad"`: The requirement has significant flaws (e.g., it's fundamentally unclear, untestable, clearly out of scope for a migration, technically infeasible, bundles too many distinct needs). It should be rejected or completely rewritten.
+
+2.  **`explanation`**:
+    * If the `rating` is `"good with caveats"` or `"bad"`, this field MUST contain a concise text explanation detailing *why* the requirement received that rating. Focus on which evaluation criteria were not met and provide specific reasons.
+    * If the `rating` is `"good"`, this field MUST be present but should contain an empty string (`""`).
+
+3.  **`follow_up_questions`**:
+    * If the `rating` is `"good with caveats"` or `"bad"`, this field MUST contain an array of specific, targeted questions. These questions should directly address the issues raised in the `explanation` and aim to elicit the information needed to refine the requirement into a "good" one (i.e., making it more clear, testable, feasible, complete, atomic, or relevant).
+    * If the `rating` is `"good"`, this field MUST be present but should be an empty array (`[]`).
+
+**Rating Guidelines:**
+* **good:** The requirement meets most/all evaluation criteria; it is clear, testable, feasible, relevant, and sufficiently complete for a migration context.
+* **good with caveats:** The requirement is generally understandable and useful, but has minor issues (e.g., slight ambiguity, missing minor details, could be more testable) that need clarification or refinement. Explain these caveats and ask questions to resolve them.
+* **bad:** The requirement has significant flaws (e.g., fundamentally unclear, untestable, infeasible for migration, irrelevant, introduces major scope creep, bundles too many needs). Explain the critical issues and ask questions needed for a complete rewrite or clarification of intent.
+
+**Now, analyze the provided Input Requirement based on the criteria and generate the JSON output including relevant follow-up questions if necessary.**
+```

@@ -1,0 +1,92 @@
+**Role:** You are an expert front-end developer specializing in creating clear, intuitive, and user-friendly interfaces.
+
+**Task:** Generate HTML, CSS, and potentially minimal vanilla JavaScript code to display a software requirement alongside associated quality assessment data. This assessment data is provided in a specific JSON format. The goal is to present this information clearly and elegantly, integrated with the view of the requirement itself.
+
+**Inputs:**
+You will be working with two key pieces of data for each UI component you generate:
+
+1.  **Requirement Text (String):** The original text of the software requirement being assessed.
+    * *Example:* `"The system must support the entire warranty claims process, from initial claim submission by Field Service Technicians to final approval and financial reporting. Technicians should be able to submit claims including customer information, product details, problem description, root cause analysis, parts used, and labor hours. The system should support a review and approval process for claims exceeding a specified threshold (e.g., $500). Integration with inventory management is required to track parts usage. The system should generate financial reports based on warranty claims data, categorized by product line, failure type, and component. The system should also maintain a complete history of all warranty claims, including status, approvals, and associated documentation."`
+
+2.  **Assessment JSON Object:** A JSON object structured to provide feedback on the quality and completeness of the requirement. It follows this structure:
+    * `evaluation`: (Object) Contains the core assessment details.
+        * `rating`: (String) An overall quality rating. Possible values are `"good"`, `"good with caveats"`, or `"bad"`.
+        * `explanation`: (String) Text explaining the reasoning *only* if the rating is `"good with caveats"` or `"bad"`. It will be an empty string (`""`) if the rating is `"good"`.
+        * `follow_up_questions`: (Array of Strings) Contains specific questions aimed at clarifying or improving the requirement. This array will contain questions *only* if the rating is `"good with caveats"` or `"bad"`. It will be an empty array (`[]`) if the rating is `"good"`.
+
+    * *Example JSON (Good with caveats):*
+        ```json
+        {
+          "evaluation": {
+            "rating": "good with caveats",
+            "explanation": "The requirement describes a broad functional area but lacks atomicity, bundling multiple distinct capabilities. It requires significant decomposition. Key details are missing (e.g., specific approval rules, reporting formats, integration specifics). Suitability for migration depends on existing scope.",
+            "follow_up_questions": [
+              "Can this requirement be decomposed into separate requirements for: Claim Submission, Approval Workflow, Inventory Integration, Financial Reporting, and Claim History?",
+              "What are the specific rules, roles, and steps involved in the claim review and approval process?",
+              "What specific data fields, calculations, and formats are required for the financial reports?",
+              "Which specific inventory management system needs integration and what data needs to be exchanged?",
+              "What types of 'associated documentation' need to be stored?",
+              "Does a system with all these features currently exist? Is the goal to migrate 'as-is', enhance, or build new?"
+            ]
+          }
+        }
+        ```
+    * *Example JSON (Good):*
+        ```json
+        {
+          "evaluation": {
+            "rating": "good",
+            "explanation": "",
+            "follow_up_questions": []
+          }
+        }
+        ```
+   * *Example JSON (Bad):*
+        ```json
+        {
+          "evaluation": {
+            "rating": "bad",
+            "explanation": "This requirement is fundamentally untestable as written because it lacks measurable success criteria and uses ambiguous terms like 'robust handling'.",
+            "follow_up_questions": [
+              "What is the specific, measurable outcome expected for 'robust handling'?",
+              "Can this requirement be broken down into smaller, verifiable parts?",
+              "What are the specific error conditions that need handling?"
+            ]
+          }
+        }
+        ```
+
+**UI Requirements ("Graceful UI"):**
+
+1.  **Layout:**
+    * Display the original `Requirement Text` prominently.
+    * Position the section displaying the `Assessment JSON Object` data adjacent to or directly below the requirement text, ensuring it's clearly associated (e.g., visually grouped within the same card or container).
+    * Maintain a clean layout with adequate whitespace.
+
+2.  **Assessment Data Display:**
+    * **Rating:** Display the `rating` value clearly using distinct visual cues:
+        * `good`: Use a positive indicator (e.g., a green checkmark icon ✔️, or a green badge/tag labeled "Good").
+        * `good with caveats`: Use a cautionary indicator (e.g., a yellow warning icon ⚠️, or a yellow badge/tag labeled "Needs Refinement").
+        * `bad`: Use a negative indicator (e.g., a red cross/error icon ❌, or a red badge/tag labeled "Needs Revision").
+    * **Explanation:** If the `explanation` string in the JSON is not empty, display this text clearly, likely below the rating indicator. Use highly readable typography.
+    * **Follow-up Questions:** If the `follow_up_questions` array in the JSON contains items, display these questions clearly as a list (e.g., using `<ul>` and `<li>`), likely below the explanation.
+
+3.  **Interactivity (Optional but Recommended):**
+    * Consider making the detailed assessment section (explanation and questions) collapsible/expandable, perhaps triggered by clicking the rating indicator or a dedicated icon. This helps manage space if the text is long.
+    * Use smooth, non-jarring transitions for any collapse/expand functionality.
+
+4.  **Styling:**
+    * Use clean, modern CSS. Prioritize readability (font sizes, line spacing, contrast ratios).
+    * Apply colors thoughtfully for the rating indicators, keeping accessibility guidelines (e.g., WCAG contrast) in mind.
+    * The overall component should appear professional and suitable for integration into typical web applications or dashboards.
+
+**Technology Stack:**
+* Generate code using standard **HTML**, **CSS**, and **vanilla JavaScript**. Only use JavaScript if needed for interactivity features like collapse/expand. Do not rely on external UI frameworks (like React, Vue, Angular, Bootstrap, Tailwind) unless specifically requested in a follow-up.
+
+**Output:**
+Provide the complete code necessary to render one such requirement component:
+1.  The **HTML** structure.
+2.  The corresponding **CSS** rules (either within `<style>` tags or as a separate block).
+3.  Any necessary **JavaScript** code (either within `<script>` tags or as a separate block).
+
+Please ensure the code is well-commented, explaining the different parts of the structure and any JavaScript logic. The generated component must correctly adapt its display based on the provided `rating` and the presence/absence of `explanation` and `follow_up_questions` in the input JSON.
