@@ -141,16 +141,22 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
       }, 300);
 
       try {
-        // Make the API request with explicit handling of response data
+        // Make the API request to our new simplified PDF generation endpoint
         const documentData = await (async () => {
           try {
-            const response = await fetch(`/api/projects/${projectId}/generate-document`, {
+            console.log(`Generating ${selectedDocType} PDF document for project ${projectId}`);
+            
+            // Use our new simple PDF generator endpoint
+            const response = await fetch(`/api/generate-simple-pdf`, {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
-                'Accept': 'application/json' // Explicitly request JSON
+                'Accept': 'application/json'
               },
-              body: JSON.stringify({ documentType: selectedDocType })
+              body: JSON.stringify({ 
+                projectId: projectId,
+                documentType: selectedDocType 
+              })
             });
             
             // First check if response is OK
@@ -158,14 +164,9 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
               throw new Error(`Server returned ${response.status}: ${response.statusText}`);
             }
             
-            // Check if content type is JSON
-            const contentType = response.headers.get('Content-Type');
-            if (!contentType || !contentType.includes('application/json')) {
-              throw new Error(`Expected JSON response but got ${contentType || 'unknown content type'}`);
-            }
-            
             // Then parse the response as JSON
             const jsonData = await response.json();
+            console.log("Response from PDF generator:", jsonData);
             
             if (!jsonData.success) {
               throw new Error(jsonData.error || 'Failed to generate document');
@@ -236,33 +237,28 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
       try {
         console.log('Initiating document download from:', generatedDocumentUrl);
         
-        // Approach 1: Direct download via URL
+        // Direct download via URL - our simple API provides a direct PDF file URL
         window.open(generatedDocumentUrl, '_blank');
         
-        // Approach 2: Use fetch API as backup
+        // Use a backup method in case direct download fails
         setTimeout(async () => {
           try {
-            const response = await fetch(generatedDocumentUrl);
-            if (!response.ok) throw new Error('Failed to fetch PDF');
-            
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = generatedDocumentUrl.split('/').pop() || `${selectedDocType}-document.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
+            // Try using the new download-pdf endpoint from our simplified API
+            const fileName = generatedDocumentUrl.split('/').pop();
+            if (fileName) {
+              const directPdfUrl = `/api/download-pdf/${fileName}`;
+              console.log('Using backup download method with URL:', directPdfUrl);
+              window.open(directPdfUrl, '_blank');
+            }
           } catch (err) {
             console.error('Backup download method failed:', err);
-            
-            // Approach 3: Final fallback to direct PDF API
-            const directPdfUrl = `/api/documents/download-pdf/${generatedDocumentUrl.split('/').pop()}`;
-            window.open(directPdfUrl, '_blank');
+            toast({
+              title: 'Download Issue',
+              description: 'If the PDF didn\'t open automatically, try clicking the download button again.',
+              variant: 'default',
+            });
           }
-        }, 500); // Slight delay to avoid conflicts
+        }, 1000); // Slight delay to avoid conflicts
       } catch (error) {
         console.error('Error during document download:', error);
         toast({
