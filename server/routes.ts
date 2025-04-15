@@ -36,7 +36,7 @@ import path from "path";
 import fs from "fs";
 import os from "os";
 import nlp from "compromise";
-import { processTextFile, generateRequirementsForFile } from "./gemini";
+import { processTextFile, generateRequirementsForFile, generateExpertReview } from "./gemini";
 import { processPdfFile, validatePdf, extractTextFromPdf } from "./pdf-processor";
 import { analyzePdf } from "./pdf-analyzer";
 import crypto from "crypto";
@@ -2763,6 +2763,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error during advanced search:", error);
       res.status(500).json({ message: "Error performing search", error: (error as Error).message });
+    }
+  });
+
+  // Generate AI Expert Review using Google Gemini
+  app.post("/api/requirements/:requirementId/generate-expert-review", async (req: Request, res: Response) => {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID", requirementId: req.params.requirementId });
+      }
+
+      // Get requirement from the database
+      const [requirement] = await db.select()
+        .from(requirements)
+        .where(eq(requirements.id, requirementId));
+      
+      if (!requirement) {
+        console.error(`Requirement with ID ${requirementId} not found in database`);
+        return res.status(404).json({ message: "Requirement not found", requirementId });
+      }
+
+      // Combine title and description for a more comprehensive review
+      const requirementText = `Title: ${requirement.title}\n\nDescription: ${requirement.description}`;
+      
+      console.log(`Generating expert review for requirement ${requirementId}`);
+      
+      // Generate the expert review using Google Gemini
+      const expertReview = await generateExpertReview(requirementText);
+      
+      // Update the requirement with the expert review in the database
+      await db.update(requirements)
+        .set({ 
+          expertReview: JSON.stringify(expertReview),
+          updatedAt: new Date() 
+        })
+        .where(eq(requirements.id, requirementId));
+      
+      // Return the expert review to the client
+      res.json(expertReview);
+    } catch (error) {
+      console.error("Error generating expert review:", error);
+      res.status(500).json({ message: "Failed to generate expert review", error: String(error) });
     }
   });
 
