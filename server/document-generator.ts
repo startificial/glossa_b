@@ -52,6 +52,7 @@ export async function generateDocument(
     
     // Ensure output directory exists
     const outputDir = path.join(process.cwd(), 'uploads', 'documents');
+    console.log('Creating directory if not exists:', outputDir);
     await fs.mkdir(outputDir, { recursive: true });
     
     // Generate file name - using HTML for now since we're skipping Puppeteer
@@ -75,14 +76,31 @@ export async function generateDocument(
         htmlContent = `<html><body><h1>Document type "${documentType}" not yet implemented.</h1></body></html>`;
     }
     
+    if (!htmlContent || htmlContent.trim() === '') {
+      throw new Error(`Generated HTML content is empty for document type: ${documentType}`);
+    }
+    
+    console.log(`Generated HTML content length: ${htmlContent.length} bytes`);
+    
     // Write HTML directly to file
     try {
+      // Make sure htmlContent is not empty or undefined
+      if (!htmlContent) {
+        throw new Error('HTML content is empty or undefined');
+      }
+      
+      // Ensure the directory exists before writing
+      await fs.mkdir(path.dirname(outputPath), { recursive: true });
+      
+      // Write the file
       await fs.writeFile(outputPath, htmlContent, 'utf-8');
       console.log(`Generated HTML document at: ${outputPath}`);
       
       // Verify the file was created
       await fs.access(outputPath);
+      console.log(`Verified file exists at: ${outputPath}`);
       
+      // Return the output path for the download route
       return outputPath;
     } catch (error) {
       console.error(`Error writing document to file:`, error);

@@ -357,7 +357,7 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
                           className="flex items-center gap-2"
                         >
                           <Download className="h-4 w-4" />
-                          Download PDF
+                          Download Document
                         </Button>
                       )}
                       
@@ -376,7 +376,7 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
                       <Progress value={progress} className="h-2" />
                       <p className="text-xs text-gray-500 mt-2 text-center">
                         {progress < 50 && "Processing data and building document..."}
-                        {progress >= 50 && progress < 80 && "Creating PDF..."}
+                        {progress >= 50 && progress < 80 && "Creating HTML document..."}
                         {progress >= 80 && progress < 100 && "Finalizing document..."}
                         {progress === 100 && "Document ready!"}
                       </p>
