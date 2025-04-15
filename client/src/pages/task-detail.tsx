@@ -66,6 +66,8 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
       try {
         const result = await apiRequest(`/api/tasks/${taskId}`);
         console.log("Task data received:", result);
+        console.log("Implementation steps:", result.implementation_steps);
+        console.log("Implementation steps (camelCase):", result.implementationSteps);
         return result;
       } catch (error) {
         console.error("Error fetching task:", error);
