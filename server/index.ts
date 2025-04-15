@@ -12,6 +12,7 @@ import fs from "fs";
 import { setupGoogleCredentials, cleanupCredentials } from "./google-credentials";
 import { VideoProcessor } from "./video-processor";
 import { warmAllModels, scheduleModelWarming } from "./model-warming-service";
+import { initDocumentMiddleware } from "./document-middleware";
 
 // Always use PostgreSQL database if available
 // This ensures consistent data retrieval and proper handling of complex fields like acceptanceCriteria
@@ -169,6 +170,9 @@ app.use((req, res, next) => {
       log('HuggingFace API key not found, skipping model warming', 'models');
     }
 
+    // Initialize document middleware
+    initDocumentMiddleware(app);
+    
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
