@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Requirement, Activity, Project, AcceptanceCriterion, GherkinStructure } from '@/lib/types';
+import { Requirement, Activity, Project, AcceptanceCriterion, GherkinStructure, ExpertReview } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -291,6 +291,60 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const handleGenerateTasks = () => {
     setIsGeneratingTasks(true);
     generateTasksMutation.mutate();
+  };
+  
+  // Track the expert review generation loading state
+  const [isGeneratingExpertReview, setIsGeneratingExpertReview] = useState(false);
+  
+  // Mutation for generating AI Expert Review using Google Gemini
+  const generateExpertReviewMutation = useMutation({
+    mutationFn: async () => {
+      console.log(`Generating expert review for requirement ID: ${requirementId}`);
+      // Call the server endpoint to generate expert review with Google Gemini
+      return apiRequest(
+        `/api/requirements/${requirementId}/generate-expert-review`,
+        {
+          method: "POST"
+        }
+      );
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/projects', projectId, 'requirements', requirementId] 
+      });
+      
+      toast({
+        title: "Expert Review Generated",
+        description: "AI Expert review has been generated for this requirement using Google Gemini.",
+      });
+      
+      setIsGeneratingExpertReview(false);
+    },
+    onError: (error: any) => {
+      const errorMessage = error.message || "There was a problem generating the expert review.";
+      
+      // Check if it's an API key error
+      if (errorMessage.includes("API key") || errorMessage.includes("GOOGLE_API_KEY")) {
+        toast({
+          title: "Google API Key Missing",
+          description: "Please add your Google API key in the environment variables to use this feature.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error Generating Expert Review",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+      
+      setIsGeneratingExpertReview(false);
+    }
+  });
+  
+  const handleGenerateExpertReview = () => {
+    setIsGeneratingExpertReview(true);
+    generateExpertReviewMutation.mutate();
   };
   
   // Add criterion mutation
@@ -629,6 +683,7 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   <TabsTrigger className="text-xs sm:text-sm" value="metadata">Metadata</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="acceptance">Acceptance Criteria</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="tasks">Implementation Tasks</TabsTrigger>
+                  <TabsTrigger className="text-xs sm:text-sm" value="expert-review">Expert Review</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="references">Reference Data</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="history">History</TabsTrigger>
                 </TabsList>
