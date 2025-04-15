@@ -76,11 +76,16 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
       relatedEntityId: parseInt(projectId)
     });
     
+    // Get the filename
+    const fileName = path.basename(documentPath);
+    console.log('Generated document:', documentPath);
+    console.log('Filename to return:', fileName);
+    
     // Return document path for frontend to download
     return res.json({ 
       success: true,
       documentPath: documentPath.replace(process.cwd(), ''),
-      fileName: path.basename(documentPath)
+      fileName: fileName
     });
   } catch (error) {
     console.error('Error generating document:', error);
@@ -94,21 +99,42 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
 router.get('/api/documents/download/:fileName', async (req, res) => {
   try {
     const { fileName } = req.params;
+    console.log('Requested file download:', fileName);
+    
+    if (!fileName) {
+      console.error('No filename provided in request');
+      return res.status(400).json({ error: 'No filename provided' });
+    }
+    
     const filePath = path.join(process.cwd(), 'uploads', 'documents', fileName);
+    console.log('Looking for file at:', filePath);
     
     // Check if file exists
     try {
       await fs.access(filePath);
-    } catch {
+      console.log('File exists, proceeding with download');
+    } catch (err) {
+      console.error('File not found:', err);
       return res.status(404).json({ error: 'Document not found' });
     }
     
     // Set headers and send file
     res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
     res.setHeader('Content-Type', 'application/pdf');
+    console.log('Headers set, sending file');
     
     const fileStream = createReadStream(filePath);
     fileStream.pipe(res);
+    
+    // Log when the file stream ends
+    fileStream.on('end', () => {
+      console.log('File download complete');
+    });
+    
+    // Log any errors with the file stream
+    fileStream.on('error', (err) => {
+      console.error('Error in file stream:', err);
+    });
   } catch (error) {
     console.error('Error downloading document:', error);
     return res.status(500).json({ error: 'Failed to download document' });
