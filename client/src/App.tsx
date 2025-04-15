@@ -25,6 +25,7 @@ import TemplateNewPage from "@/pages/TemplateNewPage";
 import TemplateEditPage from "@/pages/TemplateEditPage";
 import DocumentGeneratePage from "@/pages/DocumentGeneratePage";
 import DocumentViewPage from "@/pages/DocumentViewPage";
+import PdfTestPage from "@/pages/PdfTestPage";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -247,6 +248,12 @@ function Router() {
       <ProtectedRoute path="/search" component={() => (
         <ProtectedLayout>
           <SearchResults />
+        </ProtectedLayout>
+      )} />
+      
+      <ProtectedRoute path="/pdf-test" component={() => (
+        <ProtectedLayout>
+          <PdfTestPage />
         </ProtectedLayout>
       )} />
       
