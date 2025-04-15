@@ -142,20 +142,40 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
 
       try {
         // Make the API request with explicit handling of response data
-        const response = await fetch(`/api/projects/${projectId}/generate-document`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ documentType: selectedDocType })
-        });
+        const documentData = await (async () => {
+          try {
+            const response = await fetch(`/api/projects/${projectId}/generate-document`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ documentType: selectedDocType })
+            });
+            
+            // First check if response is OK
+            if (!response.ok) {
+              throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+            }
+            
+            // Check if content type is JSON
+            const contentType = response.headers.get('Content-Type');
+            if (!contentType || !contentType.includes('application/json')) {
+              throw new Error(`Expected JSON response but got ${contentType || 'unknown content type'}`);
+            }
+            
+            // Then parse the response as JSON
+            const jsonData = await response.json();
+            
+            if (!jsonData.success) {
+              throw new Error(jsonData.error || 'Failed to generate document');
+            }
+            
+            return jsonData;
+          } catch (err) {
+            console.error('Error in document generation:', err);
+            throw new Error(err instanceof Error ? err.message : 'Failed to generate document');
+          }
+        })();
         
-        // Parse the response as JSON
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to generate document');
-        }
-        
-        console.log("Document generation response:", data);
+        console.log("Document generation response:", documentData);
 
         clearInterval(interval);
         
@@ -163,11 +183,11 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
         setProgress(80);
         
         // Ensure we have a valid download URL before setting it
-        if (data && typeof data === 'object' && 'downloadUrl' in data) {
-          console.log("Setting document download URL:", data.downloadUrl);
-          setGeneratedDocumentUrl(data.downloadUrl);
+        if (documentData && typeof documentData === 'object' && 'downloadUrl' in documentData) {
+          console.log("Setting document download URL:", documentData.downloadUrl);
+          setGeneratedDocumentUrl(documentData.downloadUrl);
         } else {
-          console.error("Missing download URL in response:", JSON.stringify(data));
+          console.error("Missing download URL in response:", JSON.stringify(documentData));
           throw new Error("Document generation failed: Missing download URL in response");
         }
         
@@ -179,7 +199,7 @@ export function SowGenerator({ projectId }: SowGeneratorProps) {
           }, 500); // Small delay to show the complete progress
         }, 500);
         
-        return response;
+        return documentData;
       } catch (error) {
         clearInterval(interval);
         setIsGenerating(false);
