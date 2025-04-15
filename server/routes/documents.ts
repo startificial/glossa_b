@@ -22,34 +22,46 @@ const router = Router();
  */
 router.post('/api/projects/:projectId/generate-document', async (req, res) => {
   try {
+    console.log('Document generation request received');
     const { projectId } = req.params;
     const { documentType } = req.body;
     
+    console.log(`Generating document of type: ${documentType} for project: ${projectId}`);
+    
     if (!documentType) {
+      console.error('Document type is missing in request');
       return res.status(400).json({ error: 'Document type is required' });
     }
     
     // Validate document type
     const validTypes = ['sow', 'implementation-plan', 'requirement-spec', 'user-guide', 'training-manual', 'feature-guide'];
     if (!validTypes.includes(documentType)) {
+      console.error(`Invalid document type: ${documentType}`);
       return res.status(400).json({ error: 'Invalid document type' });
     }
     
     // Get project data
+    console.log(`Fetching project data for ID: ${projectId}`);
     const project = await db.query.projects.findFirst({
       where: eq(projects.id, parseInt(projectId))
     });
     
     if (!project) {
+      console.error(`Project not found for ID: ${projectId}`);
       return res.status(404).json({ error: 'Project not found' });
     }
     
+    console.log(`Project found: ${project.name}`);
+    
     // Get project requirements
+    console.log('Fetching project requirements');
     const projectRequirements = await db.query.requirements.findMany({
       where: eq(requirements.projectId, parseInt(projectId))
     });
+    console.log(`Found ${projectRequirements.length} requirements`);
     
     // Get implementation tasks for all requirements
+    console.log('Fetching implementation tasks');
     const tasks = [];
     for (const req of projectRequirements) {
       const reqTasks = await db.query.implementationTasks.findMany({
@@ -57,6 +69,7 @@ router.post('/api/projects/:projectId/generate-document', async (req, res) => {
       });
       tasks.push(...reqTasks);
     }
+    console.log(`Found ${tasks.length} implementation tasks`);
     
     // Generate document
     const documentPath = await generateDocument(
@@ -120,8 +133,18 @@ router.get('/api/documents/download/:fileName', async (req, res) => {
     
     // Set headers and send file
     res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-    res.setHeader('Content-Type', 'application/pdf');
-    console.log('Headers set, sending file');
+    
+    // Set content type based on file extension
+    const fileExtension = fileName.split('.').pop()?.toLowerCase();
+    if (fileExtension === 'pdf') {
+      res.setHeader('Content-Type', 'application/pdf');
+    } else if (fileExtension === 'html') {
+      res.setHeader('Content-Type', 'text/html');
+    } else {
+      res.setHeader('Content-Type', 'application/octet-stream'); // Default
+    }
+    
+    console.log('Headers set with Content-Type for', fileExtension, 'sending file');
     
     const fileStream = createReadStream(filePath);
     fileStream.pipe(res);

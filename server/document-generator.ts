@@ -2,14 +2,12 @@
  * Minimal Document Generator
  * 
  * Simplified version with no complex templates to avoid parsing issues
- * Uses Puppeteer to generate PDF files
+ * Creates HTML files directly (avoiding Puppeteer which might have environment issues)
  */
 import { Project, Requirement, ImplementationTask } from '@shared/schema';
 import path from 'path';
 import fs from 'fs/promises';
 import { createWriteStream } from 'fs';
-import puppeteer from 'puppeteer';
-import handlebars from 'handlebars';
 
 /**
  * Main function to generate a document
@@ -22,13 +20,17 @@ export async function generateDocument(
   tasks: ImplementationTask[]
 ): Promise<string> {
   try {
+    console.log(`Generating ${documentType} document for project ${projectId}`);
+    
     // Ensure output directory exists
     const outputDir = path.join(process.cwd(), 'uploads', 'documents');
     await fs.mkdir(outputDir, { recursive: true });
     
-    // Generate file name
-    const fileName = `${documentType}-${project.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.pdf`;
+    // Generate file name - using HTML for now since we're skipping Puppeteer
+    const fileName = `${documentType}-${project.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.html`;
     const outputPath = path.join(outputDir, fileName);
+    
+    console.log(`Will save document to: ${outputPath}`);
     
     // Generate HTML content
     let htmlContent = '';
@@ -44,38 +46,10 @@ export async function generateDocument(
         htmlContent = `<html><body><h1>Document type "${documentType}" not yet implemented.</h1></body></html>`;
     }
     
-    // Create a temporary HTML file
-    const tempHtmlPath = path.join(outputDir, `temp-${Date.now()}.html`);
-    await fs.writeFile(tempHtmlPath, htmlContent, 'utf-8');
+    // Write HTML directly to file
+    await fs.writeFile(outputPath, htmlContent, 'utf-8');
     
-    // Generate PDF with Puppeteer
-    const browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      headless: true
-    });
-    const page = await browser.newPage();
-    
-    // Load HTML content directly
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-    
-    // Generate PDF
-    await page.pdf({
-      path: outputPath,
-      format: 'A4',
-      margin: {
-        top: '1cm',
-        right: '1cm',
-        bottom: '1cm',
-        left: '1cm'
-      },
-      printBackground: true
-    });
-    
-    // Clean up
-    await browser.close();
-    await fs.unlink(tempHtmlPath).catch(e => console.warn('Failed to delete temp HTML file:', e));
-    
-    console.log(`Generated PDF document at: ${outputPath}`);
+    console.log(`Generated HTML document at: ${outputPath}`);
     return outputPath;
   } catch (error) {
     console.error(`Error generating ${documentType} document:`, error);
