@@ -49,6 +49,23 @@ if (!fs.existsSync(audioTimestampsDir)) {
 }
 app.use('/media/audio-timestamps', express.static(audioTimestampsDir));
 
+// Create and serve the documents directory with proper content types
+const documentsDir = path.join(process.cwd(), 'uploads', 'documents');
+if (!fs.existsSync(documentsDir)) {
+  fs.mkdirSync(documentsDir, { recursive: true });
+}
+// Use express.static with mime type overrides for PDF
+app.use('/downloads/documents', express.static(documentsDir, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+      // Add content disposition for downloads
+      const fileName = path.basename(filePath);
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    }
+  }
+}));
+
 // Determine which session store to use
 const usePostgres = process.env.DATABASE_URL && process.env.USE_POSTGRES === 'true';
 const sessionStore = usePostgres
