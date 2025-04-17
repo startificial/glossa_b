@@ -629,9 +629,6 @@ export class VideoProcessor {
   }
 
   /**
-   * Process scenes for a requirement, generating thumbnails & calculating real transcripts
-   */
-  /**
    * Process scenes for a requirement with context awareness and batch processing
    * for efficient handling of multi-hour videos with many scenes
    * 

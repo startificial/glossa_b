@@ -294,24 +294,6 @@ export async function processVideoFile(
       modified: stats.mtime.toISOString(),
     };
     
-    // Detect scenes from the video if inputDataId is provided
-    let videoScenes: VideoScene[] = [];
-    if (inputDataId) {
-      try {
-        console.log('Detecting scenes in video...');
-        const processor = new VideoProcessor(filePath, path.join(os.tmpdir(), 'video-scenes'), inputDataId);
-        videoScenes = await processor.detectScenes();
-        console.log(`Detected ${videoScenes.length} scenes in the video`);
-      } catch (sceneError) {
-        console.error('Error detecting scenes:', sceneError);
-        // Continue with requirement generation even if scene detection fails
-      }
-    }
-
-    // Log processing start
-    console.log(`Processing video file: ${fileName} (${(fileInfo.size / (1024 * 1024)).toFixed(2)} MB)`);
-    console.log(`Using ${numChunks} analysis passes with ${reqPerChunk} requirements each`);
-
     // Extract potential domain information from filename and project name
     const potentialDomains = ['CRM', 'ERP', 'service cloud', 'sales cloud', 'marketing cloud', 'commerce cloud', 'call center', 
       'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
@@ -325,6 +307,67 @@ export async function processVideoFile(
     const inferredDomain = domainKeywords.length > 0 
       ? domainKeywords.join(', ') 
       : "service management"; // Default to service management if no specific domain is detected
+    
+    // Detect scenes from the video if inputDataId is provided
+    let videoScenes: VideoScene[] = [];
+    let videoSummary: string = '';
+    
+    if (inputDataId) {
+      try {
+        console.log('Detecting scenes in video...');
+        const processor = new VideoProcessor(filePath, path.join(os.tmpdir(), 'video-scenes'), inputDataId);
+        videoScenes = await processor.detectScenes();
+        console.log(`Detected ${videoScenes.length} scenes in the video`);
+        
+        // Generate video summary for context-aware processing
+        if (videoScenes.length > 0) {
+          try {
+            console.log('Generating overall video content summary...');
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+            
+            const prompt = `
+              # Video Analysis Task: Generate Overall Content Summary
+              
+              ## Instructions
+              Generate a concise summary describing the overall content, purpose, and scope of the video this summary is derived from.
+              This should be a high-level view that serves as the primary context for understanding individual scenes.
+              
+              ## Video Information:
+              - Filename: ${fileName}
+              - Project context: ${projectName}
+              - Content type: ${contentType}
+              - Duration: ${(videoScenes[videoScenes.length-1].endTime).toFixed(2)} seconds
+              - Number of detected scenes: ${videoScenes.length}
+              
+              ## Domain context: 
+              ${inferredDomain}
+              
+              ## Output Format:
+              1. Summary should be 3-5 sentences, focusing on what appears to be the main purpose of the video
+              2. Use neutral, descriptive language
+              3. Focus on identifying the likely subject matter based on filename and project context
+            `;
+            
+            const response = await model.generateContent(prompt);
+            const result = await response.response;
+            videoSummary = result.text().trim();
+            console.log('Generated video summary:', videoSummary);
+          } catch (summaryError) {
+            console.error('Error generating video summary:', summaryError);
+            // Continue processing even if summary generation fails
+            videoSummary = `Video from ${projectName} related to ${contentType} showing ${inferredDomain} functionality.`;
+            console.log('Using fallback video summary:', videoSummary);
+          }
+        }
+      } catch (sceneError) {
+        console.error('Error detecting scenes:', sceneError);
+        // Continue with requirement generation even if scene detection fails
+      }
+    }
+
+    // Log processing start
+    console.log(`Processing video file: ${fileName} (${(fileInfo.size / (1024 * 1024)).toFixed(2)} MB)`);
+    console.log(`Using ${numChunks} analysis passes with ${reqPerChunk} requirements each`);
 
     // Initialize an array to store all requirements
     let allRequirements: any[] = [];
@@ -517,7 +560,7 @@ export async function processVideoFile(
               
               // Use the same processor instance
               const processor = new VideoProcessor(filePath, path.join(os.tmpdir(), 'video-scenes'), videoScenes[0].inputDataId);
-              const matchedScenes = await processor.processScenes(videoScenes, requirementText);
+              const matchedScenes = await processor.processScenes(videoScenes, requirementText, videoSummary);
               
               // Add the scenes to the requirement
               return {
