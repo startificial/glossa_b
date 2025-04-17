@@ -84,11 +84,14 @@ export class VideoProcessor {
   }
 
   /**
-   * Detect video scene changes using ffmpeg
+   * Detect video scene changes using ffmpeg with efficient chunking for multi-hour videos
+   * This implementation processes the video in chunks to optimize memory usage
+   * and performance for very long video files
    */
   async detectScenes(
     threshold: number = 0.4,
-    minSceneDuration: number = 3
+    minSceneDuration: number = 3,
+    chunkDuration: number = 600 // Process 10-minute chunks (configurable)
   ): Promise<VideoScene[]> {
     try {
       // Ensure output directory exists
@@ -109,67 +112,182 @@ export class VideoProcessor {
         throw new Error('Could not determine video duration');
       }
       
-      // Generate scene change data using ffmpeg
-      const sceneDataPath = path.join(this._outputDir, 'scene_data.txt');
+      console.log(`Video duration: ${videoDuration} seconds. Processing in ${chunkDuration}-second chunks`);
       
-      await new Promise<void>((resolve, reject) => {
-        ffmpeg(this._inputPath)
-          .outputOptions([
-            `-vf select='gt(scene,${threshold})',metadata=print:file=${sceneDataPath}`,
-            '-f null',
-          ])
-          .output('/dev/null')
-          .on('end', () => resolve())
-          .on('error', (err) => reject(err))
-          .run();
-      });
-
-      // Parse scene data file
-      const sceneData = fs.readFileSync(sceneDataPath, 'utf-8');
-      const sceneTimestamps = this.parseSceneData(sceneData);
-
-      const scenes: VideoScene[] = [];
+      // Calculate total number of chunks
+      const totalChunks = Math.ceil(videoDuration / chunkDuration);
+      console.log(`Video will be processed in ${totalChunks} chunks`);
       
-      // Always include the start of the video
-      sceneTimestamps.unshift(0);
+      // Store all scenes from all chunks
+      const allScenes: VideoScene[] = [];
+      let sceneCounter = 1;
       
-      // Convert timestamps to scene ranges
-      for (let i = 0; i < sceneTimestamps.length - 1; i++) {
-        const startTime = sceneTimestamps[i];
-        const endTime = sceneTimestamps[i + 1];
-        const duration = endTime - startTime;
+      // Process video in chunks
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const chunkStart = chunkIndex * chunkDuration;
+        const isLastChunk = chunkIndex === totalChunks - 1;
+        const actualChunkDuration = isLastChunk 
+          ? (videoDuration - chunkStart) 
+          : chunkDuration;
         
-        if (duration >= minSceneDuration) {
-          scenes.push({
+        console.log(`Processing chunk ${chunkIndex + 1}/${totalChunks}: ${chunkStart}s to ${chunkStart + actualChunkDuration}s`);
+        
+        // Generate scene change data for this chunk using ffmpeg
+        const chunkSceneDataPath = path.join(this._outputDir, `scene_data_chunk_${chunkIndex}.txt`);
+        
+        await new Promise<void>((resolve, reject) => {
+          ffmpeg(this._inputPath)
+            .setStartTime(chunkStart)
+            .setDuration(actualChunkDuration)
+            .outputOptions([
+              `-vf select='gt(scene,${threshold})',metadata=print:file=${chunkSceneDataPath}`,
+              '-f null',
+            ])
+            .output('/dev/null')
+            .on('end', () => {
+              console.log(`Finished processing chunk ${chunkIndex + 1}/${totalChunks}`);
+              resolve();
+            })
+            .on('error', (err) => {
+              console.error(`Error processing chunk ${chunkIndex + 1}:`, err);
+              reject(err);
+            })
+            .run();
+        });
+        
+        // Parse scene data file for this chunk
+        if (fs.existsSync(chunkSceneDataPath)) {
+          const chunkSceneData = fs.readFileSync(chunkSceneDataPath, 'utf-8');
+          
+          // Parse timestamps relative to chunk start
+          const relativeTimestamps = this.parseSceneData(chunkSceneData);
+          
+          // Convert to absolute timestamps
+          const absoluteTimestamps = relativeTimestamps.map(t => t + chunkStart);
+          
+          // Always include the start of the chunk (except for first chunk which already starts at 0)
+          if (absoluteTimestamps.length === 0 || (chunkIndex > 0 && absoluteTimestamps[0] > chunkStart + 1)) {
+            absoluteTimestamps.unshift(chunkStart);
+          }
+          
+          // Generate scenes for this chunk
+          for (let i = 0; i < absoluteTimestamps.length - 1; i++) {
+            const startTime = absoluteTimestamps[i];
+            const endTime = absoluteTimestamps[i + 1];
+            const duration = endTime - startTime;
+            
+            if (duration >= minSceneDuration) {
+              allScenes.push({
+                id: crypto.randomUUID(),
+                inputDataId: this._inputDataId,
+                startTime,
+                endTime,
+                label: `Scene ${sceneCounter++}`,
+                relevance: 0.0
+              });
+            }
+          }
+          
+          // Handle the last timestamp in this chunk if it's not the last chunk
+          if (!isLastChunk && absoluteTimestamps.length > 0) {
+            const lastTimestampInChunk = absoluteTimestamps[absoluteTimestamps.length - 1];
+            const endOfChunk = chunkStart + actualChunkDuration;
+            const duration = endOfChunk - lastTimestampInChunk;
+            
+            if (duration >= minSceneDuration) {
+              allScenes.push({
+                id: crypto.randomUUID(),
+                inputDataId: this._inputDataId,
+                startTime: lastTimestampInChunk,
+                endTime: endOfChunk,
+                label: `Scene ${sceneCounter++}`,
+                relevance: 0.0
+              });
+            }
+          }
+          
+          // Clean up chunk scene data file
+          fs.unlinkSync(chunkSceneDataPath);
+        } else {
+          console.warn(`No scene data file found for chunk ${chunkIndex + 1}`);
+          
+          // If no scenes detected in this chunk, create a single scene for the entire chunk
+          allScenes.push({
             id: crypto.randomUUID(),
             inputDataId: this._inputDataId,
-            startTime,
-            endTime,
-            label: `Scene ${i + 1}`,
+            startTime: chunkStart,
+            endTime: chunkStart + actualChunkDuration,
+            label: `Scene ${sceneCounter++}`,
             relevance: 0.0
           });
         }
       }
       
-      // Handle the last scene (to the end of the video)
-      const lastStartTime = sceneTimestamps[sceneTimestamps.length - 1];
-      if (videoDuration - lastStartTime >= minSceneDuration) {
-        scenes.push({
+      // Handle edge case: If no scenes were detected at all, create a single scene for the entire video
+      if (allScenes.length === 0) {
+        allScenes.push({
           id: crypto.randomUUID(),
           inputDataId: this._inputDataId,
-          startTime: lastStartTime,
+          startTime: 0,
           endTime: videoDuration,
-          label: `Scene ${sceneTimestamps.length}`,
+          label: 'Full Video',
           relevance: 0.0
         });
       }
-
-      fs.unlinkSync(sceneDataPath);
-      return scenes;
+      
+      // Merge adjacent scenes that are very similar (optional post-processing step)
+      const mergedScenes = this.mergeAdjacentScenes(allScenes, minSceneDuration);
+      console.log(`Detected ${mergedScenes.length} scenes in total after merging`);
+      
+      return mergedScenes;
     } catch (error) {
       console.error('Error detecting scenes:', error);
       throw error;
     }
+  }
+  
+  /**
+   * Merge adjacent scenes that likely belong together
+   * This reduces fragmentation in scene detection results
+   */
+  private mergeAdjacentScenes(scenes: VideoScene[], minDuration: number): VideoScene[] {
+    if (scenes.length <= 1) {
+      return scenes;
+    }
+    
+    // Sort scenes by start time to ensure proper ordering
+    const sortedScenes = [...scenes].sort((a, b) => a.startTime - b.startTime);
+    const mergedScenes: VideoScene[] = [];
+    
+    let currentScene = sortedScenes[0];
+    
+    for (let i = 1; i < sortedScenes.length; i++) {
+      const nextScene = sortedScenes[i];
+      
+      // Verify scenes are adjacent (tolerance of 0.5 seconds)
+      const areAdjacent = Math.abs(nextScene.startTime - currentScene.endTime) < 0.5;
+      
+      // Short scenes (less than 2x minDuration) might be merged
+      const isCurrentSceneShort = (currentScene.endTime - currentScene.startTime) < (minDuration * 2);
+      
+      if (areAdjacent && isCurrentSceneShort) {
+        // Merge the scenes
+        currentScene = {
+          ...currentScene,
+          endTime: nextScene.endTime,
+          label: `${currentScene.label} + ${nextScene.label}`
+        };
+      } else {
+        // Add current scene to results and move to next
+        mergedScenes.push(currentScene);
+        currentScene = nextScene;
+      }
+    }
+    
+    // Don't forget the last scene
+    mergedScenes.push(currentScene);
+    
+    return mergedScenes;
   }
 
   /**
@@ -513,38 +631,141 @@ export class VideoProcessor {
   /**
    * Process scenes for a requirement, generating thumbnails & calculating real transcripts
    */
-  async processScenes(scenes: VideoScene[], requirementText: string): Promise<VideoScene[]> {
+  /**
+   * Process scenes for a requirement with context awareness and batch processing
+   * for efficient handling of multi-hour videos with many scenes
+   * 
+   * @param scenes List of video scenes to process
+   * @param requirementText The requirement text to match against scenes
+   * @param overallVideoSummary Optional summary of the entire video for context
+   * @param batchSize Number of scenes to process in parallel (default: 5)
+   * @returns List of processed scenes sorted by relevance
+   */
+  async processScenes(
+    scenes: VideoScene[], 
+    requirementText: string,
+    overallVideoSummary?: string,
+    batchSize: number = 5
+  ): Promise<VideoScene[]> {
+    if (scenes.length === 0) {
+      console.log('No scenes to process');
+      return [];
+    }
+    
+    console.log(`Processing ${scenes.length} scenes for requirement matching, using batch size of ${batchSize}`);
+    
+    // Store all processed scenes
     const processedScenes: VideoScene[] = [];
     
-    for (const scene of scenes) {
-      try {
-        // Generate thumbnail
-        const thumbnailPath = await this.generateThumbnail(scene);
-
-        // Get the actual transcript from Google Cloud
-        const transcript = await this.getSceneTranscript(scene);
-
-        // Calculate relevance
-        const relevance = this.calculateRelevance(transcript, requirementText);
+    // Context-enhanced relevance calculation
+    const calculateContextualRelevance = (transcript: string, requirement: string): number => {
+      // Basic relevance using existing method
+      const basicRelevance = this.calculateRelevance(transcript, requirement);
+      
+      // If we have an overall video summary, use it to enhance the relevance calculation
+      if (overallVideoSummary) {
+        // Calculate how well the transcript aligns with the overall video context
+        const contextRelevance = this.calculateRelevance(transcript, overallVideoSummary);
         
-        // Only extract a clip if it meets our relevance threshold
-        if (relevance > 0.3) {
-          const clipPath = await this.extractClip(scene);
-          const processedScene: VideoScene = {
-            ...scene,
-            thumbnailPath,
-            clipPath,
-            relevance
-          };
-          processedScenes.push(processedScene);
-        }
-      } catch (error) {
-        console.error(`Error processing scene ${scene.id}:`, error);
-        // Continue with next scene
+        // Weight the relevance scores (70% requirement-specific, 30% context)
+        return (basicRelevance * 0.7) + (contextRelevance * 0.3);
       }
+      
+      return basicRelevance;
+    };
+
+    // Pre-filtering: First quickly calculate basic relevance for all scenes
+    // This avoids unnecessary processing of clearly irrelevant scenes
+    const preFilteredScenes: Array<{scene: VideoScene, preRelevance: number}> = [];
+    
+    // Pre-process in larger batches for efficiency
+    const preProcessBatchSize = 20;
+    for (let i = 0; i < scenes.length; i += preProcessBatchSize) {
+      const batch = scenes.slice(i, i + preProcessBatchSize);
+      
+      // Process each scene in the pre-filter batch
+      await Promise.all(batch.map(async (scene) => {
+        try {
+          // Get basic transcript without full processing
+          const basicTranscript = await this.getSceneTranscript(scene);
+          
+          // Calculate preliminary relevance
+          const preRelevance = this.calculateRelevance(basicTranscript, requirementText);
+          
+          // Keep scenes that have some minimum relevance
+          if (preRelevance > 0.15) {
+            preFilteredScenes.push({ scene, preRelevance });
+          }
+        } catch (error) {
+          console.error(`Error pre-filtering scene ${scene.id}:`, error);
+        }
+      }));
+      
+      // Status update
+      console.log(`Pre-filtered ${i + batch.length}/${scenes.length} scenes, found ${preFilteredScenes.length} potential matches`);
+    }
+    
+    // Sort pre-filtered scenes by preliminary relevance
+    preFilteredScenes.sort((a, b) => b.preRelevance - a.preRelevance);
+    
+    // Take top scenes (up to 3x the number we ultimately want to keep)
+    // This ensures we don't miss important scenes due to pre-filtering
+    const topScenes = preFilteredScenes.slice(0, 15);
+    console.log(`Selected top ${topScenes.length} scenes for detailed processing`);
+    
+    // Process the filtered scenes in batches for full relevance calculation
+    for (let i = 0; i < topScenes.length; i += batchSize) {
+      const batch = topScenes.slice(i, i + batchSize);
+      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(topScenes.length/batchSize)}`);
+      
+      // Process each scene in the batch concurrently
+      const batchResults = await Promise.allSettled(
+        batch.map(async ({ scene }) => {
+          try {
+            // Generate thumbnail for the scene
+            const thumbnailPath = await this.generateThumbnail(scene);
+            
+            // Get the transcript with full processing
+            const transcript = await this.getSceneTranscript(scene);
+            
+            // Calculate enhanced contextual relevance
+            const relevance = calculateContextualRelevance(transcript, requirementText);
+            
+            // Extract a clip if the scene is relevant enough
+            let clipPath: string | undefined;
+            if (relevance > 0.3) {
+              clipPath = await this.extractClip(scene);
+            }
+            
+            return {
+              ...scene,
+              thumbnailPath,
+              clipPath,
+              relevance
+            };
+          } catch (error) {
+            console.error(`Error processing scene ${scene.id}:`, error);
+            throw error;
+          }
+        })
+      );
+      
+      // Process results from this batch
+      batchResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const processedScene = result.value;
+          
+          // Only keep scenes with sufficient relevance
+          if (processedScene.relevance && processedScene.relevance > 0.3) {
+            processedScenes.push(processedScene);
+          }
+        }
+      });
+      
+      console.log(`Processed batch ${Math.floor(i/batchSize) + 1}, found ${processedScenes.length} relevant scenes so far`);
     }
 
-    // Sort scenes by relevance in descending order
+    // Sort all processed scenes by relevance (highest first)
     return processedScenes.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
   }
 }
