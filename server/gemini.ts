@@ -294,18 +294,18 @@ export async function processVideoFile(
       modified: stats.mtime.toISOString(),
     };
     
-    // Extract potential domain information from filename and project name
-    const potentialDomains = ['CRM', 'ERP', 'service cloud', 'sales cloud', 'marketing cloud', 'commerce cloud', 'call center', 
+    // Extract domain information
+    const domainsList = ['CRM', 'ERP', 'service cloud', 'sales cloud', 'marketing cloud', 'commerce cloud', 'call center', 
       'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
     
     // Check if any domain keywords are in the filename or project name
-    const domainKeywords = potentialDomains.filter(domain => 
+    const matchedKeywords = domainsList.filter(domain => 
       fileName.toLowerCase().includes(domain.toLowerCase()) || 
       projectName.toLowerCase().includes(domain.toLowerCase())
     );
     
-    const inferredDomain = domainKeywords.length > 0 
-      ? domainKeywords.join(', ') 
+    const inferredDomain = matchedKeywords.length > 0 
+      ? matchedKeywords.join(', ') 
       : "service management"; // Default to service management if no specific domain is detected
     
     // Detect scenes from the video if inputDataId is provided
@@ -368,6 +368,9 @@ export async function processVideoFile(
     // Log processing start
     console.log(`Processing video file: ${fileName} (${(fileInfo.size / (1024 * 1024)).toFixed(2)} MB)`);
     console.log(`Using ${numChunks} analysis passes with ${reqPerChunk} requirements each`);
+
+    // We've already extracted domain information at the beginning of the function
+    // No need to re-extract it here
 
     // Initialize an array to store all requirements
     let allRequirements: any[] = [];
@@ -697,18 +700,18 @@ export async function generateRequirementsForFile(
     console.log(`Processing ${fileType} file: ${fileName}`);
     console.log(`Using ${numAnalyses} analysis perspectives with ${reqPerAnalysis} requirements each`);
 
-    // Extract potential domain information from filename and project name
-    const potentialDomains = ['CRM', 'ERP', 'service cloud', 'sales cloud', 'marketing cloud', 'commerce cloud', 'call center', 
+    // Extract domain information
+    const domainsList = ['CRM', 'ERP', 'service cloud', 'sales cloud', 'marketing cloud', 'commerce cloud', 'call center', 
       'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
     
     // Check if any domain keywords are in the filename or project name
-    const domainKeywords = potentialDomains.filter(domain => 
+    const matchedKeywords = domainsList.filter(domain => 
       fileName.toLowerCase().includes(domain.toLowerCase()) || 
       projectName.toLowerCase().includes(domain.toLowerCase())
     );
     
-    const inferredDomain = domainKeywords.length > 0 
-      ? domainKeywords.join(', ') 
+    const inferredDomain = matchedKeywords.length > 0 
+      ? matchedKeywords.join(', ') 
       : "service management"; // Default to service management if no specific domain is detected
 
     // Initialize an array to store all requirements
