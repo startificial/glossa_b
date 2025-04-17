@@ -1,0 +1,78 @@
+Okay, I've updated the prompt to incorporate considerations for scale and performance, specifically targeting the scene detection logic for multi-hour videos, while maintaining the other constraints.
+
+Here’s the revised prompt:
+
+```prompt
+# Prompt for Scalable Software Migration Requirement Extraction from Video (Context-First)
+
+**Role:** You are an expert AI assistant specialized in analyzing application usage and extracting software requirements, particularly for migration projects. You are operating within the context of a project built using Node.js, TypeScript, and React.
+
+**Context:** We are migrating a legacy software application. We have video recordings (e.g., screen recordings, demos, user interviews) demonstrating the functionality and usage patterns of the old system. Our goal is to automatically extract key functional and non-functional requirements for the new system based on these videos, **importantly, the process needs to be efficient enough to handle potentially very long recordings (e.g., multi-hour videos)**. The development environment is Node.js/TypeScript for the backend/processing and React for the frontend.
+
+**Input:** You will conceptually receive video data. Assume this input might be provided as a reference to a video file, a stream, or potentially a detailed frame-by-frame description or timestamped transcript if direct video processing is beyond your capabilities in this context. The source could represent many hours of footage.
+
+**Core Task:** Analyze the provided video content to first understand its overall purpose and context, and then identify and document specific requirements for the software migration, broken down by logical scenes derived from the video in a **scalable and performant manner**.
+
+**Specific Steps & Constraints:**
+
+1.  **Overall Video Content Summary:**
+    * First, generate a concise summary describing the overall content, purpose, and scope of the *entire video*. (e.g., "This video provides a walkthrough of the legacy system's customer onboarding process, covering account creation, profile setup, and initial service configuration.")
+    * This summary serves as the primary context (grounding) for understanding the individual scenes that follow.
+
+2.  **Scene Detection (Conceptual or Logic-Based - Scalable):**
+    * Based on the video content, divide the video into logical scenes or segments. A scene change could be triggered by factors like:
+        * Significant shifts in the UI being shown.
+        * Changes in the primary task being demonstrated.
+        * Clear topic changes in narration or discussion (if a transcript is available).
+        * Extended pauses or transitions.
+    * **SCALABILITY & PERFORMANCE REQUIREMENT:** The *logic* you propose for scene detection must be designed with **efficiency and scalability** in mind, suitable for processing potentially **multi-hour videos** without excessive memory consumption or processing time. Your proposed logic should ideally be suitable for implementation in Node.js/TypeScript using techniques that can handle large data, such as:
+        * Operating on **streams** or **chunks** of the video data (or its representation, like a timestamped transcript or frame descriptions) rather than requiring the entire video content to be loaded into memory at once.
+        * Utilizing efficient algorithms for detecting changes (e.g., analyzing transcript topic shifts segment by segment, comparing metadata of consecutive frame descriptions).
+    * **CRITICAL CONSTRAINT:** You must achieve this scene detection *without* proposing solutions that rely on Python libraries (e.g., OpenCV, MoviePy, scenedetect). Instead, focus on:
+        * Describing the *logic* for scene detection using concepts implementable *efficiently and scalably* in Node.js/TypeScript.
+        * Outlining pseudocode or TypeScript/JavaScript logic snippets for identifying scene boundaries based on the available input representation, *keeping performance and scalability for long videos as a primary consideration*.
+
+3.  **Per-Scene Requirement Extraction (Context-Aware):**
+    * For each identified scene:
+        * Analyze the scene's specific content (visuals, actions, narration/text) *explicitly using the 'Overall Video Content Summary' (from Step 1) as context*.
+        * Extract specific, actionable software migration requirements demonstrated or discussed *within that scene*. These could include: [Examples remain the same]
+        * Ensure the requirements are relevant to the overall context established in the summary.
+        * Clearly associate the extracted requirements with the specific scene number or timestamp range.
+
+**Output Format:**
+
+Please structure your response as a JSON object with the following format:
+
+```json
+{
+  "video_title": "Optional: Title or identifier for the video processed",
+  "overall_video_content_summary": "A concise summary describing the overall content and purpose of the entire video, providing context for the scenes.",
+  "scenes": [
+    {
+      "scene_id": 1,
+      "description": "Brief description of what happens in this scene (e.g., User login screen and authentication flow).",
+      "start_time": "Optional: Start timestamp (e.g., 00:00:15)",
+      "end_time": "Optional: End timestamp (e.g., 00:01:22)",
+      "requirements": [
+        "Requirement extracted from Scene 1, informed by the overall video context.",
+        "Another requirement specific to Scene 1."
+      ]
+    },
+    // ... more scenes potentially spanning several hours
+  ],
+  "scene_detection_logic_notes": "Optional: Brief notes on the logic used or proposed for scene detection without Python libraries, including specific considerations made for efficiency and scalability with multi-hour videos (e.g., 'Proposed transcript analysis operates on 5-minute chunks to manage memory')."
+}
+```
+
+**Please proceed with processing the conceptual video input based on these updated instructions, paying close attention to the scalability requirements for the scene detection logic.**
+```
+
+**Key Changes Summary:**
+
+1.  **Context Update:** Added emphasis on handling "multi-hour recordings".
+2.  **Core Task Update:** Added "scalable and performant manner".
+3.  **Scene Detection - Scalability Requirement:** Inserted a dedicated section explicitly demanding scalable logic, suggesting streaming/chunking approaches suitable for Node.js/TS, and emphasizing efficiency for multi-hour videos.
+4.  **Scene Detection - Logic Description:** Reinforced the need for the described logic/pseudocode to consider performance and scalability.
+5.  **Output Format - Notes:** Updated the description for `scene_detection_logic_notes` to include mentioning how scalability was addressed.
+
+This prompt now clearly directs the LLM to consider the practical challenges of processing very large video files when proposing its scene detection methodology, while still adhering to the specific technical constraints of your project.

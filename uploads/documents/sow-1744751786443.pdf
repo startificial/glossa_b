@@ -1,0 +1,1240 @@
+%PDF-1.3
+%ºß¬à
+3 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 3792
+>>
+stream
+0.5670000000000001 w
+0 G
+0.92 0.96 1. rg
+0. 841.8899999999999864 595.2799999999999727 -113.3858267716535551 re
+f
+BT
+/F2 24 Tf
+27.5999999999999979 TL
+0.173 0.243 0.314 rg
+192.1599999999999113 771.0238582677164914 Td
+(Statement of Work) Tj
+ET
+BT
+/F2 20 Tf
+23. TL
+0.173 0.243 0.314 rg
+224.5399999999999636 742.6774015748030706 Td
+(Stuart's Project) Tj
+ET
+0.2 0.6 0.86 RG
+56.6929133858267775 685.9844881889763428 m
+538.5870866141731312 685.9844881889763428 l
+S
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0.173 0.243 0.314 rg
+56.6929133858267775 671.8112598425196893 Td
+(1. PROJECT OVERVIEW) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+56.6929133858267775 643.4648031496062686 Td
+(Move a customer from Blackbaud to Salesforce) Tj
+ET
+0.2 0.6 0.86 RG
+56.6929133858267775 595.2758267716534419 m
+538.5870866141731312 595.2758267716534419 l
+S
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0.173 0.243 0.314 rg
+56.6929133858267775 581.1025984251967884 Td
+(2. SCOPE OF WORK) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+56.6929133858267775 552.7561417322833677 Td
+(This Statement of Work outlines the deliverables and services to be provided for the) Tj
+T* (Stuart's Project project. It includes detailed requirements, implementation tasks,) Tj
+T* (acceptance criteria, timeline, and costs.) Tj
+ET
+0.2 0.6 0.86 RG
+56.6929133858267775 464.8821259842518998 m
+538.5870866141731312 464.8821259842518998 l
+S
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0.173 0.243 0.314 rg
+56.6929133858267775 450.7088976377952463 Td
+(3. REQUIREMENTS) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 436.5356692913385359 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 422.3624409448818255 Td
+(Requirement 1: Opportunity View Access Control) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 394.0159842519684616 Td
+(The system must allow all company users to have view access to opportunities, while) Tj
+T* (restricting opportunity creation to sales team members only. This ensures) Tj
+T* (transparency and visibility across the organization while maintaining control over data) Tj
+T* (entry and modification. The access control mechanism should be role-based and) Tj
+T* (easily configurable by administrators.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 280.6301574803148924 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 266.4569291338582389 Td
+(Requirement 2: Campaign Hierarchy Management) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 238.1104724409448181 Td
+(The Salesforce implementation must support a hierarchical campaign structure,) Tj
+T* (mirroring the client's existing "program tree" model. This includes the ability to create) Tj
+T* (parent-child relationships between campaigns, allowing for multiple levels of nesting. ) Tj
+T* (The system should accurately reflect the relationships between overarching marketing) Tj
+T* (initiatives \(e.g., "Q1 Product Launch"\) and their constituent sub-campaigns \(e.g.,) Tj
+T* (email blasts, webinars, social media campaigns\). This hierarchical structure should be) Tj
+T* (visible throughout the system for reporting and analysis purposes, enabling users to) Tj
+T* (understand the contribution of individual campaigns to larger initiatives.  The system) Tj
+T* (must also allow for the roll-up of key metrics, such as opportunity counts, pipeline) Tj
+T* (value, and ROI, from child campaigns to their parent campaigns, providing a) Tj
+T* (consolidated view of performance at each level of the hierarchy.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 1 of 8) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/15/2025) Tj
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 6 0 R
+>>
+endobj
+6 0 obj
+<<
+/Length 3555
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 3: Campaign Data Migration from Legacy System) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The Salesforce implementation must include the migration of historical campaign data) Tj
+T* (from the client's legacy system. This data should include campaign details,) Tj
+T* (hierarchies, member data, associated opportunities and their outcomes, and any) Tj
+T* (custom fields relevant to the client's business.  The migration should encompass at) Tj
+T* (least the last 2-3 years of data to ensure continuity in reporting and analysis.  A) Tj
+T* (mapping process will be required to ensure accurate transfer of data between the) Tj
+T* (legacy system and the Salesforce Campaign object.  The migrated data should) Tj
+T* (maintain the integrity of the campaign hierarchies and accurately reflect historical) Tj
+T* (performance metrics.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 564.0947244094487587 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 549.9214960629921052 Td
+(Requirement 4: Campaign Security and Access Control) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 521.5750393700786844 Td
+(The Salesforce implementation must provide granular control over access to) Tj
+T* (campaign data and functionality.  Different user profiles should have varying levels of) Tj
+T* (permission, aligned with their roles and responsibilities. For example, marketing) Tj
+T* (managers should have full access to create and edit parent campaigns, while) Tj
+T* (marketing coordinators should only be able to create and edit child campaigns within) Tj
+T* (existing hierarchies. Sales teams and executives should have view-only access to) Tj
+T* (campaign data and hierarchies.  This access control should be implemented using) Tj
+T* (Salesforce's profile and permission set system, ensuring data security and preventing) Tj
+T* (unauthorized modifications to campaign records.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 328.8191338582676622 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 314.6459055118109518 Td
+(Requirement 5: Campaign Permission Control) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 286.2994488188975311 Td
+(The system must provide granular control over user permissions related to campaign) Tj
+T* (management.  Different user roles should have varying levels of access, such as) Tj
+T* (creating and editing campaigns versus only viewing them. This ensures data integrity) Tj
+T* (and prevents unauthorized modifications to campaign data. The permission structure) Tj
+T* (should be configurable to align with the organization's existing roles and) Tj
+T* (responsibilities.  This includes the ability to restrict access to specific campaigns or) Tj
+T* (branches within the campaign hierarchy based on user roles or other criteria.  The) Tj
+T* (system should also provide audit trails to track changes made to campaigns and their) Tj
+T* (associated permissions.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 2 of 8) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/15/2025) Tj
+ET
+endstream
+endobj
+7 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 8 0 R
+>>
+endobj
+8 0 obj
+<<
+/Length 4163
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 6: Automated Campaign Tracking and Attribution) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The Salesforce implementation must provide automated tracking of prospect) Tj
+T* (interactions with marketing campaigns, including automatic attribution of opportunities) Tj
+T* (to the appropriate campaigns.  The system should support multiple attribution models,) Tj
+T* (such as first-touch, last-touch, and custom models, to allow for flexible analysis of) Tj
+T* (campaign effectiveness.  This automation should minimize manual effort required by) Tj
+T* (the sales team and provide accurate insights into which campaigns are driving) Tj
+T* (conversions. The system should be able to handle scenarios where a prospect) Tj
+T* (interacts with multiple campaigns before converting to an opportunity, accurately) Tj
+T* (attributing credit based on the chosen model.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 564.0947244094487587 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 549.9214960629921052 Td
+(Requirement 7: Campaign Performance Metrics Roll-up) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 521.5750393700786844 Td
+(The system must automatically aggregate campaign performance metrics throughout) Tj
+T* (the campaign hierarchy. This allows for a consolidated view of performance at) Tj
+T* (different levels, from individual campaigns to parent programs and the overall) Tj
+T* (marketing plan.  The roll-up should include key metrics such as ROI, number of leads) Tj
+T* (generated, number of opportunities created, and revenue generated.  This) Tj
+T* (functionality should provide a clear and concise overview of campaign effectiveness) Tj
+T* (across the entire organization.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 368.5041732283463602 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 354.3309448818897067 Td
+(Requirement 8: Historical Campaign Data Migration) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 325.9844881889763428 Td
+(The Salesforce implementation must facilitate the migration of historical campaign) Tj
+T* (data from the legacy system. This includes all relevant campaign information, such as) Tj
+T* (campaign names, dates, costs, associated opportunities, and performance metrics. ) Tj
+T* (The migration process should ensure data integrity and accuracy, minimizing data) Tj
+T* (loss or corruption.  The migrated data should be seamlessly integrated into the) Tj
+T* (Salesforce campaign hierarchy and reporting structure, allowing for continuity of) Tj
+T* (historical analysis and reporting.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 172.9136220472439902 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 158.7403937007873083 Td
+(Requirement 9: Robust Sales Forecasting Capabilities) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 130.3939370078738875 Td
+(The system must provide robust sales forecasting functionality, allowing sales) Tj
+T* (managers to view aggregated forecasts from their teams and adjust projections based) Tj
+T* (on their judgment.  The system should support: 1. Multiple forecast categories \(e.g.,) Tj
+T* (Pipeline, Best Case, Commit, Closed\), 2. Override capabilities for managers to adjust) Tj
+T* (individual or team forecasts, and 3. Forecast history tracking to analyze changes in) Tj
+T* (projections over time. This provides sales leadership with accurate revenue) Tj
+T* (projections and insights into pipeline health.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 3 of 8) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/15/2025) Tj
+ET
+endstream
+endobj
+9 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 10 0 R
+>>
+endobj
+10 0 obj
+<<
+/Length 3963
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 10: Campaign-Opportunity Association and Automation) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The system must enable the association of opportunities with campaigns, including) Tj
+T* (support for multiple attribution models \(Primary Campaign Source, Campaign) Tj
+T* (Influence, Customizable Campaign Influence\). This functionality should allow for) Tj
+T* (accurate tracking of which campaigns contribute to sales opportunities and their) Tj
+T* (eventual outcomes.  Automation capabilities are required to streamline this process,) Tj
+T* (such as automatically linking campaigns associated with a lead to the resulting) Tj
+T* (opportunity upon conversion.  The system should also support manual association of) Tj
+T* (campaigns to opportunities by sales representatives, providing flexibility for scenarios) Tj
+T* (where automated linking is not sufficient.  The chosen attribution model should) Tj
+T* (accurately reflect the client's business processes and provide meaningful insights into) Tj
+T* (the relative contribution of different campaigns to a single opportunity.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 524.4096850393700606 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 510.2364566929133503 Td
+(Requirement 11: Restrict Opportunity Creation to Sales Team) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 481.8899999999999295 Td
+(The Salesforce implementation must restrict the creation of new opportunities to) Tj
+T* (designated sales team members only. This is crucial to maintain data quality and) Tj
+T* (prevent non-sales personnel from creating unqualified opportunities.  Specifically,) Tj
+T* ("Create" permission on the Opportunity object should be granted only to profiles) Tj
+T* (associated with sales roles \(e.g., Account Executives, Sales Managers\).  All other) Tj
+T* (user profiles \(e.g., Marketing, Support, Finance\) should have "Read Only" access to) Tj
+T* (opportunities, ensuring company-wide visibility while preventing unauthorized creation) Tj
+T* (or modification.  The system should not display the "New Opportunity" button to users) Tj
+T* (without create permissions. This restriction should apply across all access methods,) Tj
+T* (including desktop and mobile interfaces.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 269.2915748031495013 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 255.1183464566928478 Td
+(Requirement 12: Company-Wide Opportunity Visibility) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 226.7718897637794271 Td
+(While opportunity creation is restricted to the sales team, all employees within the) Tj
+T* (company must have read access to opportunity records. This transparency is) Tj
+T* (essential for cross-departmental collaboration and informed decision-making.  This) Tj
+T* (requirement ensures that all departments, including marketing, support, and finance,) Tj
+T* (can view existing opportunities and stay informed about sales progress.  This read) Tj
+T* (access should include all relevant opportunity details, such as account information,) Tj
+T* (opportunity amount, close date, stage, and product/service category.  This visibility) Tj
+T* (should be enforced consistently across all user profiles outside of the sales team,) Tj
+T* (regardless of their access method \(desktop or mobile\).) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 4 of 8) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/15/2025) Tj
+ET
+endstream
+endobj
+11 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 12 0 R
+>>
+endobj
+12 0 obj
+<<
+/Length 4000
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 13: Comprehensive Pipeline Reporting and Dashboards) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The system must provide robust reporting and dashboard capabilities for managing) Tj
+T* (the sales pipeline.  Executives require real-time visibility into the total value of deals at) Tj
+T* (each stage, forecasted close dates, and the probability of closing.  The system should) Tj
+T* (offer standard pipeline reports and dashboards that can be customized to meet) Tj
+T* (specific executive requirements.  These reports should include pipeline summary) Tj
+T* (dashboards showing total value by stage, time-based pipeline views displaying) Tj
+T* (expected revenue by month or quarter, and trending reports illustrating pipeline) Tj
+T* (growth or changes over time.  Automatic report refresh functionality is essential to) Tj
+T* (ensure data accuracy and eliminate manual report generation.  The system should) Tj
+T* (also support filtering by various criteria, such as product line, region, account type,) Tj
+T* (industry, and deal size, to provide granular insights into pipeline performance.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 524.4096850393700606 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 510.2364566929133503 Td
+(Requirement 14: Detailed Win Rate Reporting and Analysis) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 481.8899999999999295 Td
+(The system must provide comprehensive win rate reporting at both the company level) Tj
+T* (and individual sales representative level.  This includes calculating the percentage of) Tj
+T* (won opportunities versus lost opportunities.  Reports should be able to group) Tj
+T* (opportunities by owner \(sales representative\) and calculate win rate percentages) Tj
+T* (using a formula field.  Both the count and value of won and lost opportunities should) Tj
+T* (be displayed.  The system should also support historical trend analysis, showing) Tj
+T* (month-over-month and quarter-over-quarter changes in win rates, as well as) Tj
+T* (year-over-year trends by representative.  Visualizations, such as charts, should be) Tj
+T* (available to highlight these trends.  Multidimensional analysis is required, enabling) Tj
+T* (segmentation of win rates by factors like deal size, industry, lead source, product line,) Tj
+T* (and sales cycle length.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 249.4490551181101523 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 235.2758267716534419 Td
+(Requirement 15: Required Fields for Opportunity Creation) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 206.9293700787401349 Td
+(To ensure data consistency and completeness, certain fields must be mandatory) Tj
+T* (when creating new opportunities.  These required fields should include, at a minimum,) Tj
+T* (Opportunity Name, Account, Amount, Close Date, Stage, and Product/Service) Tj
+T* (Category.  Enforcing these required fields will improve data quality and facilitate) Tj
+T* (accurate reporting and analysis.  The system should prevent users from saving a new) Tj
+T* (opportunity record unless all required fields are populated with valid data.  Clear error) Tj
+T* (messages should be displayed to guide users in completing the required fields.  The) Tj
+T* (system should also allow for customization of required fields based on evolving) Tj
+T* (business needs.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 5 of 8) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/15/2025) Tj
+ET
+endstream
+endobj
+13 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 14 0 R
+>>
+endobj
+14 0 obj
+<<
+/Length 3936
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 16: Mobile Access to Reports and Dashboards) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(Sales managers and executives require access to reports and dashboards from) Tj
+T* (mobile devices.  This mobile access should provide the same level of functionality) Tj
+T* (and data visibility as the desktop interface.  Users should be able to view pipeline) Tj
+T* (summaries, win rate reports, and other key metrics on their mobile devices.  The) Tj
+T* (mobile interface should be optimized for different screen sizes and provide a) Tj
+T* (user-friendly experience.  Real-time data synchronization is essential to ensure that) Tj
+T* (mobile users have access to the most up-to-date information.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 603.7797637795274568 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 589.6065354330708033 Td
+(Requirement 17: Customizable Opportunity Stages) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 561.2600787401574962 Td
+(The system must allow for full customization of opportunity stages to mirror the) Tj
+T* (existing 5-stage sales pipeline.  For each stage, the system must allow configuration) Tj
+T* (of the following: 1. Stage Name \(e.g., Prospecting, Qualification, Proposal,) Tj
+T* (Negotiation, Closed Won\), 2. Probability Percentage \(representing the likelihood of) Tj
+T* (closing the opportunity at that stage\), 3. Stage Status \(Open, Closed Won, or Closed) Tj
+T* (Lost\), and 4. Automated Actions \(any workflows or triggers that should be initiated) Tj
+T* (when an opportunity reaches that stage\). This customization ensures the system) Tj
+T* (aligns with the specific sales process and allows for accurate tracking and reporting.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 388.3466929133857661 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 374.1734645669290558 Td
+(Requirement 18: Opportunity Ownership and Assignment) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 345.8270078740156919 Td
+(The system must support assigning ownership of each opportunity to a specific sales) Tj
+T* (representative.  Ownership should determine: 1. Primary responsibility for updating) Tj
+T* (the opportunity record, 2. Inclusion in the owner's sales forecast, and 3. Impact on) Tj
+T* (commission calculations \(if applicable\).  The system should also support automated) Tj
+T* (assignment rules based on criteria such as territory, product line, or account) Tj
+T* (ownership. This ensures clear responsibility and accurate reporting of sales) Tj
+T* (performance.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 192.7561417322833677 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 178.5829133858267141 Td
+(Requirement 19: Scheduled Report Delivery) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 150.2364566929132934 Td
+(The system should allow for scheduling and automated delivery of reports and) Tj
+T* (dashboards to stakeholders via email. This automation reduces manual reporting) Tj
+T* (efforts and ensures stakeholders have access to up-to-date information on a regular) Tj
+T* (basis. The scheduling should be flexible, allowing for various frequencies \(daily,) Tj
+T* (weekly, monthly, etc.\) and delivery times.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 6 of 8) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/15/2025) Tj
+ET
+endstream
+endobj
+15 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 16 0 R
+>>
+endobj
+16 0 obj
+<<
+/Length 3353
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 20: Campaign ROI Reporting and Dashboards) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The Salesforce implementation must provide robust reporting and dashboard) Tj
+T* (capabilities for measuring campaign ROI. This includes automated calculation and) Tj
+T* (display of key metrics such as number of opportunities, pipeline generated, closed) Tj
+T* (won/lost opportunities and their associated values, and overall ROI. These metrics) Tj
+T* (should be readily accessible within each campaign record and should automatically) Tj
+T* (roll up through the campaign hierarchy. The system should also support the creation) Tj
+T* (of customizable dashboards to visualize campaign performance data, including) Tj
+T* (comparisons across campaigns, conversion rates by campaign type, ROI by channel,) Tj
+T* (and trend analysis over time.  This functionality aims to eliminate the client's current) Tj
+T* (manual reporting processes, providing real-time insights into campaign effectiveness) Tj
+T* (and enabling data-driven decision-making.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0. g
+85.0393700787401627 524.4096850393700606 Td
+(Implementation Tasks:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 504.5671653543306547 Td
+(• Create custom fields on Campaign object \(4 hours\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 484.7246456692913057 Td
+(• Develop roll-up summary fields on Campaign object \(6 hours\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 464.8821259842518998 Td
+(• Build custom Lightning components for campaign metrics \(16 hours\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 445.0396062992125508 Td
+(• Implement validation rules on Campaign object \(2 hours\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 425.1970866141731449 Td
+(• Create campaign performance dashboards \(12 hours\)) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0. g
+85.0393700787401627 391.1813385826770855 Td
+(Acceptance Criteria:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 371.3388188976377364 Td
+(• Given a campaign is created in Salesforce) Tj
+T* (When the campaign is saved) Tj
+T* (Then the system should automatically calculate and display the following metrics:) Tj
+T* (- Number of opportunities) Tj
+T* (- Pipeline generated) Tj
+T* (- ...) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 252.2837007874014716 Td
+(• Given a parent campaign with child campaigns in Salesforce) Tj
+T* (When the child campaign metrics are updated) Tj
+T* (Then the parent campaign should automatically roll up and display the aggregated metrics) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 192.7561417322833677 Td
+(• Given a user has the necessary permissions) Tj
+T* (When the user creates a new dashboard) Tj
+T* (Then the system should allow the user to select and visualize the following campaign) Tj
+T* (performance data:) Tj
+T* (- Comparisons ac...) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 7 of 8) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/15/2025) Tj
+ET
+endstream
+endobj
+17 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 18 0 R
+>>
+endobj
+18 0 obj
+<<
+/Length 2681
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 785.1970866141732586 Td
+(• Given a campaign is missing required data \(e.g., no opportunities, no closed won/lost) Tj
+T* (values\)) Tj
+T* (When the campaign is saved) Tj
+T* (Then the system should display an error message and prevent the user from savin...) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 705.8270078740157487 Td
+(• Given a campaign is updated in Salesforce) Tj
+T* (When the campaign is saved) Tj
+T* (Then the system should immediately update the campaign metrics without requiring a) Tj
+T* (page refresh) Tj
+ET
+0.2 0.6 0.86 RG
+56.6929133858267775 612.2837007874014716 m
+538.5870866141731312 612.2837007874014716 l
+S
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0.173 0.243 0.314 rg
+56.6929133858267775 598.1104724409448181 Td
+(4. TIMELINE AND MILESTONES) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+56.6929133858267775 569.7640157480313974 Td
+(Project Start: 4/15/2025) Tj
+T* (Estimated Completion: 7/14/2025) Tj
+T* () Tj
+T* (Key Milestones:) Tj
+T* (• Requirements Finalization: 4/29/2025) Tj
+T* (• Development Phase: 5/30/2025) Tj
+T* (• Testing and QA: 6/29/2025) Tj
+T* (• Final Delivery: 7/14/2025) Tj
+ET
+0.2 0.6 0.86 RG
+56.6929133858267775 382.6774015748030706 m
+538.5870866141731312 382.6774015748030706 l
+S
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0.173 0.243 0.314 rg
+56.6929133858267775 368.5041732283464171 Td
+(5. COSTS AND PAYMENT) Tj
+ET
+0.92 0.96 1. rg
+113.3858267716535551 340.1577165354329964 340.157480314960651 -28.3464566929133888 re
+f
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0. g
+127.5590551181102512 320.3151968503935905 Td
+(Item) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0. g
+368.5039370078740717 320.3151968503935905 Td
+(Amount) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+127.5590551181102512 297.6380314960629221 Td
+(Total Estimated Hours) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+368.5039370078740717 297.6380314960629221 Td
+(40 hours) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+127.5590551181102512 269.2915748031495013 Td
+(Hourly Rate) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+368.5039370078740717 269.2915748031495013 Td
+($150/hour) Tj
+ET
+0.96 g
+113.3858267716535551 255.1183464566928194 340.157480314960651 -28.3464566929133888 re
+f
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0. g
+127.5590551181102512 235.2758267716534419 Td
+(Total Estimated Cost) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0. g
+368.5039370078740717 235.2758267716534419 Td
+($6,000) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 8 of 8) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/15/2025) Tj
+ET
+endstream
+endobj
+1 0 obj
+<</Type /Pages
+/Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R ]
+/Count 8
+>>
+endobj
+19 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+20 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+21 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+22 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+23 0 obj
+<<
+/Type /Font
+/BaseFont /Courier
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+24 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+25 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+26 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+27 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Roman
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+28 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+29 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Italic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+30 0 obj
+<<
+/Type /Font
+/BaseFont /Times-BoldItalic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+31 0 obj
+<<
+/Type /Font
+/BaseFont /ZapfDingbats
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+32 0 obj
+<<
+/Type /Font
+/BaseFont /Symbol
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+2 0 obj
+<<
+/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
+/Font <<
+/F1 19 0 R
+/F2 20 0 R
+/F3 21 0 R
+/F4 22 0 R
+/F5 23 0 R
+/F6 24 0 R
+/F7 25 0 R
+/F8 26 0 R
+/F9 27 0 R
+/F10 28 0 R
+/F11 29 0 R
+/F12 30 0 R
+/F13 31 0 R
+/F14 32 0 R
+>>
+/XObject <<
+>>
+>>
+endobj
+33 0 obj
+<<
+/Producer (jsPDF 3.0.1)
+/Title (Statement of Work - Stuart's Project)
+/Subject (Document for Stuart's Project)
+/Author (Requirements Management System)
+/Keywords (sow)
+/Creator (Document Generator)
+/CreationDate (D:20250415211626-00'00')
+>>
+endobj
+34 0 obj
+<<
+/Type /Catalog
+/Pages 1 0 R
+/OpenAction [3 0 R /FitH null]
+/PageLayout /OneColumn
+>>
+endobj
+xref
+0 35
+0000000000 65535 f 
+0000030984 00000 n 
+0000032852 00000 n 
+0000000015 00000 n 
+0000000152 00000 n 
+0000003996 00000 n 
+0000004133 00000 n 
+0000007740 00000 n 
+0000007877 00000 n 
+0000012092 00000 n 
+0000012230 00000 n 
+0000016246 00000 n 
+0000016385 00000 n 
+0000020438 00000 n 
+0000020577 00000 n 
+0000024566 00000 n 
+0000024705 00000 n 
+0000028111 00000 n 
+0000028250 00000 n 
+0000031087 00000 n 
+0000031213 00000 n 
+0000031344 00000 n 
+0000031478 00000 n 
+0000031616 00000 n 
+0000031740 00000 n 
+0000031869 00000 n 
+0000032001 00000 n 
+0000032137 00000 n 
+0000032265 00000 n 
+0000032392 00000 n 
+0000032521 00000 n 
+0000032654 00000 n 
+0000032756 00000 n 
+0000033105 00000 n 
+0000033365 00000 n 
+trailer
+<<
+/Size 35
+/Root 34 0 R
+/Info 33 0 R
+/ID [ <F46E6AD3DFAFFBA427AAD32A27D9F34C> <F46E6AD3DFAFFBA427AAD32A27D9F34C> ]
+>>
+startxref
+33469
+%%EOF
