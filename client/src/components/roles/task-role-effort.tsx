@@ -232,32 +232,41 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
         ) : (
           <>
             {isAdding && (
-              <div className="space-y-4 mb-6 p-4 border rounded-md bg-slate-50 dark:bg-slate-900">
-                <h4 className="text-sm font-medium">Add Role</h4>
+              <div className="space-y-5 mb-6 p-5 border rounded-md bg-slate-50 dark:bg-slate-900">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Add Role</h4>
+                  {addRoleEffortMutation.isError && (
+                    <Badge variant="destructive" className="px-3 py-1">
+                      Error adding role
+                    </Badge>
+                  )}
+                </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
+                <div className="grid gap-5">
+                  <div className="space-y-3">
+                    <Label htmlFor="role" className="text-sm">Select Role</Label>
                     <Select 
                       onValueChange={(value) => setSelectedRoleId(parseInt(value))} 
                       value={selectedRoleId?.toString() || ""}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Choose a role for this task" />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableRoles.map((role) => (
-                          <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name}
-                          </SelectItem>
-                        ))}
+                        <SelectGroup>
+                          {availableRoles.map((role) => (
+                            <SelectItem key={role.id} value={role.id.toString()}>
+                              {role.name} ({role.roleType})
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="effort">Effort</Label>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <Label htmlFor="effort" className="text-sm">Estimated Effort</Label>
                       <Input
                         id="effort"
                         type="number"
@@ -265,17 +274,18 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
                         step="0.5"
                         value={effortAmount}
                         onChange={(e) => setEffortAmount(e.target.value)}
-                        placeholder="Amount"
+                        placeholder="Enter amount"
+                        className="w-full"
                       />
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label htmlFor="unit">Unit</Label>
+                    <div className="space-y-3">
+                      <Label htmlFor="unit" className="text-sm">Unit of Measure</Label>
                       <Select 
                         onValueChange={setEffortUnit} 
                         value={effortUnit}
                       >
-                        <SelectTrigger id="unit">
+                        <SelectTrigger id="unit" className="w-full">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -290,7 +300,7 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
                   </div>
                 </div>
                 
-                <div className="flex justify-end space-x-2 pt-2">
+                <div className="flex justify-end space-x-3 pt-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -303,7 +313,10 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
                     onClick={handleAddRoleEffort}
                     disabled={!selectedRoleId || !effortAmount || addRoleEffortMutation.isPending}
                   >
-                    {addRoleEffortMutation.isPending ? "Adding..." : "Add Effort"}
+                    {addRoleEffortMutation.isPending ? 
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adding...</> : 
+                      <><Plus className="mr-2 h-4 w-4" /> Add Effort</>
+                    }
                   </Button>
                 </div>
               </div>
@@ -311,31 +324,27 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
             
             {hasAssignedRoles ? (
               <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Estimated Effort</TableHead>
-                      <TableHead>Cost Rate</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {roleEfforts?.map((effort) => {
-                      const role = getRoleById(effort.roleId);
-                      if (!role) return null;
-                      
-                      return (
-                        <TableRow key={effort.id}>
-                          <TableCell className="font-medium">{role.name}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
+                <div className="grid gap-4">
+                  {roleEfforts?.map((effort) => {
+                    const role = getRoleById(effort.roleId);
+                    if (!role) return null;
+                    
+                    return (
+                      <div key={effort.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium min-w-[120px]">{role.name}</div>
+                            <Badge variant="outline" className="whitespace-nowrap">
                               {role.roleType}
                             </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {effort.estimatedEffort} {effort.effortUnit}
+                          </div>
+                          
+                          <Separator className="hidden sm:block h-4 mx-2 rotate-90" />
+                          
+                          <div className="flex items-center">
+                            <span className="text-sm font-medium">
+                              Effort: <span className="text-foreground">{effort.estimatedEffort} {effort.effortUnit}</span>
+                            </span>
                             {effort.effortUnit === "Hour" && parseFloat(effort.estimatedEffort) > 8 && (
                               <Popover>
                                 <PopoverTrigger asChild>
@@ -351,25 +360,26 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
                                 </PopoverContent>
                               </Popover>
                             )}
-                          </TableCell>
-                          <TableCell>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                          <div className="text-sm text-muted-foreground hidden sm:block">
                             {formatCurrency(parseFloat(role.costRate), role.currency)} / {role.costUnit}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteRoleEffort(effort.id)}
-                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteRoleEffort(effort.id)}
+                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 
                 <Separator className="my-4" />
                 
