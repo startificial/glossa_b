@@ -3094,7 +3094,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get the task to determine the project ID
-      const task = await storage.getTaskById(taskId);
+      const task = await storage.getImplementationTask(taskId);
       if (!task) {
         return res.status(404).json({ message: 'Task not found' });
       }
