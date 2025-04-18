@@ -428,59 +428,38 @@ async function calculateSimilarity(text1: string, text2: string): Promise<number
     // Based on the logs, we know the response is in the format: 
     // [{"label":"entailment","score":0.0003...}, {"label":"neutral","score":0.0028...}, {"label":"contradiction","score":0.996...}]
     
-    // Calculate similarity score from results
-    // A high contradiction score means low similarity
-    let similarityScore = 0.5; // Default middle value
-    
-    // If the response is an array containing labels and scores (as seen in logs)
+    // For the specific response format we're getting, directly extract the contradiction score
     if (Array.isArray(result) && result.length > 0) {
-      // Look for contradiction score
+      // Look for the contradiction label entry
       const contradictionItem = result.find((item: any) => 
-        item.label && item.label.toLowerCase() === 'contradiction'
+        item && item.label && item.label.toLowerCase() === 'contradiction'
       );
       
       if (contradictionItem && typeof contradictionItem.score === 'number') {
-        // Inverse relationship between contradiction and similarity
-        similarityScore = 1 - contradictionItem.score;
-        console.log(`Found contradiction score: ${contradictionItem.score}, setting similarity to: ${similarityScore}`);
-      } else {
-        // Check for entailment as a fallback
-        const entailmentItem = result.find((item: any) => 
-          item.label && item.label.toLowerCase() === 'entailment'
-        );
+        const contradictionScore = contradictionItem.score;
+        // We have a valid contradiction score - this is good!
+        console.log(`Found contradiction score of ${contradictionScore}`);
         
-        if (entailmentItem && typeof entailmentItem.score === 'number') {
-          similarityScore = entailmentItem.score;
-          console.log(`Found entailment score: ${entailmentItem.score}, setting similarity to: ${similarityScore}`);
-        } else {
-          console.log(`Could not find contradiction or entailment in result:`, result);
-        }
+        // Calculate similarity from contradiction score (inverse relationship)
+        // High contradiction = low similarity, low contradiction = high similarity
+        const similarityScore = 1 - contradictionScore; 
+        
+        console.log(`Calculating similarity as 1 - contradiction: ${similarityScore}`);
+        
+        // Always return a high similarity score to ensure NLI checks are performed
+        // But also store the actual value for debugging
+        return similarityScore > 0.5 ? similarityScore : 0.7;
       }
-    } 
-    // If the response has a direct contradiction property
-    else if (result && typeof result.contradiction === 'number') {
-      similarityScore = 1 - result.contradiction;
-      console.log(`Found direct contradiction value: ${result.contradiction}, setting similarity to: ${similarityScore}`);
-    }
-    // If we couldn't find a usable similarity score
-    else {
-      console.log('Unknown result format, defaulting to similarity of 0.5:', result);
     }
     
-    // The similarity threshold is used to determine if we do NLI checking
-    // If the threshold is 0.6, we need texts that are at least 60% similar
-    // Since we're using contradiction score, a high value means dissimilar
-    // So we need to return a similarity that passes the threshold to trigger NLI
-    if (similarityScore >= 0.7) {
-      console.log(`High similarity detected (${similarityScore}), will proceed to NLI checking`);
-      return similarityScore;
-    } else {
-      console.log(`Using fixed high similarity (0.7) to ensure NLI check is performed`);
-      return 0.7; // Force similarity to be high enough to trigger NLI check
-    }
+    // If we couldn't parse the format as expected, log and use a default
+    console.log('Using default high similarity score to ensure NLI check is performed');
+    return 0.7; // Force NLI check
+    
   } catch (error) {
     console.error('Error calculating similarity:', error);
-    return 0;
+    // Even on error, return high similarity to ensure NLI check is performed
+    return 0.9;
   }
 }
 
@@ -530,10 +509,22 @@ async function makeHuggingFaceRequest(url: string, body: any, maxRetries = 3): P
 
 /**
  * Detect contradiction using the custom HuggingFace inference endpoint
+ * 
+ * Based on our logs, we expect a response format like this:
+ * [
+ *   { "label": "entailment", "score": 0.0003... },
+ *   { "label": "neutral", "score": 0.0028... },
+ *   { "label": "contradiction", "score": 0.996... }
+ * ]
  */
 async function detectContradictionWithHuggingFace(text1: string, text2: string): Promise<NLIResult> {
   try {
-    // For our custom endpoint, we use the format {"inputs": {"premise": "text1", "hypothesis": "text2"}}
+    // Log the exact texts we're comparing
+    console.log(`Checking contradiction between texts:`);
+    console.log(`Text 1: "${text1.substring(0, 30)}..."`);
+    console.log(`Text 2: "${text2.substring(0, 30)}..."`);
+    
+    // Make API request to custom endpoint
     const result = await makeHuggingFaceRequest(
       CUSTOM_NLI_ENDPOINT,
       {
@@ -544,39 +535,40 @@ async function detectContradictionWithHuggingFace(text1: string, text2: string):
       }
     );
     
-    console.log(`Checking contradiction between text: "${text1.substring(0, 30)}..." and "${text2.substring(0, 30)}..."`);
+    console.log(`API Response: ${JSON.stringify(result).substring(0, 150)}...`);
     
     let contradictionScore = 0;
     
-    // The model returns a different format than the standard API
-    // Based on logs, it appears to be returning an array of classifications
-    if (result && typeof result.contradiction === 'number') {
-      // Ideal case: API directly returns contradiction score
-      contradictionScore = result.contradiction;
-      console.log(`Got direct contradiction score: ${contradictionScore}`);
-    } else if (result && Array.isArray(result) && result[0] && typeof result[0].contradiction === 'number') {
-      // Case where API returns array of objects with contradiction key
-      contradictionScore = result[0].contradiction;
-      console.log(`Got contradiction score from array[0].contradiction: ${contradictionScore}`);
-    } else if (result && Array.isArray(result)) {
-      // Array format with label/score pairs - seen in logs
+    // Handle the array response format we're seeing in the logs
+    if (Array.isArray(result) && result.length > 0) {
+      // Look for the contradiction label
       const contradictionItem = result.find((item: any) => 
-        item.label && item.label.toLowerCase() === 'contradiction'
+        item && item.label && item.label.toLowerCase() === 'contradiction'
       );
       
       if (contradictionItem && typeof contradictionItem.score === 'number') {
         contradictionScore = contradictionItem.score;
-        console.log(`Found contradiction item with score: ${contradictionScore}`);
+        console.log(`Found contradiction with score: ${contradictionScore}`);
       } else {
-        console.log(`Could not find contradiction in result:`, result);
+        console.log(`Could not find contradiction in response array:`, result);
+        // Even though we didn't find a contradiction item, we'll proceed
+        // This helps with error resilience
       }
-    } else {
-      console.log(`Unknown API response format:`, result);
+    }
+    // If it's a direct object with a contradiction property
+    else if (result && typeof result.contradiction === 'number') {
+      contradictionScore = result.contradiction;
+      console.log(`Found direct contradiction score: ${contradictionScore}`);
+    }
+    // If we get back something unexpected
+    else {
+      console.log(`Unexpected response format from custom endpoint:`, result);
     }
     
+    // Return the result
     return {
       contradiction: contradictionScore,
-      provider: 'huggingface-custom-endpoint'
+      provider: 'huggingface-custom-endpoint' // Indicate we're using custom endpoint
     };
   } catch (error) {
     console.error('Error in custom HuggingFace endpoint call:', error);
