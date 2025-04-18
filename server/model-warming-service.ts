@@ -10,10 +10,8 @@
 import fetch from 'node-fetch';
 import { log } from './vite';
 
-// Models that need warming
-const MODELS_TO_WARM = [
-  'sentence-transformers/all-mpnet-base-v2', // Similarity model
-];
+// Define the custom endpoint URL
+const CUSTOM_NLI_ENDPOINT = 'https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.huggingface.cloud';
 
 /**
  * Wait with exponential backoff
@@ -28,57 +26,42 @@ const waitWithBackoff = async (attempt: number, baseDelay: number = 1000): Promi
 };
 
 /**
- * Send a lightweight request to a model to wake it up
- * @param model Model identifier
+ * Send a lightweight request to the custom endpoint to wake it up
  * @param maxRetries Maximum number of retries
  * @param initialDelay Initial delay in milliseconds
  * @returns Promise resolving to true if successful, false otherwise
  */
-export async function warmModel(
-  model: string, 
+export async function warmCustomEndpoint(
   maxRetries: number = 5, 
   initialDelay: number = 1000
 ): Promise<boolean> {
   const apiKey = process.env.HUGGINGFACE_API_KEY;
   
   if (!apiKey) {
-    console.error(`Cannot warm model ${model}: HuggingFace API key not found in environment`);
+    console.error('Cannot warm custom endpoint: HuggingFace API key not found in environment');
     return false;
   }
   
-  // Prepare a very small request specific to model type
-  let body: any;
-  if (model.includes('sentence-transformers')) {
-    // For sentence transformers (similarity model)
-    body = {
-      inputs: {
-        source_sentence: "Hello",
-        sentences: ["Hello"]
-      }
-    };
-  } else if (model.includes('DeBERTa')) {
-    // For NLI model
-    body = {
-      inputs: "Hello\nHello"
-    };
-  } else {
-    // Generic small request
-    body = {
-      inputs: "Hello"
-    };
-  }
+  // Prepare a very small test request for the custom endpoint
+  // Using the format from the user's provided code
+  const body = {
+    inputs: {
+      premise: "The weather is sunny today.",
+      hypothesis: "It is a nice day."
+    }
+  };
   
-  console.log(`Starting warm-up request for model: ${model}`);
+  console.log('Starting warm-up request for custom endpoint');
   
-  // Attempt to warm the model with retries
+  // Attempt to warm the endpoint with retries
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       if (attempt > 0) {
-        console.log(`Warm-up attempt ${attempt + 1}/${maxRetries} for model ${model}...`);
+        console.log(`Warm-up attempt ${attempt + 1}/${maxRetries} for custom endpoint...`);
         await waitWithBackoff(attempt, initialDelay);
       }
       
-      const response = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+      const response = await fetch(CUSTOM_NLI_ENDPOINT, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -88,35 +71,35 @@ export async function warmModel(
       });
       
       if (response.ok) {
-        console.log(`✅ Model ${model} successfully warmed up!`);
+        console.log('✅ Custom HuggingFace inference endpoint successfully warmed up!');
         return true;
       }
       
       // Get status code and determine if we should retry
       const status = response.status;
-      console.log(`Warm-up request for model ${model} returned status ${status}`);
+      console.log(`Warm-up request for custom endpoint returned status ${status}`);
       
-      // 503 means the model is still loading
+      // 503 means the endpoint is still loading
       if (status === 503) {
-        console.log(`Model ${model} is loading, will retry...`);
+        console.log('Custom endpoint is loading, will retry...');
         continue;
       } else if (status === 429) {
         // Rate limited, back off more aggressively
-        console.log(`Rate limited (429) when warming model ${model}, will retry with longer backoff...`);
+        console.log('Rate limited (429) when warming custom endpoint, will retry with longer backoff...');
         await waitWithBackoff(attempt + 2, initialDelay); // More aggressive backoff for rate limits
         continue;
       } else {
         // Some other error
-        console.error(`Error warming model ${model}: HTTP ${status}`);
+        console.error(`Error warming custom endpoint: HTTP ${status}`);
         return false;
       }
     } catch (err) {
-      console.error(`Error during warm-up request for model ${model}:`, err);
+      console.error('Error during warm-up request for custom endpoint:', err);
       // Continue with next retry
     }
   }
   
-  console.warn(`⚠️ Failed to warm up model ${model} after ${maxRetries} attempts`);
+  console.warn(`⚠️ Failed to warm up custom endpoint after ${maxRetries} attempts`);
   return false;
 }
 
@@ -151,26 +134,23 @@ export async function checkCustomEndpoint(): Promise<boolean> {
 }
 
 /**
- * Warm all models in parallel
+ * Warm the custom endpoint
  * @returns Promise resolving when all warming attempts are complete
  */
 export async function warmAllModels(): Promise<void> {
-  log(`Starting warm-up for ${MODELS_TO_WARM.length} HuggingFace models...`, 'models');
+  log('Starting warm-up for HuggingFace custom endpoint...', 'models');
   
-  // First check if we have a custom endpoint available
-  const customEndpointAvailable = await checkCustomEndpoint();
+  // Check if the custom endpoint is available
+  await checkCustomEndpoint();
   
-  // If we're using the custom endpoint for contradiction detection,
-  // we only need to warm up the similarity model
-  const modelsToWarm = MODELS_TO_WARM;
+  // Warm up the custom endpoint
+  const success = await warmCustomEndpoint();
   
-  // Warm models in parallel
-  const results = await Promise.all(
-    modelsToWarm.map(model => warmModel(model))
-  );
-  
-  const successCount = results.filter(Boolean).length;
-  log(`Model warming complete. ${successCount}/${modelsToWarm.length} models successfully warmed up.`, 'models');
+  if (success) {
+    log('Custom endpoint warming complete and successful.', 'models');
+  } else {
+    log('Custom endpoint warming failed or was skipped.', 'models');
+  }
 }
 
 /**
