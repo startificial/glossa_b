@@ -275,3 +275,57 @@ export interface Workflow {
   createdAt: string;
   updatedAt: string;
 }
+
+// Project Roles and Effort Estimation Types
+
+export interface ProjectRole {
+  id: number;
+  name: string;
+  roleType: string;
+  locationType: string;
+  seniorityLevel: string;
+  projectId: number;
+  description: string | null;
+  costRate: string;
+  costUnit: string;
+  currency: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RequirementRoleEffort {
+  id: number;
+  requirementId: number;
+  roleId: number;
+  estimatedEffort: string;
+  effortUnit: string;
+  createdAt: string;
+  updatedAt: string;
+  // For UI display
+  role?: ProjectRole;
+}
+
+export interface TaskRoleEffort {
+  id: number;
+  taskId: number;
+  roleId: number;
+  estimatedEffort: string;
+  effortUnit: string;
+  createdAt: string;
+  updatedAt: string;
+  // For UI display
+  role?: ProjectRole;
+}
+
+export interface CreateProjectRoleFormData {
+  name: string;
+  roleType: string;
+  locationType: string;
+  seniorityLevel: string;
+  description: string;
+  costRate: string;
+  costUnit: string;
+  currency: string;
+  isActive: boolean;
+}
