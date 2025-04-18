@@ -60,6 +60,25 @@ export interface IStorage {
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: number, project: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: number): Promise<boolean>;
+  
+  // Project Role methods
+  getProjectRole(id: number): Promise<ProjectRole | undefined>;
+  getProjectRoles(projectId: number): Promise<ProjectRole[]>;
+  createProjectRole(role: InsertProjectRole): Promise<ProjectRole>;
+  updateProjectRole(id: number, role: Partial<InsertProjectRole>): Promise<ProjectRole | undefined>;
+  deleteProjectRole(id: number): Promise<boolean>;
+  
+  // Requirement Role Effort methods
+  getRequirementRoleEfforts(requirementId: number): Promise<RequirementRoleEffort[]>;
+  createRequirementRoleEffort(effort: InsertRequirementRoleEffort): Promise<RequirementRoleEffort>;
+  updateRequirementRoleEffort(id: number, effort: Partial<InsertRequirementRoleEffort>): Promise<RequirementRoleEffort | undefined>;
+  deleteRequirementRoleEffort(id: number): Promise<boolean>;
+  
+  // Task Role Effort methods
+  getTaskRoleEfforts(taskId: number): Promise<TaskRoleEffort[]>;
+  createTaskRoleEffort(effort: InsertTaskRoleEffort): Promise<TaskRoleEffort>;
+  updateTaskRoleEffort(id: number, effort: Partial<InsertTaskRoleEffort>): Promise<TaskRoleEffort | undefined>;
+  deleteTaskRoleEffort(id: number): Promise<boolean>;
 
   // Input data methods
   getInputData(id: number): Promise<InputData | undefined>;

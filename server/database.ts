@@ -156,6 +156,56 @@ export async function runMigrations() {
       )
     `;
 
+    // Project Roles table
+    await sql`
+      CREATE TABLE IF NOT EXISTS "project_roles" (
+        "id" SERIAL PRIMARY KEY,
+        "project_id" INTEGER NOT NULL,
+        "name" VARCHAR(255) NOT NULL,
+        "role_type" VARCHAR(50) NOT NULL,
+        "location_type" VARCHAR(50) NOT NULL,
+        "seniority_level" VARCHAR(50) NOT NULL,
+        "description" TEXT,
+        "cost_rate" VARCHAR(50) NOT NULL,
+        "cost_unit" VARCHAR(50) NOT NULL,
+        "currency" VARCHAR(10) NOT NULL,
+        "is_active" BOOLEAN NOT NULL DEFAULT TRUE,
+        "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE CASCADE
+      )
+    `;
+
+    // Requirement Role Efforts table
+    await sql`
+      CREATE TABLE IF NOT EXISTS "requirement_role_efforts" (
+        "id" SERIAL PRIMARY KEY,
+        "requirement_id" INTEGER NOT NULL,
+        "role_id" INTEGER NOT NULL,
+        "estimated_effort" VARCHAR(50) NOT NULL,
+        "effort_unit" VARCHAR(50) NOT NULL,
+        "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("requirement_id") REFERENCES "requirements" ("id") ON DELETE CASCADE,
+        FOREIGN KEY ("role_id") REFERENCES "project_roles" ("id") ON DELETE CASCADE
+      )
+    `;
+
+    // Task Role Efforts table
+    await sql`
+      CREATE TABLE IF NOT EXISTS "task_role_efforts" (
+        "id" SERIAL PRIMARY KEY,
+        "task_id" INTEGER NOT NULL,
+        "role_id" INTEGER NOT NULL,
+        "estimated_effort" VARCHAR(50) NOT NULL,
+        "effort_unit" VARCHAR(50) NOT NULL,
+        "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("task_id") REFERENCES "implementation_tasks" ("id") ON DELETE CASCADE,
+        FOREIGN KEY ("role_id") REFERENCES "project_roles" ("id") ON DELETE CASCADE
+      )
+    `;
+
     // Activities table
     await sql`
       CREATE TABLE IF NOT EXISTS "activities" (

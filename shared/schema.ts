@@ -349,6 +349,113 @@ export const insertImplementationTaskSchema = createInsertSchema(implementationT
   overallDocumentationLinks: true,
 });
 
+/**
+ * Project Roles Table - Define project personnel roles
+ * 
+ * Represents the descriptive roles of personnel involved in a migration project.
+ * These are used for scoping, costing, and associating with requirements/tasks.
+ * Note that these are descriptive labels, not system access roles like 'admin', 'user'.
+ * 
+ * Relationships:
+ * - Many-to-one with Project (a project role belongs to a project)
+ * - One-to-many with RequirementRoleEffort (a role can be associated with many requirements)
+ * - One-to-many with TaskRoleEffort (a role can be associated with many tasks)
+ */
+export const projectRoles = pgTable("project_roles", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(), // User-friendly descriptive name (e.g., "Onshore Senior Developer")
+  roleType: text("role_type").notNull(), // Functional type (e.g., "Developer", "BA", "QA", "PM", "Architect")
+  locationType: text("location_type").notNull(), // Location category (e.g., "Onshore", "Offshore", "Nearshore")
+  seniorityLevel: text("seniority_level").notNull(), // Experience level (e.g., "Junior", "Mid-Level", "Senior", "Lead", "Principal")
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  description: text("description"), // Detailed description of responsibilities and skills
+  costRate: text("cost_rate").notNull(), // Cost associated with this role per unit of effort
+  costUnit: text("cost_unit").notNull(), // Unit for the cost rate (e.g., "Hour", "Day", "Story Point", "Sprint")
+  currency: text("currency").notNull(), // Currency for the cost rate (e.g., "USD", "EUR")
+  isActive: boolean("is_active").default(true).notNull(), // Whether the role is currently available for assignment
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
+ * Project Role insert validation schema
+ * Defines fields required when creating a new project role
+ */
+export const insertProjectRoleSchema = createInsertSchema(projectRoles).pick({
+  name: true,
+  roleType: true,
+  locationType: true,
+  seniorityLevel: true,
+  projectId: true,
+  description: true,
+  costRate: true,
+  costUnit: true,
+  currency: true,
+  isActive: true,
+});
+
+/**
+ * Requirement Role Effort Table - Associate roles with requirements for effort estimation
+ * 
+ * Represents the effort required from specific roles to implement a requirement.
+ * This is used for scoping, planning, and cost estimation.
+ * 
+ * Relationships:
+ * - Many-to-one with Requirement (effort is associated with a requirement)
+ * - Many-to-one with ProjectRole (effort is for a specific role)
+ */
+export const requirementRoleEfforts = pgTable("requirement_role_efforts", {
+  id: serial("id").primaryKey(),
+  requirementId: integer("requirement_id").notNull().references(() => requirements.id),
+  roleId: integer("role_id").notNull().references(() => projectRoles.id),
+  estimatedEffort: text("estimated_effort").notNull(), // Estimated effort amount
+  effortUnit: text("effort_unit").notNull(), // Unit of effort (e.g., "Hour", "Day", "Story Point", "Sprint")
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
+ * Requirement Role Effort insert validation schema
+ * Defines fields required when creating a new requirement role effort
+ */
+export const insertRequirementRoleEffortSchema = createInsertSchema(requirementRoleEfforts).pick({
+  requirementId: true,
+  roleId: true,
+  estimatedEffort: true,
+  effortUnit: true,
+});
+
+/**
+ * Task Role Effort Table - Associate roles with tasks for effort estimation
+ * 
+ * Represents the effort required from specific roles to implement a task.
+ * This is used for detailed planning and cost estimation.
+ * 
+ * Relationships:
+ * - Many-to-one with ImplementationTask (effort is associated with a task)
+ * - Many-to-one with ProjectRole (effort is for a specific role)
+ */
+export const taskRoleEfforts = pgTable("task_role_efforts", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull().references(() => implementationTasks.id),
+  roleId: integer("role_id").notNull().references(() => projectRoles.id),
+  estimatedEffort: text("estimated_effort").notNull(), // Estimated effort amount
+  effortUnit: text("effort_unit").notNull(), // Unit of effort (e.g., "Hour", "Day", "Story Point", "Sprint")
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
+ * Task Role Effort insert validation schema
+ * Defines fields required when creating a new task role effort
+ */
+export const insertTaskRoleEffortSchema = createInsertSchema(taskRoleEfforts).pick({
+  taskId: true,
+  roleId: true,
+  estimatedEffort: true,
+  effortUnit: true,
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -373,6 +480,15 @@ export type InsertActivity = z.infer<typeof insertActivitySchema>;
 
 export type ImplementationTask = typeof implementationTasks.$inferSelect;
 export type InsertImplementationTask = z.infer<typeof insertImplementationTaskSchema>;
+
+export type ProjectRole = typeof projectRoles.$inferSelect;
+export type InsertProjectRole = z.infer<typeof insertProjectRoleSchema>;
+
+export type RequirementRoleEffort = typeof requirementRoleEfforts.$inferSelect;
+export type InsertRequirementRoleEffort = z.infer<typeof insertRequirementRoleEffortSchema>;
+
+export type TaskRoleEffort = typeof taskRoleEfforts.$inferSelect;
+export type InsertTaskRoleEffort = z.infer<typeof insertTaskRoleEffortSchema>;
 
 /**
  * Document Templates Table - Reusable document design templates
