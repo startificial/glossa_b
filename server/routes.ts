@@ -3031,20 +3031,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('- Similarity: sentence-transformers/all-mpnet-base-v2');
       console.log('- NLI: MoritzLaurer/DeBERTa-v3-base-mnli');
       
-      // Analyze contradictions using HuggingFace API (no fallback available)
+      // Analyze contradictions using HuggingFace API
       const analysisResult = await analyzeContradictions(requirementsInput);
       
-      console.log(`Analysis complete: Found ${analysisResult.contradictions.length} potential contradictions`);
-      console.log(`Made ${analysisResult.comparisons_made} comparisons and ${analysisResult.nli_checks_made} NLI checks`);
-      
-      if (analysisResult.errors) {
-        console.warn(`Analysis encountered errors: ${analysisResult.errors}`);
+      // For synchronous requests, log detailed results
+      if (!requirementsInput.async) {
+        console.log(`Analysis complete: Found ${analysisResult.contradictions.length} potential contradictions`);
+        console.log(`Made ${analysisResult.comparisons_made} comparisons and ${analysisResult.nli_checks_made} NLI checks`);
+        
+        if (analysisResult.errors) {
+          console.warn(`Analysis encountered errors: ${analysisResult.errors}`);
+        }
+      } else {
+        console.log(`Asynchronous analysis started: task_id=${analysisResult.task_id}`);
       }
       
       return res.status(200).json(analysisResult);
     } catch (error: any) {
       console.error("Error analyzing contradictions:", error);
       return res.status(500).json({ message: error.message || "Error analyzing contradictions" });
+    }
+  });
+  
+  // Get contradiction analysis task status
+  app.get('/api/requirements/contradiction-tasks/:taskId', async (req: Request, res: Response) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ message: "Invalid task ID" });
+      }
+      
+      const { getAnalysisStatus } = await import('./contradiction-service');
+      const status = await getAnalysisStatus(taskId);
+      
+      if (!status) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      return res.status(200).json(status);
+    } catch (error: any) {
+      console.error("Error getting contradiction analysis status:", error);
+      return res.status(500).json({ message: error.message || "Error getting analysis status" });
+    }
+  });
+  
+  // Get project contradictions
+  app.get('/api/projects/:projectId/contradictions', async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+      
+      const { getProjectContradictions } = await import('./contradiction-service');
+      const contradictions = await getProjectContradictions(projectId);
+      
+      console.log(`Retrieved ${contradictions.contradictions.length} contradictions for project ${projectId}`);
+      return res.status(200).json(contradictions);
+    } catch (error: any) {
+      console.error("Error getting project contradictions:", error);
+      return res.status(500).json({ message: error.message || "Error getting project contradictions" });
     }
   });
   
@@ -3079,41 +3125,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('- Similarity: sentence-transformers/all-mpnet-base-v2');
       console.log('- NLI: MoritzLaurer/DeBERTa-v3-base-mnli');
       
-      // Analyze contradictions
+      // Analyze contradictions - use async mode for larger projects
+      const useAsync = projectRequirements.length > 20; // Use async for projects with many requirements
       const analysisResult = await analyzeContradictions({
-        requirements: requirementTexts
+        requirements: requirementTexts,
+        projectId: projectId,
+        async: useAsync
       });
       
-      console.log(`Analysis complete: Found ${analysisResult.contradictions.length} potential contradictions`);
-      console.log(`Made ${analysisResult.comparisons_made} comparisons and ${analysisResult.nli_checks_made} NLI checks`);
-      
-      if (analysisResult.errors) {
-        console.warn(`Analysis encountered errors: ${analysisResult.errors}`);
+      // Handle asynchronous or synchronous response appropriately
+      if (useAsync && analysisResult.task_id) {
+        console.log(`Started asynchronous analysis with task ID: ${analysisResult.task_id}`);
+        
+        // For async requests, return the task info so the client can poll for results
+        return res.status(200).json({
+          is_async: true,
+          task_id: analysisResult.task_id,
+          totalRequirements: projectRequirements.length,
+          message: "Contradiction analysis started. Check task status to monitor progress."
+        });
+      } else {
+        // For synchronous responses, process as before
+        console.log(`Analysis complete: Found ${analysisResult.contradictions.length} potential contradictions`);
+        console.log(`Made ${analysisResult.comparisons_made} comparisons and ${analysisResult.nli_checks_made} NLI checks`);
+        
+        if (analysisResult.errors) {
+          console.warn(`Analysis encountered errors: ${analysisResult.errors}`);
+        }
+        
+        // Map contradiction results to include requirement IDs
+        const contradictionsWithIds = analysisResult.contradictions.map(contradiction => {
+          return {
+            requirement1: {
+              id: projectRequirements[contradiction.requirement1.index].id,
+              text: contradiction.requirement1.text
+            },
+            requirement2: {
+              id: projectRequirements[contradiction.requirement2.index].id,
+              text: contradiction.requirement2.text
+            },
+            similarity_score: contradiction.similarity_score,
+            nli_contradiction_score: contradiction.nli_contradiction_score
+          };
+        });
+        
+        // Return the results, including any error messages
+        return res.status(200).json({
+          is_async: false,
+          contradictions: contradictionsWithIds,
+          totalRequirements: projectRequirements.length,
+          processing_time: analysisResult.processing_time_seconds,
+          errors: analysisResult.errors // Pass error info to client if there were any issues
+        });
       }
-      
-      // Map contradiction results to include requirement IDs
-      const contradictionsWithIds = analysisResult.contradictions.map(contradiction => {
-        return {
-          requirement1: {
-            id: projectRequirements[contradiction.requirement1.index].id,
-            text: contradiction.requirement1.text
-          },
-          requirement2: {
-            id: projectRequirements[contradiction.requirement2.index].id,
-            text: contradiction.requirement2.text
-          },
-          similarity_score: contradiction.similarity_score,
-          nli_contradiction_score: contradiction.nli_contradiction_score
-        };
-      });
-      
-      // Return the results, including any error messages
-      return res.status(200).json({
-        contradictions: contradictionsWithIds,
-        totalRequirements: projectRequirements.length,
-        processing_time: analysisResult.processing_time_seconds,
-        errors: analysisResult.errors // Pass error info to client if there were any issues
-      });
     } catch (error: any) {
       console.error("Error checking requirement quality:", error);
       return res.status(500).json({ message: error.message || "Error checking requirement quality" });
