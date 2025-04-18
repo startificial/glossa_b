@@ -74,7 +74,12 @@ export interface NLIResult {
   neutral?: number;
   contradiction?: number;
   score?: number;
-  provider: 'huggingface' | 'anthropic' | 'google' | 'ensemble';
+  provider: 'huggingface' | 'huggingface-custom-endpoint' | 'anthropic' | 'google' | 'ensemble';
+  additional_info?: {
+    entailment?: number;
+    neutral?: number;
+    [key: string]: any;
+  };
 }
 
 /**
