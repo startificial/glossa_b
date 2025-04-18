@@ -11,6 +11,7 @@ import { ProjectTasks } from "@/components/projects/project-tasks";
 import { DocumentGenerator } from "@/components/documentation/document-generator";
 import { WorkflowsList } from "@/components/workflows/workflows-list";
 import { CustomerInfoCard } from "@/components/customers/customer-info-card";
+import { ProjectRolesList } from "@/components/roles/project-roles-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -188,6 +189,9 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
             <TabsTrigger value="tasks" className="py-2">
               Implementation Tasks
             </TabsTrigger>
+            <TabsTrigger value="roles" className="py-2">
+              Project Roles
+            </TabsTrigger>
             <TabsTrigger value="workflows" className="py-2">
               Workflows
             </TabsTrigger>
@@ -227,6 +231,10 @@ export default function ProjectDetail({ projectId }: ProjectDetailProps) {
           
           <TabsContent value="tasks" className="space-y-6">
             <ProjectTasks projectId={projectId} />
+          </TabsContent>
+          
+          <TabsContent value="roles" className="space-y-6">
+            <ProjectRolesList projectId={projectId} />
           </TabsContent>
           
           <TabsContent value="workflows" className="space-y-6">

@@ -212,3 +212,17 @@ export function downloadJSON(data: any, filename: string) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+export function formatCurrency(amount: number, currency: string = "USD") {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).format(amount);
+  } catch (error) {
+    console.error('Error formatting currency:', error);
+    return `${amount} ${currency}`;
+  }
+}
