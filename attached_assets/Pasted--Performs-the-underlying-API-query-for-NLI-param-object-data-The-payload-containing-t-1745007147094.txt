@@ -1,0 +1,146 @@
+/**
+ * Performs the underlying API query for NLI.
+ * @param {object} data - The payload containing the premise and hypothesis.
+ * @param {string} apiUrl - The URL of the Hugging Face API endpoint or model API.
+ * @param {string} apiToken - Your Hugging Face API token (starting with hf_).
+ * @returns {Promise<object>} - A promise that resolves to the API response JSON.
+ */
+async function queryNLI(data, apiUrl, apiToken) {
+    // Basic validation of token format
+    if (!apiToken || !apiToken.startsWith('hf_')) {
+        throw new Error("Invalid or missing Hugging Face API token format. Please provide your token.");
+    }
+
+    const response = await fetch(
+        apiUrl,
+        {
+            headers: {
+                "Accept": "application/json",
+                "Authorization": `Bearer ${apiToken}`,
+                "Content-Type": "application/json"
+            },
+            method: "POST",
+            body: JSON.stringify(data),
+        }
+    );
+
+    // Check if the request was successful
+    if (!response.ok) {
+        const errorText = await response.text();
+        // Provide more context in the error
+        throw new Error(`API request to ${apiUrl} failed with status ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    return result;
+}
+
+/**
+ * Runs the Natural Language Inference task for a given premise and hypothesis.
+ * @param {string} premiseText - The premise sentence.
+ * @param {string} hypothesisText - The hypothesis sentence.
+ * @param {string} apiUrl - The API endpoint URL to use.
+ * @param {string} apiToken - Your Hugging Face API token.
+ */
+async function runNLITask(premiseText, hypothesisText, apiUrl, apiToken) {
+    console.log(`\n--- Running NLI Task ---`);
+    console.log(`  Premise: "${premiseText}"`);
+    console.log(`  Hypothesis: "${hypothesisText}"`);
+
+    // Check if the token is still the placeholder
+    if (apiToken === "hf_XXXXX") {
+        console.error("ERROR: Cannot run task. Please replace 'hf_XXXXX' with your actual Hugging Face API token in the configuration section.");
+        return; // Stop execution for this specific call
+    }
+     // Additional check for empty/invalid inputs
+    if (!premiseText || !hypothesisText) {
+        console.error("ERROR: Premise and Hypothesis text cannot be empty.");
+        return;
+    }
+
+    // Prepare the payload using the function arguments
+    const nliPayload = {
+        inputs: {
+            premise: premiseText,
+            hypothesis: hypothesisText
+        }
+    };
+
+    console.log("  Sending request to:", apiUrl);
+    // console.log("  Payload:", JSON.stringify(nliPayload, null, 2)); // Optional: uncomment to see payload
+
+    try {
+        // Call the query function
+        const response = await queryNLI(nliPayload, apiUrl, apiToken);
+
+        console.log("\n  --- Raw API Response ---");
+        console.log(`  ${JSON.stringify(response)}`); // More compact logging for multiple runs
+
+        // --- Optional: Format Response ---
+        if (Array.isArray(response) && Array.isArray(response[0])) {
+            const formattedPrediction = {};
+            response[0].forEach(item => {
+                formattedPrediction[item.label] = Math.round(item.score * 1000) / 10; // Percentage with 1 decimal
+            });
+            console.log("\n  --- Formatted Prediction (%) ---");
+            // Log formatted prediction as a neat string
+            const formattedString = Object.entries(formattedPrediction)
+                                         .map(([label, score]) => `${label}: ${score}%`)
+                                         .join(', ');
+            console.log(`  ${formattedString}`);
+
+        } else {
+            console.warn("\n  Warning: Could not format the response as expected. Check the raw API response structure.");
+        }
+
+    } catch (error) {
+        console.error("\n  --- Error during API call ---");
+        console.error(`  ${error}`); // Log error message
+    }
+    console.log(`--- NLI Task Finished ---`);
+}
+
+// --- Configuration ---
+// **IMPORTANT**: Choose ONE of the following API URLs:
+// 1. Your specific Inference Endpoint URL (ensure it runs an NLI model)
+const apiEndpointUrl = "https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.huggingface.cloud";
+// 2. The general Model Inference API URL for the specific model
+// const apiUrlGeneral = "https://api-inference.huggingface.co/models/MoritzLaurer/DeBERTa-v3-base-mnli";
+
+// Select the URL to use for the tasks
+const selectedApiUrl = apiEndpointUrl; // Or use apiUrlGeneral if preferred
+
+// **IMPORTANT**: Replace 'hf_XXXXX' with your actual Hugging Face API token
+const yourHuggingFaceToken = "hf_XXXXX"; // <-- REPLACE THIS
+
+// --- Example Usage ---
+// Now you can call runNLITask with different inputs
+
+// Example 1 (from original Python)
+runNLITask(
+    "I first thought that I liked the movie, but upon second thought it was actually disappointing.",
+    "The movie was good.",
+    selectedApiUrl,
+    yourHuggingFaceToken
+);
+
+// Example 2
+runNLITask(
+    "The weather is sunny and warm today.",
+    "It is raining.",
+    selectedApiUrl,
+    yourHuggingFaceToken
+);
+
+// Example 3
+runNLITask(
+    "A soccer game with multiple players started.",
+    "Some men are playing sports.",
+    selectedApiUrl,
+    yourHuggingFaceToken
+);
+
+// Example 4 (using different variables)
+// let myPremise = "The cat sat on the mat.";
+// let myHypothesis = "A feline is resting on a rug.";
+// runNLITask(myPremise, myHypothesis, selectedApiUrl, yourHuggingFaceToken);

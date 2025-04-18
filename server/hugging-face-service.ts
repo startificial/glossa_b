@@ -6,9 +6,8 @@
 import fetch from 'node-fetch';
 import { AnalysisResponse, ContradictionResult, RequirementsInput } from '../shared/contradiction-types';
 
-// Constants for model endpoints - using specified models from config
-const SIMILARITY_MODEL = 'sentence-transformers/all-mpnet-base-v2';
-const NLI_MODEL = 'MoritzLaurer/DeBERTa-v3-base-mnli';
+// Define the custom endpoint URL provided by the user
+const CUSTOM_NLI_ENDPOINT = 'https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.huggingface.cloud';
 
 /**
  * Check if the HuggingFace API is available and configured
@@ -108,35 +107,45 @@ async function makeHuggingFaceRequest(url: string, body: any, maxRetries = 5, ba
 }
 
 /**
- * Calculate semantic similarity between two text strings using HuggingFace model
+ * Calculate semantic similarity between two text strings
+ * 
+ * NOTE: We now use the contradiction detection endpoint directly for similarity
+ * This is an optimization to avoid using two separate API endpoints
  */
 export async function calculateSimilarity(text1: string, text2: string): Promise<number> {
   try {
-    // For all-mpnet-base-v2, the expected input format is 
-    // { inputs: { source_sentence: string, sentences: string[] } }
+    // Use the custom endpoint and leverage the NLI model for similarity assessment
+    // The endpoint can be used to derive semantic similarity too
+    console.log('Using custom HuggingFace inference endpoint for similarity detection');
+    
+    // For our custom endpoint, we'll use the same format as the contradiction detection
+    // but will look for different scores in the response
     const result = await makeHuggingFaceRequest(
-      `https://api-inference.huggingface.co/models/${SIMILARITY_MODEL}`,
+      CUSTOM_NLI_ENDPOINT,
       {
         inputs: {
-          source_sentence: text1,
-          sentences: [text2]
+          premise: text1,
+          hypothesis: text2
         }
       }
     );
     
-    console.log('Similarity API response:', JSON.stringify(result).substring(0, 200) + '...');
+    console.log('Similarity API response (via NLI):', JSON.stringify(result).substring(0, 200) + '...');
     
-    // Check if the result is an array and has at least one element
-    if (Array.isArray(result) && result.length > 0) {
-      return result[0]; // The model returns similarity scores between 0 and 1
-    }
-    
-    // Some sentence transformer models return { [key: string]: number } format
-    if (typeof result === 'object' && result !== null) {
-      // Look for any property that might be a similarity score
-      const possibleScores = Object.values(result).filter(v => typeof v === 'number');
-      if (possibleScores.length > 0) {
-        return possibleScores[0];
+    // If the model returns an array with entailment scores, we can use that as similarity
+    if (Array.isArray(result) && Array.isArray(result[0])) {
+      // Find the entailment score as a proxy for similarity
+      const entailmentResult = result[0].find((item: any) => 
+        item.label === 'entailment' || item.label === 'ENTAILMENT');
+      
+      if (entailmentResult) {
+        return entailmentResult.score; // Entailment score is a good proxy for similarity
+      }
+      
+      // As a fallback, use the highest score from any label as approximate similarity
+      if (result[0].length > 0) {
+        const highestScore = Math.max(...result[0].map((item: any) => item.score || 0));
+        return highestScore > 0 ? highestScore : 0.5; // Provide a reasonable default
       }
     }
     
@@ -153,48 +162,44 @@ export async function calculateSimilarity(text1: string, text2: string): Promise
  * Perform natural language inference (NLI) to detect contradictions
  * Returns a contradiction score between 0 and 1
  * 
- * This function now uses a custom HuggingFace inference endpoint for more reliability
+ * This function uses the custom HuggingFace inference endpoint provided by the user
  */
 export async function detectContradiction(text1: string, text2: string): Promise<number> {
   try {
-    // First check if we should use the custom endpoint
-    if (process.env.CUSTOM_ENDPOINT_API_KEY) {
-      // Import the custom endpoint service dynamically to avoid circular imports
-      const { detectContradictionWithEndpoint } = await import('./custom-inference-endpoint');
-      
-      // Use the custom endpoint for more reliable results
-      console.log('Using custom inference endpoint for contradiction detection');
-      return await detectContradictionWithEndpoint(text1, text2);
-    }
+    // Always use the custom endpoint provided in the user's code
+    console.log('Using custom HuggingFace inference endpoint for contradiction detection');
     
-    // Fall back to standard HuggingFace API if no custom endpoint is configured
-    console.log('Using standard HuggingFace API for contradiction detection');
-    
-    // For DeBERTa-v3 the expected format is {"inputs": "premise\nhypothesis"}
+    // Use the custom endpoint format based on user's code
+    // The payload format needs to contain 'inputs' with premise and hypothesis
     const result = await makeHuggingFaceRequest(
-      `https://api-inference.huggingface.co/models/${NLI_MODEL}`,
+      CUSTOM_NLI_ENDPOINT,
       {
-        inputs: `${text1}\n${text2}`,
+        inputs: {
+          premise: text1,
+          hypothesis: text2
+        }
       }
     );
     
     console.log('NLI API response:', JSON.stringify(result).substring(0, 200) + '...');
     
     // The model should return an array with entailment, neutral, and contradiction probabilities
-    // Depending on the exact format from MoritzLaurer/DeBERTa-v3-base-mnli
-    if (Array.isArray(result)) {
-      // Find the contradiction score
-      const contradictionResult = result.find((item: any) => 
+    // Based on the user's code we expect: Array[Array[{label, score}]]
+    if (Array.isArray(result) && Array.isArray(result[0])) {
+      // Find the contradiction score from the response
+      const contradictionResult = result[0].find((item: any) => 
         item.label === 'contradiction' || item.label === 'CONTRADICTION');
       
       if (contradictionResult) {
         return contradictionResult.score;
       }
       
-      // If we didn't find a "contradiction" label, try checking for indices
-      // Some models return [entailment, neutral, contradiction] in that order
-      if (result.length === 3 && typeof result[2]?.score === 'number') {
-        return result[2].score;
+      // If we didn't find a "contradiction" label, try checking each item
+      // Some models use different formats, so let's check all possibilities
+      for (const item of result[0]) {
+        if (item.label && item.label.toLowerCase().includes('contra')) {
+          return item.score;
+        }
       }
     }
     
