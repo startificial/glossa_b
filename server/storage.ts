@@ -15,7 +15,9 @@ import {
   documentTemplates, type DocumentTemplate, type InsertDocumentTemplate,
   documents, type Document, type InsertDocument,
   fieldMappings, type FieldMapping, type InsertFieldMapping,
-  workflows, type Workflow, type InsertWorkflow, type WorkflowNode, type WorkflowEdge
+  workflows, type Workflow, type InsertWorkflow, type WorkflowNode, type WorkflowEdge,
+  requirementComparisons, type RequirementComparison, type InsertRequirementComparison,
+  requirementComparisonTasks, type RequirementComparisonTask, type InsertRequirementComparisonTask
 } from "@shared/schema";
 import { ExtendedImplementationTask } from './extended-types';
 import { and, desc, eq, or, like, sql as drizzleSql, gte, lte, inArray } from 'drizzle-orm';
@@ -96,6 +98,18 @@ export interface IStorage {
   createWorkflow(workflow: InsertWorkflow): Promise<Workflow>;
   updateWorkflow(id: number, workflow: Partial<InsertWorkflow>): Promise<Workflow | undefined>;
   deleteWorkflow(id: number): Promise<boolean>;
+  
+  // Requirement Comparison methods
+  getRequirementComparisons(projectId: number): Promise<RequirementComparison[]>;
+  getRequirementComparisonsByRequirementId(requirementId: number): Promise<RequirementComparison[]>;
+  createRequirementComparison(comparison: InsertRequirementComparison): Promise<RequirementComparison>;
+  deleteAllRequirementComparisons(projectId: number): Promise<boolean>;
+  
+  // Requirement Comparison Task methods
+  getCurrentRequirementComparisonTask(projectId: number): Promise<RequirementComparisonTask | undefined>;
+  createRequirementComparisonTask(task: InsertRequirementComparisonTask): Promise<RequirementComparisonTask>;
+  updateRequirementComparisonTask(id: number, task: Partial<InsertRequirementComparisonTask>): Promise<RequirementComparisonTask | undefined>;
+  markAllPreviousTasksAsNotCurrent(projectId: number): Promise<boolean>;
   
   // Search methods
   quickSearch(userId: number, query: string, limit?: number): Promise<{
@@ -1187,6 +1201,120 @@ export class DatabaseStorage implements IStorage {
         totalResults: 0,
         totalPages: 1
       };
+    }
+  }
+
+  // Requirement Comparison methods
+  async getRequirementComparisons(projectId: number): Promise<RequirementComparison[]> {
+    try {
+      return await db.select().from(requirementComparisons)
+        .where(eq(requirementComparisons.projectId, projectId))
+        .orderBy(desc(requirementComparisons.comparedAt));
+    } catch (error) {
+      console.error('Error fetching requirement comparisons:', error);
+      return [];
+    }
+  }
+
+  async getRequirementComparisonsByRequirementId(requirementId: number): Promise<RequirementComparison[]> {
+    try {
+      return await db.select().from(requirementComparisons)
+        .where(
+          or(
+            eq(requirementComparisons.requirementId1, requirementId),
+            eq(requirementComparisons.requirementId2, requirementId)
+          )
+        )
+        .orderBy(desc(requirementComparisons.comparedAt));
+    } catch (error) {
+      console.error('Error fetching requirement comparisons by requirement ID:', error);
+      return [];
+    }
+  }
+
+  async createRequirementComparison(comparison: InsertRequirementComparison): Promise<RequirementComparison> {
+    try {
+      const [newComparison] = await db.insert(requirementComparisons).values(comparison).returning();
+      return newComparison;
+    } catch (error) {
+      console.error('Error creating requirement comparison:', error);
+      throw error;
+    }
+  }
+
+  async deleteAllRequirementComparisons(projectId: number): Promise<boolean> {
+    try {
+      await db.delete(requirementComparisons).where(eq(requirementComparisons.projectId, projectId));
+      return true;
+    } catch (error) {
+      console.error('Error deleting requirement comparisons:', error);
+      return false;
+    }
+  }
+
+  // Requirement Comparison Task methods
+  async getCurrentRequirementComparisonTask(projectId: number): Promise<RequirementComparisonTask | undefined> {
+    try {
+      const result = await db.select().from(requirementComparisonTasks)
+        .where(
+          and(
+            eq(requirementComparisonTasks.projectId, projectId),
+            eq(requirementComparisonTasks.isCurrent, true)
+          )
+        )
+        .orderBy(desc(requirementComparisonTasks.startedAt))
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error('Error fetching current requirement comparison task:', error);
+      return undefined;
+    }
+  }
+
+  async createRequirementComparisonTask(task: InsertRequirementComparisonTask): Promise<RequirementComparisonTask> {
+    try {
+      // Mark all previous tasks as not current
+      await this.markAllPreviousTasksAsNotCurrent(task.projectId);
+      
+      // Create new task
+      const [newTask] = await db.insert(requirementComparisonTasks).values(task).returning();
+      return newTask;
+    } catch (error) {
+      console.error('Error creating requirement comparison task:', error);
+      throw error;
+    }
+  }
+
+  async updateRequirementComparisonTask(id: number, task: Partial<InsertRequirementComparisonTask>): Promise<RequirementComparisonTask | undefined> {
+    try {
+      const [updatedTask] = await db.update(requirementComparisonTasks)
+        .set(task)
+        .where(eq(requirementComparisonTasks.id, id))
+        .returning();
+      
+      return updatedTask;
+    } catch (error) {
+      console.error('Error updating requirement comparison task:', error);
+      return undefined;
+    }
+  }
+
+  async markAllPreviousTasksAsNotCurrent(projectId: number): Promise<boolean> {
+    try {
+      await db.update(requirementComparisonTasks)
+        .set({ isCurrent: false })
+        .where(
+          and(
+            eq(requirementComparisonTasks.projectId, projectId),
+            eq(requirementComparisonTasks.isCurrent, true)
+          )
+        );
+      
+      return true;
+    } catch (error) {
+      console.error('Error marking previous tasks as not current:', error);
+      return false;
     }
   }
 }
