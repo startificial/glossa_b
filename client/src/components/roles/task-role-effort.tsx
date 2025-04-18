@@ -118,12 +118,12 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
     deleteRoleEffortMutation.mutate(effortId);
   };
 
-  // Filter out roles that are already assigned to prevent duplicates
+  // Get all available roles (allowing multiple assignments of the same role)
   const getAvailableRoles = () => {
     if (!roles || !roleEfforts) return [];
     
-    const assignedRoleIds = roleEfforts.map(effort => effort.roleId);
-    return roles.filter(role => !assignedRoleIds.includes(role.id));
+    // Return all roles - multiple assignments of the same role are now allowed
+    return roles;
   };
 
   // Get the role object for a given role ID
@@ -202,7 +202,7 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
               disabled={availableRoles.length === 0}
             >
               <Plus className="mr-1 h-4 w-4" />
-              Assign Role
+              Add Role
             </Button>
           )}
         </CardTitle>
@@ -233,7 +233,7 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
           <>
             {isAdding && (
               <div className="space-y-4 mb-6 p-4 border rounded-md bg-slate-50 dark:bg-slate-900">
-                <h4 className="text-sm font-medium">Assign Role</h4>
+                <h4 className="text-sm font-medium">Add Role</h4>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -398,13 +398,13 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
                 {!isAdding && (
                   <Button onClick={() => setIsAdding(true)} disabled={availableRoles.length === 0}>
                     <Plus className="mr-2 h-4 w-4" />
-                    Assign First Role
+                    Add First Role
                   </Button>
                 )}
                 
-                {availableRoles.length === 0 && roles && roles.length > 0 && (
+                {roles && roles.length === 0 && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    All available roles have been assigned to this task
+                    No roles available for this project
                   </p>
                 )}
               </div>
