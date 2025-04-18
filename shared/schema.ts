@@ -611,3 +611,88 @@ export interface WorkflowEdge {
 
 export type Workflow = typeof workflows.$inferSelect;
 export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
+
+/**
+ * Requirement Comparisons Table - Stores NLI comparison results between requirements
+ * 
+ * Persists the results of Natural Language Inference comparisons between pairs of
+ * requirements, allowing for asynchronous processing and tracking changes over time.
+ * 
+ * Relationships:
+ * - Many-to-one with Project (comparisons belong to a project)
+ * - References to Requirements (stored as requirement_id_1 and requirement_id_2)
+ */
+export const requirementComparisons = pgTable("requirement_comparisons", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  requirementId1: integer("requirement_id_1").notNull().references(() => requirements.id),
+  requirementId2: integer("requirement_id_2").notNull().references(() => requirements.id),
+  requirementText1: text("requirement_text_1").notNull(), // Store the text at comparison time
+  requirementText2: text("requirement_text_2").notNull(), // Store the text at comparison time
+  similarityScore: integer("similarity_score").notNull(), // Stored as integer 0-100
+  nliContradictionScore: integer("nli_contradiction_score").notNull(), // Stored as integer 0-100
+  isContradiction: boolean("is_contradiction").notNull().default(false),
+  comparedAt: timestamp("compared_at").defaultNow().notNull(),
+});
+
+/**
+ * Requirement Comparison insert validation schema
+ * Defines fields required when creating a new comparison record
+ */
+export const insertRequirementComparisonSchema = createInsertSchema(requirementComparisons).pick({
+  projectId: true,
+  requirementId1: true,
+  requirementId2: true,
+  requirementText1: true,
+  requirementText2: true,
+  similarityScore: true,
+  nliContradictionScore: true,
+  isContradiction: true,
+});
+
+export type RequirementComparison = typeof requirementComparisons.$inferSelect;
+export type InsertRequirementComparison = z.infer<typeof insertRequirementComparisonSchema>;
+
+/**
+ * Requirement Comparison Tasks Table - Tracks async comparison job status
+ * 
+ * Stores the status of asynchronous processing jobs for requirement comparisons,
+ * allowing for progress tracking and result persistence.
+ * 
+ * Relationships:
+ * - Many-to-one with Project (jobs belong to a project)
+ */
+export const requirementComparisonTasks = pgTable("requirement_comparison_tasks", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  status: text("status").notNull().default("pending"), // Valid values: 'pending', 'processing', 'completed', 'failed'
+  progress: integer("progress").notNull().default(0), // Progress percentage (0-100)
+  totalComparisons: integer("total_comparisons").notNull().default(0), // Total number of comparisons to make
+  completedComparisons: integer("completed_comparisons").notNull().default(0), // Number of completed comparisons
+  currentRequirement1: integer("current_requirement_1"), // Current requirement being processed (id)
+  currentRequirement2: integer("current_requirement_2"), // Current requirement being compared (id)
+  error: text("error"), // Error message if status is 'failed'
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"), // Null if not completed
+  isCurrent: boolean("is_current").notNull().default(true), // Flag to indicate if this is the most recent task
+});
+
+/**
+ * Requirement Comparison Task insert validation schema
+ * Defines fields required when creating a new comparison task
+ */
+export const insertRequirementComparisonTaskSchema = createInsertSchema(requirementComparisonTasks).pick({
+  projectId: true,
+  status: true,
+  progress: true,
+  totalComparisons: true,
+  completedComparisons: true,
+  currentRequirement1: true,
+  currentRequirement2: true,
+  error: true,
+  completedAt: true,
+  isCurrent: true,
+});
+
+export type RequirementComparisonTask = typeof requirementComparisonTasks.$inferSelect;
+export type InsertRequirementComparisonTask = z.infer<typeof insertRequirementComparisonTaskSchema>;
