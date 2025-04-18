@@ -21,9 +21,8 @@ import {
 } from '../shared/schema';
 import fetch from 'node-fetch';
 
-// Constants
-const SIMILARITY_MODEL = 'sentence-transformers/all-mpnet-base-v2';
-const NLI_MODEL = 'MoritzLaurer/DeBERTa-v3-base-mnli';
+// Define the custom endpoint URL
+const CUSTOM_NLI_ENDPOINT = 'https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.huggingface.cloud';
 const DEFAULT_OPTIONS: AnalysisOptions = {
   similarityThreshold: 0.6,
   nliThreshold: 0.55,
