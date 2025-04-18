@@ -3004,6 +3004,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Project roles routes
   app.use('/api', projectRolesRoutes);
   
+  // Direct routes for requirement and task role efforts (needed for frontend compatibility)
+  app.get('/api/requirements/:requirementId/role-efforts', isAuthenticated, async (req, res) => {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: 'Invalid requirement ID' });
+      }
+      
+      // Call the controller method
+      const efforts = await requirementRoleEffortController.getEffortsByRequirementId(requirementId);
+      res.json(efforts);
+    } catch (error) {
+      console.error('Error getting requirement role efforts:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.post('/api/requirements/:requirementId/role-efforts', isAuthenticated, async (req, res) => {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: 'Invalid requirement ID' });
+      }
+      
+      // Get the requirement to determine the project ID
+      const requirement = await storage.getRequirementById(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: 'Requirement not found' });
+      }
+      
+      // Create the role effort
+      const effort = await requirementRoleEffortController.createEffortForRequirement(requirementId, requirement.projectId, req.body);
+      res.status(201).json(effort);
+    } catch (error) {
+      console.error('Error creating requirement role effort:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.delete('/api/requirements/:requirementId/role-efforts/:effortId', isAuthenticated, async (req, res) => {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      const effortId = parseInt(req.params.effortId);
+      if (isNaN(requirementId) || isNaN(effortId)) {
+        return res.status(400).json({ message: 'Invalid IDs' });
+      }
+      
+      // Get the requirement to determine the project ID
+      const requirement = await storage.getRequirementById(requirementId);
+      if (!requirement) {
+        return res.status(404).json({ message: 'Requirement not found' });
+      }
+      
+      // Delete the role effort
+      await requirementRoleEffortController.deleteEffortById(requirement.projectId, requirementId, effortId);
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting requirement role effort:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // Task role efforts direct routes
+  app.get('/api/tasks/:taskId/role-efforts', isAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ message: 'Invalid task ID' });
+      }
+      
+      // Call the controller method
+      const efforts = await taskRoleEffortController.getEffortsByTaskId(taskId);
+      res.json(efforts);
+    } catch (error) {
+      console.error('Error getting task role efforts:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.post('/api/tasks/:taskId/role-efforts', isAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ message: 'Invalid task ID' });
+      }
+      
+      // Get the task to determine the project ID
+      const task = await storage.getTaskById(taskId);
+      if (!task) {
+        return res.status(404).json({ message: 'Task not found' });
+      }
+      
+      // Create the role effort
+      const effort = await taskRoleEffortController.createEffortForTask(taskId, task.projectId, req.body);
+      res.status(201).json(effort);
+    } catch (error) {
+      console.error('Error creating task role effort:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  app.delete('/api/tasks/:taskId/role-efforts/:effortId', isAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      const effortId = parseInt(req.params.effortId);
+      if (isNaN(taskId) || isNaN(effortId)) {
+        return res.status(400).json({ message: 'Invalid IDs' });
+      }
+      
+      // Get the task to determine the project ID
+      const task = await storage.getTaskById(taskId);
+      if (!task) {
+        return res.status(404).json({ message: 'Task not found' });
+      }
+      
+      // Delete the role effort
+      await taskRoleEffortController.deleteEffortById(task.projectId, taskId, effortId);
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting task role effort:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
   // Simple PDF generator routes will be registered separately
 
   // Requirement contradiction analysis endpoint
