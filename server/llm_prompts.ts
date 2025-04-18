@@ -188,6 +188,7 @@ Create 3-6 detailed implementation tasks that would be needed to fulfill this re
 3. Specify the system or component where the work needs to be done
 4. Include complexity and estimated effort
 5. Specify dependencies or prerequisites where applicable
+6. Include 3-5 step-by-step implementation steps that clearly outline how to accomplish the task
 
 For {targetSystem} tasks, include specific technical details like object types, fields, workflows, integrations, or UI components that would need to be created or modified.
 
@@ -201,7 +202,19 @@ Respond with a valid JSON array in this format:
     "complexity": "simple|moderate|complex",
     "estimatedHours": number,
     "dependencies": ["Prerequisite tasks or components"],
-    "priority": "high|medium|low"
+    "priority": "high|medium|low",
+    "implementationSteps": [
+      {
+        "stepNumber": 1,
+        "stepDescription": "Detailed description of the first implementation step",
+        "relevantDocumentationLinks": ["URL to relevant documentation or empty array"]
+      },
+      {
+        "stepNumber": 2,
+        "stepDescription": "Detailed description of the second implementation step",
+        "relevantDocumentationLinks": ["URL to relevant documentation or empty array"]
+      }
+    ]
   },
   ...
 ]
