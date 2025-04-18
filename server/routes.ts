@@ -6,6 +6,7 @@ import { createProjectInDb, updateProjectInDb } from "./database";
 import documentTemplateRoutes from './routes/document-templates';
 import documentRoutes from './routes/documents';
 import pdfRoutes from './routes/pdf-route';
+import projectRolesRoutes from './routes/project-roles';
 import { 
   insertProjectSchema, 
   insertInputDataSchema, 
@@ -2999,6 +3000,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Documents routes
   app.use('/api/documents', documentRoutes);
+  
+  // Project roles routes
+  app.use('/api', projectRolesRoutes);
   
   // Simple PDF generator routes will be registered separately
 

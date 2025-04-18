@@ -7,7 +7,7 @@
 import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { asyncHandler } from '../utils/async-handler';
-import { UnauthorizedError, NotFoundError, BadRequestError } from '../utils/errors';
+import { UnauthorizedError, NotFoundError, BadRequestError } from '../error/api-error';
 import { z } from 'zod';
 import { insertRequirementRoleEffortSchema } from '@shared/schema';
 

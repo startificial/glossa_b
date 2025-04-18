@@ -6,7 +6,7 @@
  */
 import { Request, Response } from 'express';
 import { requirementService, projectService } from '../services';
-import { asyncHandler } from '../middleware/error-handler';
+import { asyncHandler } from '../utils/async-handler';
 import { insertRequirementSchema } from '@shared/schema';
 import { UnauthorizedError, ForbiddenError } from '../error/api-error';
 

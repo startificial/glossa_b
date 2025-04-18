@@ -6,7 +6,7 @@
  */
 import { Request, Response } from 'express';
 import { userService } from '../services';
-import { asyncHandler } from '../middleware/error-handler';
+import { asyncHandler } from '../utils/async-handler';
 import { insertUserSchema } from '@shared/schema';
 import { z } from 'zod';
 import { UnauthorizedError } from '../error/api-error';
