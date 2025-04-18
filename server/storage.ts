@@ -17,7 +17,10 @@ import {
   fieldMappings, type FieldMapping, type InsertFieldMapping,
   workflows, type Workflow, type InsertWorkflow, type WorkflowNode, type WorkflowEdge,
   requirementComparisons, type RequirementComparison, type InsertRequirementComparison,
-  requirementComparisonTasks, type RequirementComparisonTask, type InsertRequirementComparisonTask
+  requirementComparisonTasks, type RequirementComparisonTask, type InsertRequirementComparisonTask,
+  projectRoles, type ProjectRole, type InsertProjectRole,
+  requirementRoleEfforts, type RequirementRoleEffort, type InsertRequirementRoleEffort,
+  taskRoleEfforts, type TaskRoleEffort, type InsertTaskRoleEffort
 } from "@shared/schema";
 import { ExtendedImplementationTask } from './extended-types';
 import { and, desc, eq, or, like, sql as drizzleSql, gte, lte, inArray } from 'drizzle-orm';
@@ -461,6 +464,159 @@ export class DatabaseStorage implements IStorage {
       return true;
     } catch (error) {
       console.error('Error deleting project:', error);
+      return false;
+    }
+  }
+  
+  // Project Role methods
+  async getProjectRole(id: number): Promise<ProjectRole | undefined> {
+    try {
+      const result = await db.select().from(projectRoles).where(eq(projectRoles.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error fetching project role:', error);
+      return undefined;
+    }
+  }
+
+  async getProjectRoles(projectId: number): Promise<ProjectRole[]> {
+    try {
+      return await db.select()
+        .from(projectRoles)
+        .where(eq(projectRoles.projectId, projectId))
+        .orderBy(projectRoles.name);
+    } catch (error) {
+      console.error('Error fetching project roles:', error);
+      return [];
+    }
+  }
+
+  async createProjectRole(role: InsertProjectRole): Promise<ProjectRole> {
+    try {
+      const [newRole] = await db.insert(projectRoles).values(role).returning();
+      return newRole;
+    } catch (error) {
+      console.error('Error creating project role:', error);
+      throw error;
+    }
+  }
+
+  async updateProjectRole(id: number, roleData: Partial<InsertProjectRole>): Promise<ProjectRole | undefined> {
+    try {
+      const [updatedRole] = await db.update(projectRoles)
+        .set({ ...roleData, updatedAt: new Date() })
+        .where(eq(projectRoles.id, id))
+        .returning();
+      
+      return updatedRole;
+    } catch (error) {
+      console.error('Error updating project role:', error);
+      return undefined;
+    }
+  }
+
+  async deleteProjectRole(id: number): Promise<boolean> {
+    try {
+      await db.delete(projectRoles).where(eq(projectRoles.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error deleting project role:', error);
+      return false;
+    }
+  }
+  
+  // Requirement Role Effort methods
+  async getRequirementRoleEfforts(requirementId: number): Promise<RequirementRoleEffort[]> {
+    try {
+      const efforts = await db.select()
+        .from(requirementRoleEfforts)
+        .where(eq(requirementRoleEfforts.requirementId, requirementId));
+      
+      return efforts;
+    } catch (error) {
+      console.error('Error fetching requirement role efforts:', error);
+      return [];
+    }
+  }
+
+  async createRequirementRoleEffort(effort: InsertRequirementRoleEffort): Promise<RequirementRoleEffort> {
+    try {
+      const [newEffort] = await db.insert(requirementRoleEfforts).values(effort).returning();
+      return newEffort;
+    } catch (error) {
+      console.error('Error creating requirement role effort:', error);
+      throw error;
+    }
+  }
+
+  async updateRequirementRoleEffort(id: number, effortData: Partial<InsertRequirementRoleEffort>): Promise<RequirementRoleEffort | undefined> {
+    try {
+      const [updatedEffort] = await db.update(requirementRoleEfforts)
+        .set({ ...effortData, updatedAt: new Date() })
+        .where(eq(requirementRoleEfforts.id, id))
+        .returning();
+      
+      return updatedEffort;
+    } catch (error) {
+      console.error('Error updating requirement role effort:', error);
+      return undefined;
+    }
+  }
+
+  async deleteRequirementRoleEffort(id: number): Promise<boolean> {
+    try {
+      await db.delete(requirementRoleEfforts).where(eq(requirementRoleEfforts.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error deleting requirement role effort:', error);
+      return false;
+    }
+  }
+  
+  // Task Role Effort methods
+  async getTaskRoleEfforts(taskId: number): Promise<TaskRoleEffort[]> {
+    try {
+      const efforts = await db.select()
+        .from(taskRoleEfforts)
+        .where(eq(taskRoleEfforts.taskId, taskId));
+      
+      return efforts;
+    } catch (error) {
+      console.error('Error fetching task role efforts:', error);
+      return [];
+    }
+  }
+
+  async createTaskRoleEffort(effort: InsertTaskRoleEffort): Promise<TaskRoleEffort> {
+    try {
+      const [newEffort] = await db.insert(taskRoleEfforts).values(effort).returning();
+      return newEffort;
+    } catch (error) {
+      console.error('Error creating task role effort:', error);
+      throw error;
+    }
+  }
+
+  async updateTaskRoleEffort(id: number, effortData: Partial<InsertTaskRoleEffort>): Promise<TaskRoleEffort | undefined> {
+    try {
+      const [updatedEffort] = await db.update(taskRoleEfforts)
+        .set({ ...effortData, updatedAt: new Date() })
+        .where(eq(taskRoleEfforts.id, id))
+        .returning();
+      
+      return updatedEffort;
+    } catch (error) {
+      console.error('Error updating task role effort:', error);
+      return undefined;
+    }
+  }
+
+  async deleteTaskRoleEffort(id: number): Promise<boolean> {
+    try {
+      await db.delete(taskRoleEfforts).where(eq(taskRoleEfforts.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error deleting task role effort:', error);
       return false;
     }
   }
