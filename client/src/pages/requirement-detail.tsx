@@ -17,9 +17,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getCategoryColor, getPriorityInfo, formatDateTime } from '@/lib/utils';
-import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles, Wrench, Video, FileText, AudioWaveform, Eye } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, Trash2, Clock, AlertTriangle, CheckCircle2, X, Plus, Sparkles, Wrench, Video, FileText, AudioWaveform, Eye, Users } from 'lucide-react';
 import { TasksTable } from '@/components/implementation-tasks/tasks-table';
 import { ReferenceDataTab } from '@/components/reference-data/reference-data-tab';
+import { RequirementRoleEffort } from '@/components/roles/requirement-role-effort';
 
 interface RequirementDetailProps {
   projectId: number;
@@ -690,6 +691,10 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   <TabsTrigger className="text-xs sm:text-sm" value="metadata">Metadata</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="acceptance">Acceptance Criteria</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="tasks">Implementation Tasks</TabsTrigger>
+                  <TabsTrigger className="text-xs sm:text-sm" value="roles">
+                    <Users className="h-3.5 w-3.5 mr-1" />
+                    Roles
+                  </TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="references">Reference Data</TabsTrigger>
                   <TabsTrigger className="text-xs sm:text-sm" value="history">History</TabsTrigger>
                 </TabsList>
