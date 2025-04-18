@@ -3026,12 +3026,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Log models being used
-      console.log('Using HuggingFace API with models:');
-      console.log('- Similarity: sentence-transformers/all-mpnet-base-v2');
-      console.log('- NLI: MoritzLaurer/DeBERTa-v3-base-mnli');
+      // Log custom endpoint being used
+      console.log('Using HuggingFace custom inference endpoint:');
+      console.log('- Endpoint: https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.huggingface.cloud');
       
-      // Analyze contradictions using HuggingFace API
+      // Analyze contradictions using custom HuggingFace endpoint
       const analysisResult = await analyzeContradictions(requirementsInput);
       
       // For synchronous requests, log detailed results
@@ -3120,10 +3119,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract requirement descriptions for analysis
       const requirementTexts = projectRequirements.map(req => req.description);
       
-      // Log models being used
-      console.log('Using HuggingFace API with models:');
-      console.log('- Similarity: sentence-transformers/all-mpnet-base-v2');
-      console.log('- NLI: MoritzLaurer/DeBERTa-v3-base-mnli');
+      // Log custom endpoint being used
+      console.log('Using HuggingFace custom inference endpoint:');
+      console.log('- Endpoint: https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.huggingface.cloud');
       
       // Analyze contradictions - use async mode for larger projects
       const useAsync = projectRequirements.length > 20; // Use async for projects with many requirements

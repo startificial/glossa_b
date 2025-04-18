@@ -11,10 +11,9 @@ import {
  * Now supports both synchronous and asynchronous processing
  */
 export async function analyzeContradictions(input: RequirementsInput): Promise<AnalysisResponse> {
-  console.log('Using HuggingFace API for contradiction analysis');
-  console.log('Models in use:');
-  console.log('- Similarity: sentence-transformers/all-mpnet-base-v2');
-  console.log('- NLI: MoritzLaurer/DeBERTa-v3-base-mnli');
+  console.log('Using HuggingFace custom inference endpoint for contradiction analysis');
+  console.log('Custom endpoint:');
+  console.log('- Endpoint: https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.huggingface.cloud');
 
   // If async processing is requested and projectId is provided, use async implementation
   if (input.async && input.projectId) {

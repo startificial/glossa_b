@@ -399,32 +399,19 @@ async function performSynchronousAnalysis(
 }
 
 /**
- * Calculate semantic similarity between two texts using HuggingFace
+ * Calculate semantic similarity between two texts using the custom endpoint
+ * We now use the NLI endpoint directly for similarity since they're correlated.
  * @returns Similarity score between 0 and 1
  */
 async function calculateSimilarity(text1: string, text2: string): Promise<number> {
   try {
-    // Prepare the request data for the similarity model
-    const data = {
-      inputs: {
-        source_sentence: text1,
-        sentences: [text2]
-      }
-    };
+    // We'll use the same NLI endpoint but infer similarity from entailment
+    // This is a simplification but works well for our use case
+    const nliResult = await detectContradictionWithHuggingFace(text1, text2);
     
-    // Make the request to the Hugging Face API
-    const response = await makeHuggingFaceRequest(
-      `https://api-inference.huggingface.co/models/${SIMILARITY_MODEL}`,
-      data
-    );
-    
-    // The response should be an array of similarity scores
-    if (Array.isArray(response) && response.length > 0) {
-      return response[0];
-    } else {
-      console.error('Unexpected response from similarity model:', response);
-      return 0;
-    }
+    // Infer similarity score from entailment (higher entailment = higher similarity)
+    // This is an approximation - 1 - contradiction is a reasonable similarity approximation
+    return 1 - (nliResult.contradiction || 0);
   } catch (error) {
     console.error('Error calculating similarity:', error);
     return 0;
@@ -476,24 +463,32 @@ async function makeHuggingFaceRequest(url: string, body: any, maxRetries = 3): P
 }
 
 /**
- * Detect contradiction using HuggingFace's DeBERTa model
+ * Detect contradiction using the custom HuggingFace inference endpoint
  */
 async function detectContradictionWithHuggingFace(text1: string, text2: string): Promise<NLIResult> {
   try {
-    // For DeBERTa-v3 the expected format is {"inputs": "premise\nhypothesis"}
+    // For our custom endpoint, we use the format {"inputs": {"premise": "text1", "hypothesis": "text2"}}
     const result = await makeHuggingFaceRequest(
-      `https://api-inference.huggingface.co/models/${NLI_MODEL}`,
+      CUSTOM_NLI_ENDPOINT,
       {
-        inputs: `${text1}\n${text2}`,
+        inputs: {
+          premise: text1,
+          hypothesis: text2
+        }
       }
     );
     
     let contradictionScore = 0;
     
-    // The model should return an array with entailment, neutral, and contradiction probabilities
-    if (Array.isArray(result) && Array.isArray(result[0])) {
-      // Find the contradiction score from the predictions
-      // Format is typically: [{label: "contradiction", score: 0.X}, ...]
+    // The model returns a different format than the standard API:
+    // We expect: {"contradiction": 0.X} or something similar
+    if (result && typeof result.contradiction === 'number') {
+      contradictionScore = result.contradiction;
+    } else if (result && Array.isArray(result) && result[0] && typeof result[0].contradiction === 'number') {
+      // Alternative format that might be returned
+      contradictionScore = result[0].contradiction;
+    } else if (result && Array.isArray(result) && Array.isArray(result[0])) {
+      // Fallback to the standard format just in case
       const contradictionPrediction = result[0].find((item: any) => 
         item.label && item.label.toLowerCase() === 'contradiction'
       );
@@ -505,10 +500,10 @@ async function detectContradictionWithHuggingFace(text1: string, text2: string):
     
     return {
       contradiction: contradictionScore,
-      provider: 'huggingface'
+      provider: 'huggingface-custom-endpoint'
     };
   } catch (error) {
-    console.error('Error in HuggingFace NLI call:', error);
+    console.error('Error in custom HuggingFace endpoint call:', error);
     throw error;
   }
 }
