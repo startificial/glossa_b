@@ -3031,7 +3031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get the requirement to determine the project ID
-      const requirement = await storage.getRequirementById(requirementId);
+      const requirement = await storage.getRequirement(requirementId);
       if (!requirement) {
         return res.status(404).json({ message: 'Requirement not found' });
       }
@@ -3055,7 +3055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get the requirement to determine the project ID
-      const requirement = await storage.getRequirementById(requirementId);
+      const requirement = await storage.getRequirement(requirementId);
       if (!requirement) {
         return res.status(404).json({ message: 'Requirement not found' });
       }
