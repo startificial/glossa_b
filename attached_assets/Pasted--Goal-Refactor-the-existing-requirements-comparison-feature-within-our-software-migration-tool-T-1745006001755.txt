@@ -1,0 +1,55 @@
+*Goal:** Refactor the existing requirements comparison feature within our software migration tool. The current feature likely performs a synchronous comparison using Natural Language Inference (NLI). We need to enhance it to run asynchronously, persist its results, provide better user feedback during processing, and indicate when results are potentially outdated.
+
+**Context:**
+* The tool helps manage software migrations.
+* A key feature involves comparing requirement descriptions (presumably text-based) against each other to identify potential conflicts, overlaps, or dependencies.
+* This comparison utilizes a Natural Language Inference (NLI) model or service.
+
+**Current State (Assumed):**
+* The NLI comparison check is likely triggered by a user action.
+* It probably runs synchronously, potentially blocking the UI during execution.
+* Comparison results are likely not persisted between sessions or runs.
+* Loading indication might be basic (e.g., a simple spinner) without detailed progress.
+
+**Required Changes:**
+
+1.  **Asynchronous Execution:**
+    * Modify the NLI comparison logic to execute asynchronously (e.g., using background tasks, workers, message queues, or async/await patterns relevant to the application's tech stack).
+    * Ensure the user interface remains responsive while the comparison runs in the background.
+
+2.  **Persistence:**
+    * Implement a mechanism to store (persist) the results of the NLI comparison.
+    * The persisted data should include, at minimum:
+        * Identifiers of the two requirements being compared.
+        * The NLI result (e.g., entailment, contradiction, neutral, similarity score, etc. - whatever the NLI process outputs).
+        * A timestamp indicating when this specific comparison pair was last successfully computed.
+    * Store a global timestamp or status indicating when the *entire* comparison process (for all relevant pairs) was last completed.
+
+3.  **Enhanced Progress Indication (UI):**
+    * When the asynchronous comparison task is running, update the UI to show a dynamic loading indicator.
+    * This indicator should provide more granular feedback on the progress, such as:
+        * "Processing comparison X of Y..."
+        * "Comparing Requirement 'ABC' vs Requirement 'XYZ'..."
+        * A percentage completion status or a progress bar.
+    * Ensure this progress display is updated in near real-time based on feedback from the asynchronous task.
+
+4.  **"Stale Results" Flag (UI & Logic):**
+    * Implement logic to check if any requirements have been added or significantly modified *since* the timestamp of the last completed comparison run (the global timestamp from point 2).
+    * If new/modified requirements exist that haven't been included in the last persisted comparison run, display a clear visual indicator or message in the UI (e.g., "Comparison results may be outdated due to new requirements. Re-run comparison.").
+    * This flag should be visible when viewing the requirements or the comparison results area.
+
+**Technical Considerations (Provide specifics if known, otherwise LLM can make assumptions):**
+* **Backend:** [Specify Language/Framework, e.g., Python/Django, Node.js/Express, Java/Spring] - How will the async task be managed? (e.g., Celery, BullMQ, Akka, asyncio)
+* **Frontend:** [Specify Framework, e.g., React, Vue, Angular] - How will the frontend initiate the task, poll for status/progress, and display the updates/flag? (e.g., WebSockets, Server-Sent Events, periodic polling)
+* **Database:** [Specify Type, e.g., PostgreSQL, MongoDB, SQLite] - How will the comparison results be modeled and stored?
+* **NLI Service/Model:** [Specify if using an external API or internal model] - How is the NLI check currently invoked?
+
+**Deliverable:**
+Provide code snippets, architectural suggestions, or pseudocode demonstrating:
+* How to trigger and manage the asynchronous comparison task.
+* How to structure the data for persistence.
+* How the backend can report progress back to the frontend.
+* How the frontend can display the progress and the "stale results" flag.
+* The logic for determining if the results are stale.
+
+Focus on the changes needed to implement the asynchronous flow, persistence, progress reporting, and the stale flag logic. Assume the core NLI comparison function itself already exists.
