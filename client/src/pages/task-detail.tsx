@@ -413,8 +413,15 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
 
                   {task.overallDocumentationLinks && task.overallDocumentationLinks.length > 0 && (
                     <div className="border rounded-md p-4 mb-4">
-                      <div className="text-sm font-medium mb-2">Overall Documentation</div>
-                      <div className="space-y-2">
+                      <div className="flex items-center mb-3">
+                        <div className="bg-purple-50 p-1.5 rounded-md mr-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600">
+                            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+                          </svg>
+                        </div>
+                        <h4 className="text-sm font-medium">Overall Documentation</h4>
+                      </div>
+                      <div className="space-y-2 pl-1">
                         {task.overallDocumentationLinks.map((link: string, index: number) => (
                           <div key={index} className="flex items-start">
                             <a 
