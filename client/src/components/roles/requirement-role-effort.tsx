@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Plus, Trash2, Users } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiRequest } from "@/lib/queryClient";
-import { ProjectRole, RequirementRoleEffort } from "@/lib/types";
+import { ProjectRole, RequirementRoleEffort as RequirementRoleEffortType } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 

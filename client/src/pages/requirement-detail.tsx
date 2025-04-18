@@ -1031,7 +1031,12 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                   </div>
                 </TabsContent>
                 
-
+                <TabsContent value="roles">
+                  <RequirementRoleEffort
+                    projectId={projectId}
+                    requirementId={requirementId}
+                  />
+                </TabsContent>
                 
                 <TabsContent value="references">
                   <ReferenceDataTab 
