@@ -414,10 +414,17 @@ async function performSynchronousAnalysis(
  * Calculate semantic similarity between two texts using the custom endpoint
  * We now use the NLI endpoint directly for similarity since they're correlated.
  * 
- * From the API response:
- * - High entailment score means requirement2 follows from requirement1 (potential duplicate/overlap)
- * - High neutral score means requirements are unrelated
- * - High contradiction score means requirements are contradictory
+ * IMPORTANT NOTE:
+ * For our custom endpoint, the response format is:
+ * [
+ *   { "label": "entailment", "score": 0.0003... },
+ *   { "label": "neutral", "score": 0.0028... },
+ *   { "label": "contradiction", "score": 0.996... }
+ * ]
+ * 
+ * The key insight is that a high contradiction score is what we're looking for,
+ * so we need to ensure these pairs get processed further even though they may
+ * have very low entailment scores.
  * 
  * @returns A similarity score between 0 and 1
  */
@@ -437,9 +444,7 @@ async function calculateSimilarity(text1: string, text2: string): Promise<number
     console.log('Using custom HuggingFace inference endpoint for similarity detection');
     console.log('API response:', JSON.stringify(result).substring(0, 150) + '...');
     
-    // Based on example: [{"label":"entailment","score":0.0007...}, {"label":"neutral","score":0.7013...}, {"label":"contradiction","score":0.2979...}]
-    
-    // Process the response to extract entailment, neutral, and contradiction scores
+    // Process the response to extract scores from the array format
     if (Array.isArray(result) && result.length > 0) {
       // Find the items for each classification by label
       const entailmentItem = result.find(item => item && item.label && item.label.toLowerCase() === 'entailment');
@@ -453,34 +458,47 @@ async function calculateSimilarity(text1: string, text2: string): Promise<number
       
       console.log(`Scores - Entailment: ${entailmentScore.toFixed(4)}, Contradiction: ${contradictionScore.toFixed(4)}, Neutral: ${neutralScore.toFixed(4)}`);
       
-      // For the custom endpoint, the contradiction score is very important
-      // since we're specifically looking for contradictions
-      // With this endpoint, a high entailment score means the requirements are semantically similar
-      // A high contradiction score means they contradict - also important for us to detect
+      // With the custom endpoint, we need to carefully consider how to process contradictions
+      // The key issue is that our normal flow checks similarity FIRST before checking contradiction,
+      // so we need to make sure contradictory pairs pass the similarity threshold
       
-      // If there's a high contradiction score, return a high similarity to ensure it passes the threshold
-      if (contradictionScore > 0.8) {
-        console.log(`High contradiction detected (${contradictionScore.toFixed(4)})`);
-        return 0.99; // Ensure we analyze it for contradiction
+      // For this custom endpoint, the key observations are:
+      // 1. High contradiction score really indicates contradiction (our target use case)
+      // 2. Entailment scores are often extremely small (e.g., 0.0003) even for identical requirements
+      
+      // STRATEGY: Return high similarity (>threshold) for ANY hint of contradiction
+      // This ensures the detection flow continues to the NLI check
+      if (contradictionScore > 0.5) {
+        console.log(`High contradiction detected (${contradictionScore.toFixed(4)}), treating as high similarity`);
+        // Return very high similarity to ensure the pair gets processed further
+        return 0.99;
       }
       
-      // If there's a reasonable entailment score, also return similarity
-      if (entailmentScore > 0.0001) {
-        console.log(`Entailment detected (${entailmentScore.toFixed(4)})`);
-        return 0.9; // High enough to pass threshold
+      // If entailment is the highest score, return it as-is
+      if (entailmentScore > neutralScore && entailmentScore > contradictionScore) {
+        console.log(`Entailment is highest score (${entailmentScore.toFixed(4)})`);
+        return entailmentScore;
       }
       
-      // If neither entailment nor contradiction is high, use the contradiction score directly
-      // This is because our endpoint specifically assesses contradiction which is what we're looking for
-      return contradictionScore;
+      // If contradiction is the highest score but below 0.5, still give it a boost
+      // to make sure it passes our very low similarity threshold
+      if (contradictionScore > entailmentScore && contradictionScore > neutralScore) {
+        console.log(`Contradiction is highest score (${contradictionScore.toFixed(4)}), boosting similarity`);
+        return Math.max(0.01, contradictionScore);  // At least 0.01 to pass threshold
+      }
+      
+      // Default to the highest of all scores
+      const highestScore = Math.max(entailmentScore, contradictionScore, neutralScore);
+      console.log(`Using highest score as similarity: ${highestScore.toFixed(4)}`);
+      return highestScore;
     }
     
     // If we couldn't parse the array format from the endpoint
     console.log('Could not parse expected format from API response, using default similarity');
-    return 0.7; // Default to middle similarity score
+    return 0.5; // Default to middle similarity score
   } catch (error) {
     console.error('Error calculating similarity:', error);
-    return 0.7; // Use middle value on error
+    return 0.5; // Use middle value on error
   }
 }
 
@@ -594,14 +612,33 @@ async function detectContradictionWithHuggingFace(text1: string, text2: string):
       
       console.log(`Scores - Entailment: ${entailmentScore.toFixed(4)}, Contradiction: ${contradictionScore.toFixed(4)}, Neutral: ${neutralScore.toFixed(4)}`);
       
-      // Based on the scores, determine if this is a contradiction
-      // If contradiction score is highest, it's likely a contradiction
+      // Based on the logs from the previous requirement pairs we've analyzed:
+      // [{"label":"entailment","score":0.00032250978983938694},
+      //  {"label":"neutral","score":0.002849949523806572},
+      //  {"label":"contradiction","score":0.9968275427818298}]
+      //
+      // When we have a very high contradiction score (>0.8), it's likely a contradiction
+      // even if it's not the highest score overall (though it normally should be)
+      if (contradictionScore > 0.8) {
+        console.log(`High contradiction score detected (${contradictionScore.toFixed(4)})`);
+        // Ensuring we score this as a contradiction regardless of other scores
+        contradictionScore = Math.max(contradictionScore, 0.95);
+      }
+      // Log which class had the highest score 
       if (contradictionScore > entailmentScore && contradictionScore > neutralScore) {
         console.log(`Contradiction likely (score: ${contradictionScore.toFixed(4)})`);
       } else if (entailmentScore > contradictionScore && entailmentScore > neutralScore) {
         console.log(`Entailment likely (score: ${entailmentScore.toFixed(4)})`);
+        // If entailment is high, lower contradiction score to avoid misclassifications
+        if (entailmentScore > 0.7) {
+          contradictionScore = Math.min(contradictionScore, 0.2);
+        }
       } else {
         console.log(`Neutral relationship likely (score: ${neutralScore.toFixed(4)})`);
+        // If neutral is high, also lower contradiction score
+        if (neutralScore > 0.7) {
+          contradictionScore = Math.min(contradictionScore, 0.1);
+        }
       }
     }
     // If it's a direct object with a contradiction property (unlikely but handled for completeness)

@@ -136,25 +136,39 @@ export async function calculateSimilarity(text1: string, text2: string): Promise
     if (Array.isArray(result)) {
       // For a direct array of objects like [{"label":"entailment","score":0.0003}, ...]
       if (result.length > 0 && typeof result[0] === 'object' && 'label' in result[0]) {
-        // Find the entailment score as a proxy for similarity
+        // Find the entailment score and contradiction score
         const entailmentItem = result.find((item: any) => 
           item && item.label && (item.label.toLowerCase() === 'entailment'));
         
         const contradictionItem = result.find((item: any) => 
           item && item.label && (item.label.toLowerCase() === 'contradiction'));
         
-        if (entailmentItem && typeof entailmentItem.score === 'number') {
-          console.log(`Found entailment score: ${entailmentItem.score}`);
-          // Return entailment score as a similarity measure
-          return entailmentItem.score;
+        // Extract both scores
+        const entailmentScore = entailmentItem && typeof entailmentItem.score === 'number' 
+          ? entailmentItem.score : 0;
+        
+        const contradictionScore = contradictionItem && typeof contradictionItem.score === 'number' 
+          ? contradictionItem.score : 0;
+          
+        console.log(`Found entailment score: ${entailmentScore}, contradiction score: ${contradictionScore}`);
+        
+        // For our custom endpoint: 
+        // - A high contradiction score is the most important signal, so prioritize it
+        // - This ensures that contradictory requirements get processed further
+        if (contradictionScore > 0.8) {
+          console.log(`High contradiction detected (${contradictionScore}), treating as high similarity`);
+          return 0.99; // Ensure these get picked up for further analysis
         }
         
-        // For measuring similarity between contradictory statements, we need to 
-        // consider the contradiction score too (they are semantically related)
-        if (contradictionItem && typeof contradictionItem.score === 'number') {
-          console.log(`Found contradiction score: ${contradictionItem.score}`);
-          // Return a higher similarity value when contradiction score is high
-          return contradictionItem.score > 0.5 ? 0.8 : contradictionItem.score;
+        // Entailment can also indicate similarity, but isn't as important for contradiction detection
+        if (entailmentScore > 0.1) {
+          return entailmentScore; 
+        }
+        
+        // If there's even a modest contradiction score, return a value
+        // that exceeds our very low similarityThreshold (0.0001)
+        if (contradictionScore > 0.1) {
+          return 0.01; // Enough to exceed threshold but not high
         }
         
         // As a fallback, use the highest score from any label as approximate similarity
