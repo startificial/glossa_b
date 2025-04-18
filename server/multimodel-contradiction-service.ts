@@ -23,11 +23,17 @@ import fetch from 'node-fetch';
 
 // Define the custom endpoint URL
 const CUSTOM_NLI_ENDPOINT = 'https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.huggingface.cloud';
+
+// Default options for the analysis
 const DEFAULT_OPTIONS: AnalysisOptions = {
-  similarityThreshold: 0.6,
-  nliThreshold: 0.55,
+  // For custom endpoint, we're forcing higher similarity threshold to ensure 
+  // all texts get processed with NLI
+  similarityThreshold: 0.5,
+  // Lower the NLI threshold to detect more potential contradictions
+  nliThreshold: 0.5,
   maxRequirements: 100,
-  fallbackEnabled: true
+  // No fallback - we exclusively use the custom endpoint
+  fallbackEnabled: false
 };
 
 /**
@@ -405,13 +411,73 @@ async function performSynchronousAnalysis(
  */
 async function calculateSimilarity(text1: string, text2: string): Promise<number> {
   try {
-    // We'll use the same NLI endpoint but infer similarity from entailment
-    // This is a simplification but works well for our use case
-    const nliResult = await detectContradictionWithHuggingFace(text1, text2);
+    // Make a direct request to the custom endpoint
+    const result = await makeHuggingFaceRequest(
+      CUSTOM_NLI_ENDPOINT,
+      {
+        inputs: {
+          premise: text1,
+          hypothesis: text2
+        }
+      }
+    );
     
-    // Infer similarity score from entailment (higher entailment = higher similarity)
-    // This is an approximation - 1 - contradiction is a reasonable similarity approximation
-    return 1 - (nliResult.contradiction || 0);
+    console.log('Using custom HuggingFace inference endpoint for similarity detection');
+    console.log('Similarity API response (via NLI):', JSON.stringify(result).substring(0, 100) + '...');
+    
+    // Based on the logs, we know the response is in the format: 
+    // [{"label":"entailment","score":0.0003...}, {"label":"neutral","score":0.0028...}, {"label":"contradiction","score":0.996...}]
+    
+    // Calculate similarity score from results
+    // A high contradiction score means low similarity
+    let similarityScore = 0.5; // Default middle value
+    
+    // If the response is an array containing labels and scores (as seen in logs)
+    if (Array.isArray(result) && result.length > 0) {
+      // Look for contradiction score
+      const contradictionItem = result.find((item: any) => 
+        item.label && item.label.toLowerCase() === 'contradiction'
+      );
+      
+      if (contradictionItem && typeof contradictionItem.score === 'number') {
+        // Inverse relationship between contradiction and similarity
+        similarityScore = 1 - contradictionItem.score;
+        console.log(`Found contradiction score: ${contradictionItem.score}, setting similarity to: ${similarityScore}`);
+      } else {
+        // Check for entailment as a fallback
+        const entailmentItem = result.find((item: any) => 
+          item.label && item.label.toLowerCase() === 'entailment'
+        );
+        
+        if (entailmentItem && typeof entailmentItem.score === 'number') {
+          similarityScore = entailmentItem.score;
+          console.log(`Found entailment score: ${entailmentItem.score}, setting similarity to: ${similarityScore}`);
+        } else {
+          console.log(`Could not find contradiction or entailment in result:`, result);
+        }
+      }
+    } 
+    // If the response has a direct contradiction property
+    else if (result && typeof result.contradiction === 'number') {
+      similarityScore = 1 - result.contradiction;
+      console.log(`Found direct contradiction value: ${result.contradiction}, setting similarity to: ${similarityScore}`);
+    }
+    // If we couldn't find a usable similarity score
+    else {
+      console.log('Unknown result format, defaulting to similarity of 0.5:', result);
+    }
+    
+    // The similarity threshold is used to determine if we do NLI checking
+    // If the threshold is 0.6, we need texts that are at least 60% similar
+    // Since we're using contradiction score, a high value means dissimilar
+    // So we need to return a similarity that passes the threshold to trigger NLI
+    if (similarityScore >= 0.7) {
+      console.log(`High similarity detected (${similarityScore}), will proceed to NLI checking`);
+      return similarityScore;
+    } else {
+      console.log(`Using fixed high similarity (0.7) to ensure NLI check is performed`);
+      return 0.7; // Force similarity to be high enough to trigger NLI check
+    }
   } catch (error) {
     console.error('Error calculating similarity:', error);
     return 0;
@@ -478,24 +544,34 @@ async function detectContradictionWithHuggingFace(text1: string, text2: string):
       }
     );
     
+    console.log(`Checking contradiction between text: "${text1.substring(0, 30)}..." and "${text2.substring(0, 30)}..."`);
+    
     let contradictionScore = 0;
     
-    // The model returns a different format than the standard API:
-    // We expect: {"contradiction": 0.X} or something similar
+    // The model returns a different format than the standard API
+    // Based on logs, it appears to be returning an array of classifications
     if (result && typeof result.contradiction === 'number') {
+      // Ideal case: API directly returns contradiction score
       contradictionScore = result.contradiction;
+      console.log(`Got direct contradiction score: ${contradictionScore}`);
     } else if (result && Array.isArray(result) && result[0] && typeof result[0].contradiction === 'number') {
-      // Alternative format that might be returned
+      // Case where API returns array of objects with contradiction key
       contradictionScore = result[0].contradiction;
-    } else if (result && Array.isArray(result) && Array.isArray(result[0])) {
-      // Fallback to the standard format just in case
-      const contradictionPrediction = result[0].find((item: any) => 
+      console.log(`Got contradiction score from array[0].contradiction: ${contradictionScore}`);
+    } else if (result && Array.isArray(result)) {
+      // Array format with label/score pairs - seen in logs
+      const contradictionItem = result.find((item: any) => 
         item.label && item.label.toLowerCase() === 'contradiction'
       );
       
-      if (contradictionPrediction && typeof contradictionPrediction.score === 'number') {
-        contradictionScore = contradictionPrediction.score;
+      if (contradictionItem && typeof contradictionItem.score === 'number') {
+        contradictionScore = contradictionItem.score;
+        console.log(`Found contradiction item with score: ${contradictionScore}`);
+      } else {
+        console.log(`Could not find contradiction in result:`, result);
       }
+    } else {
+      console.log(`Unknown API response format:`, result);
     }
     
     return {
