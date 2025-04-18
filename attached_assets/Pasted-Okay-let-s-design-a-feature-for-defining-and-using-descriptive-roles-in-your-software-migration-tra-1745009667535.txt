@@ -1,0 +1,114 @@
+Okay, let's design a feature for defining and using descriptive roles in your software migration tracking system, focusing on their use for scoping, costing, and associating with requirements/tasks.
+
+This feature introduces a new manageable entity: **Project Role**.
+
+**1. Core Concept:**
+
+* **Project Roles** are descriptive labels, *not* system access roles (like admin, user, viewer).
+* They represent the *types* of personnel involved in the migration project (e.g., Business Analyst, Java Developer, QA Tester).
+* They incorporate a *location* dimension (e.g., Onshore, Offshore) crucial for cost variation.
+* They are associated with metadata, including a description and a cost rate.
+* They are linked to project artifacts like Requirements and Tasks to facilitate planning, scoping, and cost estimation.
+
+**2. Data Model: `ProjectRole` Entity**
+
+This entity would store the definition of each role combination.
+
+| Attribute          | Type             | Description                                                                                                | Example                                     | Notes                                                                 |
+| :----------------- | :--------------- | :--------------------------------------------------------------------------------------------------------- | :------------------------------------------ | :-------------------------------------------------------------------- |
+| `role_id`          | Unique Identifier| Primary key for the role.                                                                                    | `uuid-1234-abcd-5678`                       | System generated (e.g., UUID, auto-increment integer).                |
+| `role_name`        | String           | A user-friendly, descriptive name for the role.                                                            | "Onshore Senior Developer"                  | Should be unique within the system or project scope.                  |
+| `role_type`        | String (Enum/FK) | The functional type of the role (e.g., Developer, BA, QA, PM, Architect).                                | "Developer"                                 | Best implemented as a predefined list or foreign key to a `RoleType` table for consistency. |
+| `location_type`    | String (Enum/FK) | The location category (e.g., Onshore, Offshore, Nearshore).                                                | "Onshore"                                   | Best implemented as a predefined list or foreign key to a `LocationType` table. |
+| `seniority_level`  | String (Enum)    | (Optional but recommended) Indicates experience level (e.g., Junior, Mid-Level, Senior, Lead, Principal). | "Senior"                                    | Helps differentiate roles with the same type/location but different costs/skills. |
+| `description`      | Text             | Detailed description of responsibilities, expected skills, or context for this specific project role.      | "Senior Java developer responsible for migrating core backend services. Requires Spring Boot expertise." | Metadata as requested.                                                |
+| `cost_rate`        | Decimal          | The cost associated with this role per unit of effort.                                                     | `120.00`                                    | Crucial for costing.                                                  |
+| `cost_unit`        | String (Enum)    | The unit for the cost rate (e.g., Hour, Day, Story Point, Sprint).                                       | "Hour"                                      | Essential for calculation consistency.                                |
+| `currency`         | String (Enum/FK) | The currency for the `cost_rate`.                                                                          | "USD"                                       | Standard currency code (e.g., ISO 4217).                              |
+| `is_active`        | Boolean          | Flag to indicate if the role is currently available for assignment/use in new projects/tasks.            | `true`                                      | Allows phasing out old roles without deleting historical data.        |
+| `created_at`       | Timestamp        | Date and time when the role was created.                                                                   | `2025-04-18T13:00:00Z`                      | Standard audit field.                                                 |
+| `updated_at`       | Timestamp        | Date and time when the role was last updated.                                                              | `2025-04-18T13:00:00Z`                      | Standard audit field.                                                 |
+
+**(Optional Helper Tables)**
+
+* `RoleType`: `role_type_id`, `name` (e.g., "Developer", "Business Analyst")
+* `LocationType`: `location_type_id`, `name` (e.g., "Onshore", "Offshore")
+* `Currency`: `currency_code`, `name`, `symbol`
+
+Using these helper tables enforces consistency across `ProjectRole` definitions.
+
+**3. Integration with Requirements and Tasks:**
+
+To link these roles for scoping and planning, you'll need to modify your `Requirement` and `Task` entities (or use join tables).
+
+**Option A: Direct Linking (Simpler, less flexible for multiple roles per item)**
+
+* Add `required_role_id` (Foreign Key to `ProjectRole`) to `Requirement` and `Task`.
+* Add `estimated_effort` (Decimal) and `effort_unit` (String Enum, e.g., Hours, Days, Points) to `Requirement` and `Task`.
+
+**Option B: Join Tables (More flexible, recommended)**
+
+* **`RequirementRoleEffort` Table:**
+    * `requirement_role_effort_id` (PK)
+    * `requirement_id` (FK to Requirement)
+    * `role_id` (FK to ProjectRole)
+    * `estimated_effort` (Decimal)
+    * `effort_unit` (String Enum - should ideally match `cost_unit` or be convertible)
+* **`TaskRoleEffort` Table:**
+    * `task_role_effort_id` (PK)
+    * `task_id` (FK to Task)
+    * `role_id` (FK to ProjectRole)
+    * `estimated_effort` (Decimal)
+    * `effort_unit` (String Enum)
+
+This approach allows multiple roles (e.g., 1 Developer, 0.5 BA) to be associated with a single requirement or task, each with its own effort estimate.
+
+**4. Costing and Scoping Functionality:**
+
+* **Scoping:** When creating/editing a Requirement or Task, users can select one or more `Project Roles` needed and input the `estimated_effort` for each role on that item. The UI should display the role's description and potentially its cost rate for context.
+* **Cost Estimation:** The system can calculate estimated costs:
+    * **Per Item (Requirement/Task):** Sum (`estimated_effort` * `ProjectRole.cost_rate`) for all roles linked to the item. (Requires unit conversion if `effort_unit` and `cost_unit` differ).
+    * **Per Project/Scope:** Sum the estimated costs of all Requirements/Tasks within that project or scope.
+    * **Reporting:** Generate reports summarizing estimated costs broken down by:
+        * `Project Role`
+        * `Role Type`
+        * `Location Type`
+        * Project Phase / Epic / Feature
+        * Requirement / Task
+
+**5. User Interface (UI) / User Experience (UX):**
+
+* **Role Management Screen:** A dedicated area (likely in system settings or project settings) to:
+    * View, create, edit, and deactivate `Project Roles`.
+    * Use dropdowns populated from `RoleType`, `LocationType`, `SeniorityLevel`, `CostUnit`, `Currency` for consistency.
+    * Clearly display all attributes, including the description.
+* **Requirement/Task Forms:**
+    * Include a section (e.g., "Required Roles & Effort") where users can add roles.
+    * Use an auto-suggest dropdown or a modal selector to find and add `Project Roles`.
+    * Input fields for `estimated_effort` and `effort_unit` appear next to each added role.
+    * Display the selected role's description and cost rate for reference during planning.
+* **Reporting Dashboard:** Widgets or reports showing cost breakdowns based on the defined roles and estimated effort.
+
+**6. Example Scenario:**
+
+1.  **Define Roles:**
+    * `ProjectRole`: Name="Offshore Developer", Type="Developer", Location="Offshore", Seniority="Mid-Level", Desc="Standard developer for backend tasks.", Rate=50, Unit="Hour", Currency="USD".
+    * `ProjectRole`: Name="Onshore BA", Type="Business Analyst", Location="Onshore", Seniority="Senior", Desc="Lead BA for requirements gathering.", Rate=110, Unit="Hour", Currency="USD".
+2.  **Scope a Requirement:**
+    * Requirement: "Migrate User Authentication Service"
+    * Add Roles & Effort:
+        * Link "Offshore Developer", Estimated Effort: 40 Hours
+        * Link "Onshore BA", Estimated Effort: 8 Hours
+3.  **Cost Calculation:**
+    * Dev Cost: 40 hours * $50/hour = $2000 USD
+    * BA Cost: 8 hours * $110/hour = $880 USD
+    * Total Requirement Estimated Cost: $2880 USD
+
+**7. Considerations:**
+
+* **Permissions:** Decide who can manage (create/edit/deactivate) `Project Roles`. Usually administrators or project managers.
+* **Granularity:** Decide if `Project Roles` are global or project-specific. Global is often easier to manage but less flexible if rates vary significantly between projects. A hybrid approach (global definitions, project-level overrides for rates) is also possible.
+* **Effort vs. Cost Units:** Ensure clear handling if `effort_unit` (e.g., Story Points) differs from `cost_unit` (e.g., Hour). This requires a conversion factor (e.g., average hours per story point for that role/team). It's often simpler to standardize on time-based units (Hours/Days) for effort estimation when linking directly to cost.
+* **Actuals vs. Estimates:** This design focuses on estimation. Tracking actual time/cost against these roles would be a separate, complementary feature.
+
+This design provides a robust way to define descriptive roles incorporating function and location, link them to work items, and leverage them for accurate project scoping and cost estimation within your software migration tracking system.
