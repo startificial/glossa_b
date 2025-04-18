@@ -132,20 +132,55 @@ export async function calculateSimilarity(text1: string, text2: string): Promise
     
     console.log('Similarity API response (via NLI):', JSON.stringify(result).substring(0, 200) + '...');
     
-    // If the model returns an array with entailment scores, we can use that as similarity
-    if (Array.isArray(result) && Array.isArray(result[0])) {
-      // Find the entailment score as a proxy for similarity
-      const entailmentResult = result[0].find((item: any) => 
-        item.label === 'entailment' || item.label === 'ENTAILMENT');
-      
-      if (entailmentResult) {
-        return entailmentResult.score; // Entailment score is a good proxy for similarity
+    // Check if result is an array of objects with label and score
+    if (Array.isArray(result)) {
+      // For a direct array of objects like [{"label":"entailment","score":0.0003}, ...]
+      if (result.length > 0 && typeof result[0] === 'object' && 'label' in result[0]) {
+        // Find the entailment score as a proxy for similarity
+        const entailmentItem = result.find((item: any) => 
+          item && item.label && (item.label.toLowerCase() === 'entailment'));
+        
+        const contradictionItem = result.find((item: any) => 
+          item && item.label && (item.label.toLowerCase() === 'contradiction'));
+        
+        if (entailmentItem && typeof entailmentItem.score === 'number') {
+          console.log(`Found entailment score: ${entailmentItem.score}`);
+          // Return entailment score as a similarity measure
+          return entailmentItem.score;
+        }
+        
+        // For measuring similarity between contradictory statements, we need to 
+        // consider the contradiction score too (they are semantically related)
+        if (contradictionItem && typeof contradictionItem.score === 'number') {
+          console.log(`Found contradiction score: ${contradictionItem.score}`);
+          // Return a higher similarity value when contradiction score is high
+          return contradictionItem.score > 0.5 ? 0.8 : contradictionItem.score;
+        }
+        
+        // As a fallback, use the highest score from any label as approximate similarity
+        if (result.length > 0) {
+          const highestScore = Math.max(...result.map((item: any) => 
+            (typeof item.score === 'number') ? item.score : 0));
+          console.log(`Using highest score as similarity: ${highestScore}`);
+          return highestScore > 0 ? highestScore : 0.5; // Provide a reasonable default
+        }
       }
       
-      // As a fallback, use the highest score from any label as approximate similarity
-      if (result[0].length > 0) {
-        const highestScore = Math.max(...result[0].map((item: any) => item.score || 0));
-        return highestScore > 0 ? highestScore : 0.5; // Provide a reasonable default
+      // If it's a nested array structure [[ {label, score}, ... ]]
+      if (Array.isArray(result[0])) {
+        // Handle the nested array format
+        const entailmentResult = result[0].find((item: any) => 
+          item.label === 'entailment' || item.label === 'ENTAILMENT');
+        
+        if (entailmentResult) {
+          return entailmentResult.score; // Entailment score is a good proxy for similarity
+        }
+        
+        // As a fallback, use the highest score from any label as approximate similarity
+        if (result[0].length > 0) {
+          const highestScore = Math.max(...result[0].map((item: any) => item.score || 0));
+          return highestScore > 0 ? highestScore : 0.5; // Provide a reasonable default
+        }
       }
     }
     
@@ -184,21 +219,48 @@ export async function detectContradiction(text1: string, text2: string): Promise
     console.log('NLI API response:', JSON.stringify(result).substring(0, 200) + '...');
     
     // The model should return an array with entailment, neutral, and contradiction probabilities
-    // Based on the user's code we expect: Array[Array[{label, score}]]
-    if (Array.isArray(result) && Array.isArray(result[0])) {
-      // Find the contradiction score from the response
-      const contradictionResult = result[0].find((item: any) => 
-        item.label === 'contradiction' || item.label === 'CONTRADICTION');
-      
-      if (contradictionResult) {
-        return contradictionResult.score;
+    if (Array.isArray(result)) {
+      // Handle direct array format [{"label": "contradiction", "score": 0.999}, ...]
+      if (result.length > 0 && typeof result[0] === 'object' && 'label' in result[0]) {
+        // Find the contradiction score from the response
+        const contradictionItem = result.find((item: any) => 
+          item && item.label && item.label.toLowerCase() === 'contradiction');
+        
+        if (contradictionItem && typeof contradictionItem.score === 'number') {
+          console.log(`Found contradiction score in flat array: ${contradictionItem.score}`);
+          return contradictionItem.score;
+        }
+        
+        // If we didn't find a "contradiction" label, try checking each item
+        for (const item of result) {
+          if (item && item.label && item.label.toLowerCase().includes('contra') && 
+              typeof item.score === 'number') {
+            console.log(`Found contradiction-like score: ${item.score}`);
+            return item.score;
+          }
+        }
+        
+        // Return zero if no contradiction found
+        console.log('No contradiction found in flat array format');
+        return 0;
       }
       
-      // If we didn't find a "contradiction" label, try checking each item
-      // Some models use different formats, so let's check all possibilities
-      for (const item of result[0]) {
-        if (item.label && item.label.toLowerCase().includes('contra')) {
-          return item.score;
+      // Handle nested array format [[ {label, score}, ... ]]
+      if (Array.isArray(result[0])) {
+        // Find the contradiction score from the response
+        const contradictionResult = result[0].find((item: any) => 
+          item.label === 'contradiction' || item.label === 'CONTRADICTION');
+        
+        if (contradictionResult) {
+          return contradictionResult.score;
+        }
+        
+        // If we didn't find a "contradiction" label, try checking each item
+        // Some models use different formats, so let's check all possibilities
+        for (const item of result[0]) {
+          if (item.label && item.label.toLowerCase().includes('contra')) {
+            return item.score;
+          }
         }
       }
     }
@@ -264,11 +326,10 @@ export async function analyzeContradictionsWithHuggingFace(
         // First check similarity
         const similarity = await calculateSimilarity(req1, req2);
         
-        // If the similarity is 0, it may be due to API error, so skip
-        if (similarity === 0) {
-          apiErrors++;
-          continue;
-        }
+        // Log the similarity for debugging
+        console.log(`Calculated similarity between requirements ${i} and ${j}: ${similarity.toFixed(4)}`);
+        
+        // We no longer consider similarity === 0 as an error since we improved our parsing
         
         // If similar enough, check for contradiction in both directions
         if (similarity >= similarityThreshold) {

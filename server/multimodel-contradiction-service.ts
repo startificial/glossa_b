@@ -26,15 +26,15 @@ const CUSTOM_NLI_ENDPOINT = 'https://xfdfblfb13h03kfi.us-east-1.aws.endpoints.hu
 
 // Default options for the analysis with the custom HuggingFace endpoint
 const DEFAULT_OPTIONS: AnalysisOptions = {
-  // For the custom endpoint, we need to ensure both similar and contradictory requirements
-  // get properly processed. Our calculateSimilarity function now handles this with
-  // a combined score approach.
-  similarityThreshold: 0.4,
+  // For the custom endpoint, we need to set a very low threshold
+  // since the entailment scores are typically very small (e.g., 0.0003)
+  // but we still want to process pairs with high contradiction scores
+  similarityThreshold: 0.0001,
   
   // Based on the custom endpoint's response format ([entailment, neutral, contradiction]),
   // we want to consider a pair contradictory when the contradiction score is significant.
-  // Based on examples like: contradictionScore: 0.29793107509613037
-  nliThreshold: 0.25,
+  // Based on the example we received: contradictionScore: 0.9968275427818298
+  nliThreshold: 0.8,
   
   // Limit maximum requirements to analyze to prevent timeouts
   maxRequirements: 100,
@@ -453,20 +453,26 @@ async function calculateSimilarity(text1: string, text2: string): Promise<number
       
       console.log(`Scores - Entailment: ${entailmentScore.toFixed(4)}, Contradiction: ${contradictionScore.toFixed(4)}, Neutral: ${neutralScore.toFixed(4)}`);
       
-      // For similarity purposes, we want to return a high score when either entailment OR contradiction is high
-      // This ensures both similar requirements and contradictory requirements are processed further
-      const combinedScore = Math.max(entailmentScore, contradictionScore);
+      // For the custom endpoint, the contradiction score is very important
+      // since we're specifically looking for contradictions
+      // With this endpoint, a high entailment score means the requirements are semantically similar
+      // A high contradiction score means they contradict - also important for us to detect
       
-      // If either entailment or contradiction is significant, return a high similarity
-      // to ensure the pair is processed for NLI contradiction detection
-      if (combinedScore > 0.2) { // Use lower threshold to catch more potential contradictions
-        console.log(`High similarity or contradiction detected (${combinedScore.toFixed(4)})`);
-        return 0.9; // High enough to pass similarity threshold check
-      } else {
-        console.log(`Low similarity and contradiction (${combinedScore.toFixed(4)})`);
-        // If we're really sure they're just neutral/unrelated requirements, return lower similarity
-        return 0.3;
+      // If there's a high contradiction score, return a high similarity to ensure it passes the threshold
+      if (contradictionScore > 0.8) {
+        console.log(`High contradiction detected (${contradictionScore.toFixed(4)})`);
+        return 0.99; // Ensure we analyze it for contradiction
       }
+      
+      // If there's a reasonable entailment score, also return similarity
+      if (entailmentScore > 0.0001) {
+        console.log(`Entailment detected (${entailmentScore.toFixed(4)})`);
+        return 0.9; // High enough to pass threshold
+      }
+      
+      // If neither entailment nor contradiction is high, use the contradiction score directly
+      // This is because our endpoint specifically assesses contradiction which is what we're looking for
+      return contradictionScore;
     }
     
     // If we couldn't parse the array format from the endpoint
