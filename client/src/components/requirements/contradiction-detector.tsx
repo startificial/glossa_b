@@ -175,8 +175,8 @@ export function ContradictionDetector({ projectId }: ContradictionDetectorProps)
                         <AccordionItem value={`contradiction-${index}`} key={index}>
                           <AccordionTrigger className="hover:no-underline">
                             <div className="flex items-center">
-                              <AlertTriangle className={`h-4 w-4 mr-2 ${severity.color === 'destructive' ? 'text-red-500' : severity.color === 'warning' ? 'text-yellow-500' : 'text-blue-500'}`} />
-                              <span>Potential Contradiction - Severity: {severity.label}</span>
+                              <AlertTriangle className={`h-5 w-5 mr-3 ${severity.color === 'destructive' ? 'text-red-500' : severity.color === 'warning' ? 'text-yellow-500' : 'text-blue-500'}`} />
+                              <span className="text-base">Potential Contradiction - Severity: {severity.label}</span>
                             </div>
                           </AccordionTrigger>
                           <AccordionContent>
