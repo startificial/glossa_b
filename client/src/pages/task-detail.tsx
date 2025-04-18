@@ -15,8 +15,9 @@ import { toast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { formatDateTime } from '@/lib/utils';
-import { AlarmClock, ArrowLeft, CheckSquare, ClipboardList, Clock, Edit2, Hourglass, Save, Target, Trash2, User, X } from 'lucide-react';
+import { AlarmClock, ArrowLeft, CheckSquare, ClipboardList, Clock, Edit2, Hourglass, Save, Target, Trash2, User, Users, X } from 'lucide-react';
 import { ImplementationStepsTable } from '@/components/implementation-tasks/implementation-steps-table';
+import { TaskRoleEffort } from '@/components/roles/task-role-effort';
 
 interface TaskDetailProps {
   taskId: number;
@@ -397,6 +398,17 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                   </div>
                   
                   <ImplementationStepsTable steps={task.implementationSteps || []} />
+                  
+                  <div className="mt-6">
+                    <CardTitle className="text-lg font-medium mb-4 flex items-center">
+                      <Users className="h-5 w-5 mr-2" />
+                      Role Effort Estimation
+                    </CardTitle>
+                    <TaskRoleEffort 
+                      projectId={task.projectId} 
+                      taskId={task.id} 
+                    />
+                  </div>
 
                   {task.overallDocumentationLinks && task.overallDocumentationLinks.length > 0 && (
                     <div className="border rounded-md p-4 mb-4">

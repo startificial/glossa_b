@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Plus, Trash2, Users } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiRequest } from "@/lib/queryClient";
-import { ProjectRole, TaskRoleEffort } from "@/lib/types";
+import { ProjectRole, TaskRoleEffort as TaskRoleEffortType } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 
@@ -35,7 +35,7 @@ export function TaskRoleEffort({ projectId, taskId }: TaskRoleEffortProps) {
   });
 
   // Query existing role efforts for this task
-  const { data: roleEfforts, isLoading: effortsLoading } = useQuery<TaskRoleEffort[]>({
+  const { data: roleEfforts, isLoading: effortsLoading } = useQuery<TaskRoleEffortType[]>({
     queryKey: [`/api/tasks/${taskId}/role-efforts`],
   });
 
