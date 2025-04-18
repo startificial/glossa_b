@@ -187,12 +187,11 @@ async function performAsyncAnalysis(
           // First check similarity
           const similarity = await calculateSimilarity(req1, req2);
           
-          // If the similarity is 0, it may be due to API error, so skip
-          if (similarity === 0) {
-            apiErrors++;
-            completedComparisons++;
-            continue;
-          }
+          // Log the similarity result for debugging
+          console.log(`Calculated similarity between requirements ${i} and ${j}: ${similarity.toFixed(4)}`);
+          
+          // We no longer consider similarity === 0 as an error, since our custom endpoint always returns valid scores
+          // Even if similarity is low, we will still process the pair for contradictions if above threshold
           
           // If similar enough, check for contradiction in both directions
           if (similarity >= options.similarityThreshold) {
@@ -350,11 +349,11 @@ async function performSynchronousAnalysis(
         // First check similarity
         const similarity = await calculateSimilarity(req1, req2);
         
-        // If the similarity is 0, it may be due to API error, so skip
-        if (similarity === 0) {
-          apiErrors++;
-          continue;
-        }
+        // Log the similarity result for debugging
+        console.log(`Calculated similarity between requirements ${i} and ${j}: ${similarity.toFixed(4)}`);
+        
+        // We no longer consider similarity === 0 as an error, since our custom endpoint always returns valid scores
+        // Even if similarity is low, we will still process the pair for contradictions if above threshold
         
         // If similar enough, check for contradiction in both directions
         if (similarity >= options.similarityThreshold) {
