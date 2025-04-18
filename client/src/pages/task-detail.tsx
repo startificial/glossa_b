@@ -231,13 +231,13 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="outline" className="flex items-center gap-1"><Hourglass className="h-3 w-3" /> Pending</Badge>;
+        return <Badge variant="outline" className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium"><Hourglass className="h-3 w-3" /> Pending</Badge>;
       case 'in-progress':
-        return <Badge variant="default" className="bg-amber-500 flex items-center gap-1"><AlarmClock className="h-3 w-3" /> In Progress</Badge>;
+        return <Badge variant="default" className="bg-amber-500 flex items-center gap-1 px-2.5 py-1 text-xs font-medium"><AlarmClock className="h-3 w-3" /> In Progress</Badge>;
       case 'completed':
-        return <Badge variant="default" className="bg-green-500 flex items-center gap-1"><CheckSquare className="h-3 w-3" /> Completed</Badge>;
+        return <Badge variant="default" className="bg-green-500 flex items-center gap-1 px-2.5 py-1 text-xs font-medium"><CheckSquare className="h-3 w-3" /> Completed</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline" className="px-2.5 py-1 text-xs font-medium">{status}</Badge>;
     }
   };
 
@@ -245,11 +245,11 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
   const getSystemBadge = (system: string) => {
     switch (system) {
       case 'source':
-        return <Badge variant="outline" className="flex items-center gap-1"><ClipboardList className="h-3 w-3" /> Source</Badge>;
+        return <Badge variant="outline" className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium"><ClipboardList className="h-3 w-3" /> Source</Badge>;
       case 'target':
-        return <Badge variant="default" className="flex items-center gap-1"><Target className="h-3 w-3" /> Target</Badge>;
+        return <Badge variant="default" className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium"><Target className="h-3 w-3" /> Target</Badge>;
       default:
-        return <Badge variant="outline">{system}</Badge>;
+        return <Badge variant="outline" className="px-2.5 py-1 text-xs font-medium">{system}</Badge>;
     }
   };
 
@@ -271,15 +271,17 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
-                <CardTitle className="text-xl flex items-center gap-2">
+                <CardTitle className="text-xl mb-1">{task.title}</CardTitle>
+                <div className="flex flex-wrap items-center gap-3 mt-2">
                   {getSystemBadge(task.system)}
                   {getStatusBadge(task.status)}
-                </CardTitle>
-                <CardDescription>
-                  Created on {formatDateTime(task.createdAt)}
-                </CardDescription>
+                  <span className="text-xs text-muted-foreground flex items-center">
+                    <Clock className="h-3 w-3 mr-1.5" />
+                    Created on {formatDateTime(task.createdAt)}
+                  </span>
+                </div>
               </div>
               
               {!isEditing ? (
@@ -351,7 +353,6 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
               {!isEditing ? (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-xl font-semibold mb-2">{task.title}</h3>
                     <div className="p-4 border rounded-md bg-muted/20 whitespace-pre-line">
                       {task.description}
                     </div>
@@ -439,8 +440,18 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
 
                   {task.sfDocumentationLinks && task.sfDocumentationLinks.length > 0 && (
                     <div className="border rounded-md p-4">
-                      <div className="text-sm font-medium mb-2">Salesforce Documentation</div>
-                      <div className="space-y-2">
+                      <div className="flex items-center mb-3">
+                        <div className="bg-blue-50 p-1.5 rounded-md mr-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                            <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <path d="M2 15h10"></path>
+                            <path d="M9 18l3-3-3-3"></path>
+                          </svg>
+                        </div>
+                        <h4 className="text-sm font-medium">Salesforce Documentation</h4>
+                      </div>
+                      <div className="space-y-2 pl-1">
                         {task.sfDocumentationLinks.map((doc: { title: string; url: string }, index: number) => (
                           <div key={index} className="flex items-start">
                             <a 
