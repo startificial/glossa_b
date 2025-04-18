@@ -7,6 +7,8 @@ import documentTemplateRoutes from './routes/document-templates';
 import documentRoutes from './routes/documents';
 import pdfRoutes from './routes/pdf-route';
 import projectRolesRoutes from './routes/project-roles';
+import { requirementRoleEffortController } from './controllers/requirement-role-effort-controller';
+import { taskRoleEffortController } from './controllers/task-role-effort-controller';
 import { 
   insertProjectSchema, 
   insertInputDataSchema, 
@@ -3012,8 +3014,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid requirement ID' });
       }
       
-      // Call the controller method
-      const efforts = await requirementRoleEffortController.getEffortsByRequirementId(requirementId);
+      // Get all role efforts for the requirement
+      const efforts = await storage.getRequirementRoleEfforts(requirementId);
       res.json(efforts);
     } catch (error) {
       console.error('Error getting requirement role efforts:', error);
@@ -3034,8 +3036,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Requirement not found' });
       }
       
-      // Create the role effort
-      const effort = await requirementRoleEffortController.createEffortForRequirement(requirementId, requirement.projectId, req.body);
+      // Create the role effort using the original method with projectId
+      const validatedData = { ...req.body, requirementId };
+      const effort = await storage.createRequirementRoleEffort(validatedData);
       res.status(201).json(effort);
     } catch (error) {
       console.error('Error creating requirement role effort:', error);
@@ -3058,7 +3061,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Delete the role effort
-      await requirementRoleEffortController.deleteEffortById(requirement.projectId, requirementId, effortId);
+      await storage.deleteRequirementRoleEffort(effortId);
       res.status(204).send();
     } catch (error) {
       console.error('Error deleting requirement role effort:', error);
@@ -3074,8 +3077,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid task ID' });
       }
       
-      // Call the controller method
-      const efforts = await taskRoleEffortController.getEffortsByTaskId(taskId);
+      // Get all role efforts for the task
+      const efforts = await storage.getTaskRoleEfforts(taskId);
       res.json(efforts);
     } catch (error) {
       console.error('Error getting task role efforts:', error);
@@ -3097,7 +3100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Create the role effort
-      const effort = await taskRoleEffortController.createEffortForTask(taskId, task.projectId, req.body);
+      const validatedData = { ...req.body, taskId };
+      const effort = await storage.createTaskRoleEffort(validatedData);
       res.status(201).json(effort);
     } catch (error) {
       console.error('Error creating task role effort:', error);
@@ -3120,7 +3124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Delete the role effort
-      await taskRoleEffortController.deleteEffortById(task.projectId, taskId, effortId);
+      await storage.deleteTaskRoleEffort(effortId);
       res.status(204).send();
     } catch (error) {
       console.error('Error deleting task role effort:', error);
