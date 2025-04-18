@@ -483,7 +483,7 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div>
                     <Label htmlFor="title">Task Title</Label>
                     <Input 
@@ -615,6 +615,17 @@ export default function TaskDetail({ taskId }: TaskDetailProps) {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                  
+                  <div className="mt-6">
+                    <h3 className="text-base font-medium mb-3">Implementation Steps</h3>
+                    <ImplementationStepsTable 
+                      steps={formData.implementationSteps} 
+                      isEditing={true}
+                      onChange={(updatedSteps) => {
+                        setFormData({ ...formData, implementationSteps: updatedSteps });
+                      }}
+                    />
                   </div>
                 </div>
               )}
