@@ -48,7 +48,7 @@ export async function generateRequirementsWithClaude(
 
     // Call Claude API to generate requirements
     const message = await anthropic.messages.create({
-      model: 'claude-3-opus-20240229',
+      model: 'claude-3-7-sonnet-20250219', // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
       max_tokens: 4000,
       temperature: 0.2,
       system: "You are a business analyst specializing in requirement extraction for software migration projects. Extract detailed, specific requirements from provided content and format them as valid JSON with no additional text.",
@@ -133,7 +133,7 @@ export async function generateImplementationTasks(
 
     // Generate content using Claude
     const message = await anthropic.messages.create({
-      model: 'claude-3-opus-20240229',
+      model: 'claude-3-7-sonnet-20250219', // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
       max_tokens: 3000,
       temperature: 0.7,
       system: 'You are a Salesforce technical architect specialized in implementing complex migration projects and integrations.',
@@ -376,7 +376,7 @@ export async function generateAcceptanceCriteria(
 
     // Generate acceptance criteria using Claude
     const message = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-3-7-sonnet-20250219', // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
       max_tokens: 2000,
       temperature: 0.4,
       system: "You are a business analyst specializing in creating high-quality acceptance criteria for software requirements. Generate acceptance criteria in Gherkin format and output ONLY valid JSON with no additional text. Your entire response MUST be a valid JSON array containing the acceptance criteria objects. Do not include markdown formatting, explanation text, or code blocks.",
