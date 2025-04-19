@@ -92,12 +92,16 @@ export async function runMigrations() {
         "id" SERIAL PRIMARY KEY,
         "name" VARCHAR(255) NOT NULL,
         "description" TEXT,
+        "type" VARCHAR(50) NOT NULL DEFAULT 'migration',
         "user_id" INTEGER NOT NULL,
+        "customer_id" INTEGER,
+        "customer" VARCHAR(255),
         "source_system" VARCHAR(255),
         "target_system" VARCHAR(255),
         "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
+        FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE,
+        FOREIGN KEY ("customer_id") REFERENCES "customers" ("id") ON DELETE SET NULL
       )
     `;
 
@@ -212,10 +216,9 @@ export async function runMigrations() {
         "id" SERIAL PRIMARY KEY,
         "project_id" INTEGER,
         "user_id" INTEGER,
-        "action" VARCHAR(100) NOT NULL,
-        "entity_type" VARCHAR(100) NOT NULL,
+        "type" VARCHAR(100) NOT NULL,
+        "description" TEXT NOT NULL,
         "related_entity_id" INTEGER,
-        "details" TEXT,
         "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE CASCADE,
         FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE SET NULL
