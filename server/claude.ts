@@ -337,89 +337,20 @@ export async function generateImplementationTasks(
       console.error('All JSON parsing strategies failed for response');
       console.error('Raw response:', responseText);
       
-      // Instead of failing, create a generic task as a fallback to avoid breaking the UI
-      console.log('Creating fallback implementation task');
-      return [{
-        title: "Generate Implementation Tasks",
-        description: "Please review the requirement and acceptance criteria to create implementation tasks manually, as automatic generation encountered a parsing issue.",
-        system: targetSystem || "Source System",
-        taskType: "implementation",
-        complexity: "medium",
-        estimatedHours: 4,
-        priority: "medium",
-        implementationSteps: [
-          {
-            stepNumber: 1,
-            stepDescription: "Review the acceptance criteria and requirements to understand what needs to be implemented.",
-            relevantDocumentationLinks: []
-          },
-          {
-            stepNumber: 2, 
-            stepDescription: "Break down the implementation into logical steps based on the requirement.",
-            relevantDocumentationLinks: []
-          }
-        ],
-        sfDocumentationLinks: [],
-        overallDocumentationLinks: []
-      }];
+      // Throw an error instead of creating a fallback task
+      throw new Error('Failed to parse implementation tasks from Claude response');
     } catch (parseError) {
       console.error('Error in parsing process:', parseError);
       console.error('Raw response:', responseText);
       
-      // Return a fallback task instead of throwing an error
-      console.log('Creating fallback implementation task due to parsing error');
-      return [{
-        title: "Generate Implementation Tasks",
-        description: "Please review the requirement and acceptance criteria to create implementation tasks manually, as automatic generation encountered a parsing issue.",
-        system: targetSystem || "Source System",
-        taskType: "implementation",
-        complexity: "medium",
-        estimatedHours: 4,
-        priority: "medium",
-        implementationSteps: [
-          {
-            stepNumber: 1,
-            stepDescription: "Review the acceptance criteria and requirements to understand what needs to be implemented.",
-            relevantDocumentationLinks: []
-          },
-          {
-            stepNumber: 2, 
-            stepDescription: "Break down the implementation into logical steps based on the requirement.",
-            relevantDocumentationLinks: []
-          }
-        ],
-        sfDocumentationLinks: [],
-        overallDocumentationLinks: []
-      }];
+      // Throw an error instead of creating a fallback task
+      throw new Error('Failed to parse implementation tasks from Claude response');
     }
   } catch (error) {
     console.error('Error generating implementation tasks with Claude:', error);
     
-    // Return a fallback task instead of throwing an error
-    console.log('Creating fallback implementation task due to error in generation process');
-    return [{
-      title: "Generate Implementation Tasks",
-      description: "Please review the requirement and acceptance criteria to create implementation tasks manually, as automatic generation encountered an issue.",
-      system: targetSystem || "Source System",
-      taskType: "implementation",
-      complexity: "medium",
-      estimatedHours: 4,
-      priority: "medium",
-      implementationSteps: [
-        {
-          stepNumber: 1,
-          stepDescription: "Review the acceptance criteria and requirements to understand what needs to be implemented.",
-          relevantDocumentationLinks: []
-        },
-        {
-          stepNumber: 2, 
-          stepDescription: "Break down the implementation into logical steps based on the requirement.",
-          relevantDocumentationLinks: []
-        }
-      ],
-      sfDocumentationLinks: [],
-      overallDocumentationLinks: []
-    }];
+    // Throw the error to be handled by the caller
+    throw error;
   }
 }
 
@@ -522,13 +453,12 @@ export async function generateAcceptanceCriteria(
       console.error('Error parsing Claude response for acceptance criteria:', parseError);
       console.error('Raw Claude response:', responseText);
       
-      // Return an empty array instead of throwing error to make it more resilient
-      // This is a graceful failure that allows the UI to continue functioning
-      return [];
+      // Throw an error to prevent using fallback content
+      throw new Error('Failed to parse acceptance criteria from Claude response');
     }
   } catch (error) {
     console.error('Error generating acceptance criteria with Claude:', error);
-    // Return an empty array to prevent the UI from breaking
-    return [];
+    // Throw the error to be handled by the caller
+    throw error;
   }
 }
