@@ -131,12 +131,26 @@ export async function generateImplementationTasks(
       .replace('{requirementText}', requirementText)
       .replace('{acceptanceCriteria}', formattedCriteria);
 
-    // Generate content using Claude
+    // Generate content using Claude with improved system prompt
     const message = await anthropic.messages.create({
       model: 'claude-3-7-sonnet-20250219', // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
       max_tokens: 3000,
       temperature: 0.7,
-      system: 'You are a Salesforce technical architect specialized in implementing complex migration projects and integrations.',
+      system: `You are a Salesforce technical architect specialized in implementing complex migration projects and integrations.
+Your task is to create detailed implementation tasks for Salesforce development.
+You must respond ONLY with valid JSON formatted as an array of implementation task objects.
+Each task must have:
+- title: string
+- description: string
+- system: string
+- taskType: string (one of: "development", "integration", "configuration", "testing")
+- complexity: string (one of: "simple", "moderate", "complex")
+- estimatedHours: number
+- priority: string (one of: "low", "medium", "high")
+- implementationSteps: array of objects with stepNumber, stepDescription, and relevantDocumentationLinks (array of strings)
+
+Do not include any explanations, markdown formatting, or non-JSON content in your response.
+Your entire response must be parseable as a JSON array.`,
       messages: [
         { role: 'user', content: prompt }
       ]
@@ -243,51 +257,63 @@ export async function generateImplementationTasks(
     };
 
     try {
-      // Try different strategies to extract valid JSON from the response
+      // Log the first part of the response for debugging
+      console.log('Claude response excerpt:', responseText.substring(0, 500));
       
-      // Strategy 1: Try to find JSON array pattern "[{...}]" in the response
-      const jsonArrayMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      if (jsonArrayMatch) {
-        const jsonText = jsonArrayMatch[0];
-        try {
-          const implementationTasks = JSON.parse(jsonText);
-          console.log(`Strategy 1: Generated ${implementationTasks.length} implementation tasks`);
-          
-          // Validate and fix implementation steps structure if needed
-          const validatedTasks = validateAndFixImplementationTasks(implementationTasks);
-          return validatedTasks;
-        } catch (err) {
-          console.log('Strategy 1 parsing failed, trying next strategy');
-        }
-      }
+      // Clean the response - remove any markdown formatting if present
+      const cleanedResponse = responseText
+        .replace(/^```json\s*/gm, '') // Remove ```json at the start of lines
+        .replace(/^```\s*/gm, '')     // Remove ``` at the start of lines
+        .replace(/\s*```$/gm, '')     // Remove ``` at the end of lines
+        .replace(/^\s*```$/gm, '');   // Remove standalone ``` lines
       
-      // Strategy 2: Try to find a single JSON object pattern "{...}" (in case it's not an array)
-      const jsonObjectMatch = responseText.match(/\{\s*"[\s\S]*"\s*:\s*[\s\S]*\}/);
-      if (jsonObjectMatch) {
-        const jsonText = jsonObjectMatch[0];
-        try {
-          const implementationTask = JSON.parse(jsonText);
-          console.log(`Strategy 2: Generated a single implementation task`);
-          
-          // Validate and fix implementation steps structure if needed
-          const validatedTasks = validateAndFixImplementationTasks([implementationTask]);
-          return validatedTasks;
-        } catch (err) {
-          console.log('Strategy 2 parsing failed, trying next strategy');
-        }
-      }
+      console.log('Cleaned response excerpt:', cleanedResponse.substring(0, 200));
       
-      // Strategy 3: Try parsing the whole response as JSON
+      // Strategy 1: Direct JSON parsing - most likely to work with the improved system prompt
       try {
-        const implementationTasks = JSON.parse(responseText);
-        console.log(`Strategy 3: Generated ${Array.isArray(implementationTasks) ? implementationTasks.length : 1} implementation tasks`);
+        const implementationTasks = JSON.parse(cleanedResponse);
+        console.log(`Strategy 1: Successfully parsed full response, generated ${Array.isArray(implementationTasks) ? implementationTasks.length : 1} implementation tasks`);
         
         // Ensure we're returning an array and validate/fix implementation steps
         const tasksArray = Array.isArray(implementationTasks) ? implementationTasks : [implementationTasks];
         const validatedTasks = validateAndFixImplementationTasks(tasksArray);
         return validatedTasks;
       } catch (err) {
-        console.log('Strategy 3 parsing failed, trying next strategy');
+        console.log('Strategy 1 (direct parsing) failed:', err.message);
+        console.log('Trying alternative parsing strategies...');
+      }
+      
+      // Strategy 2: Try to find JSON array pattern "[{...}]" in the response
+      const jsonArrayMatch = cleanedResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (jsonArrayMatch) {
+        const jsonText = jsonArrayMatch[0];
+        try {
+          const implementationTasks = JSON.parse(jsonText);
+          console.log(`Strategy 2: Found JSON array pattern, generated ${implementationTasks.length} implementation tasks`);
+          
+          // Validate and fix implementation steps structure if needed
+          const validatedTasks = validateAndFixImplementationTasks(implementationTasks);
+          return validatedTasks;
+        } catch (err) {
+          console.log('Strategy 2 parsing failed:', err.message);
+        }
+      }
+      
+      // Strategy 3: Extract individual task objects and reconstruct
+      const taskObjects = cleanedResponse.match(/\{\s*"title"\s*:[\s\S]*?("implementationSteps"\s*:[\s\S]*?\])\s*\}/g);
+      if (taskObjects && taskObjects.length > 0) {
+        try {
+          console.log(`Found ${taskObjects.length} potential task objects to reconstruct`);
+          const reconstructedJson = `[${taskObjects.join(',')}]`;
+          const implementationTasks = JSON.parse(reconstructedJson);
+          console.log(`Strategy 3: Reconstructed ${implementationTasks.length} implementation tasks`);
+          
+          // Validate and fix implementation steps structure if needed
+          const validatedTasks = validateAndFixImplementationTasks(implementationTasks);
+          return validatedTasks;
+        } catch (err) {
+          console.log('Strategy 3 (reconstruction) failed:', err.message);
+        }
       }
       
       // Strategy 4: Look for code blocks that might contain JSON (e.g., ```json ... ```)
@@ -295,38 +321,46 @@ export async function generateImplementationTasks(
       if (codeBlockMatch && codeBlockMatch[1]) {
         try {
           const implementationTasks = JSON.parse(codeBlockMatch[1]);
-          console.log(`Strategy 4: Generated ${Array.isArray(implementationTasks) ? implementationTasks.length : 1} implementation tasks`);
+          console.log(`Strategy 4: Extracted content from code block, generated ${Array.isArray(implementationTasks) ? implementationTasks.length : 1} implementation tasks`);
           
           // Ensure we're returning an array and validate/fix implementation steps
           const tasksArray = Array.isArray(implementationTasks) ? implementationTasks : [implementationTasks];
           const validatedTasks = validateAndFixImplementationTasks(tasksArray);
           return validatedTasks;
         } catch (err) {
-          console.log('Strategy 4 parsing failed, no more strategies to try');
+          console.log('Strategy 4 (code block) parsing failed:', err.message);
         }
       }
       
-      // Strategy 5: Try to extract and fix truncated/incomplete JSON
+      // Strategy 5: Aggressive cleanup - remove all non-JSON characters and try again
       try {
-        // This strategy extracts the JSON even if it's truncated by looking for the most complete
-        // structure possible and attempting repair
-        console.log('Attempting repair of truncated/incomplete JSON...');
+        // This strategy tries to clean the response more aggressively
+        console.log('Attempting aggressive cleanup of response...');
         
-        // Look for a series of implementation task objects
-        const taskPatterns = responseText.match(/\{[\s\S]*?"title"[\s\S]*?"description"[\s\S]*?"implementationSteps"[\s\S]*?\}/g);
+        // Remove any non-JSON content before the first [ or {
+        const jsonStartIdx = Math.min(
+          cleanedResponse.indexOf('[') >= 0 ? cleanedResponse.indexOf('[') : Infinity,
+          cleanedResponse.indexOf('{') >= 0 ? cleanedResponse.indexOf('{') : Infinity
+        );
         
-        if (taskPatterns && taskPatterns.length > 0) {
-          // Try to reconstruct a JSON array from the found patterns
-          const reconstructedJson = `[${taskPatterns.join(',')}]`;
+        // Remove any non-JSON content after the last ] or }
+        const jsonEndIdx = Math.max(
+          cleanedResponse.lastIndexOf(']'),
+          cleanedResponse.lastIndexOf('}') + 1
+        );
+        
+        if (jsonStartIdx < Infinity && jsonEndIdx > 0) {
+          const extractedJson = cleanedResponse.substring(jsonStartIdx, jsonEndIdx);
           try {
-            const implementationTasks = JSON.parse(reconstructedJson);
-            console.log(`Strategy 5: Repaired and generated ${implementationTasks.length} implementation tasks`);
+            const implementationTasks = JSON.parse(extractedJson);
+            console.log(`Strategy 5: Aggressively cleaned, generated ${Array.isArray(implementationTasks) ? implementationTasks.length : 1} implementation tasks`);
             
-            // Validate and fix implementation steps structure if needed
-            const validatedTasks = validateAndFixImplementationTasks(implementationTasks);
+            // Ensure we're returning an array and validate/fix implementation steps
+            const tasksArray = Array.isArray(implementationTasks) ? implementationTasks : [implementationTasks];
+            const validatedTasks = validateAndFixImplementationTasks(tasksArray);
             return validatedTasks;
-          } catch (repairErr) {
-            console.log('JSON repair failed:', repairErr);
+          } catch (err) {
+            console.log('Strategy 5 (aggressive cleanup) failed:', err.message);
           }
         }
       } catch (repairAttemptErr) {
