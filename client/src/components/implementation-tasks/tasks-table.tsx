@@ -239,7 +239,7 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
               <DialogTrigger asChild>
                 <Button variant="outline">Add Task</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-[425px]">
+              <DialogContent className="max-w-[425px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Implementation Task</DialogTitle>
                   <DialogDescription>

@@ -320,7 +320,7 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
         
         {/* Task Creation Dialog */}
         <Dialog open={newTaskOpen} onOpenChange={setNewTaskOpen}>
-          <DialogContent className="max-w-[600px]">
+          <DialogContent className="max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Implementation Task</DialogTitle>
               <DialogDescription>
