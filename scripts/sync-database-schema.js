@@ -1,0 +1,338 @@
+/**
+ * Database Schema Synchronization Script
+ * 
+ * This script ensures all required database tables and columns exist
+ * by automatically creating them if missing. Unlike verification scripts,
+ * this actively synchronizes the database schema to match the application's
+ * required structure rather than just reporting errors.
+ */
+import { Pool } from '@neondatabase/serverless';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+// Create SQL client
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+async function syncDatabaseSchema() {
+  console.log('🔄 Starting database schema synchronization...');
+  
+  try {
+    // Check if each required table exists and create if not
+    const requiredTables = [
+      'users', 'customers', 'projects', 'activities', 
+      'input_data', 'requirements', 'implementation_tasks'
+    ];
+    
+    for (const tableName of requiredTables) {
+      const tableExists = await checkTableExists(tableName);
+      if (!tableExists) {
+        console.log(`📦 Table '${tableName}' does not exist. Creating it...`);
+        await createTable(tableName);
+      } else {
+        console.log(`✅ Table '${tableName}' exists.`);
+        // Ensure all required columns exist
+        await ensureTableColumns(tableName);
+      }
+    }
+    
+    console.log('✨ Database schema synchronization completed successfully!');
+    return true;
+  } catch (error) {
+    console.error('❌ Error during schema synchronization:', error);
+    return false;
+  } finally {
+    await pool.end();
+  }
+}
+
+async function checkTableExists(tableName) {
+  const result = await pool.query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name = $1
+    )
+  `, [tableName]);
+  
+  return result.rows[0].exists;
+}
+
+async function createTable(tableName) {
+  switch (tableName) {
+    case 'users':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "users" (
+          "id" SERIAL PRIMARY KEY,
+          "username" TEXT NOT NULL UNIQUE,
+          "password" TEXT NOT NULL,
+          "first_name" TEXT,
+          "last_name" TEXT,
+          "email" TEXT,
+          "company" TEXT,
+          "role" TEXT NOT NULL DEFAULT 'user',
+          "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      break;
+      
+    case 'customers':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "customers" (
+          "id" SERIAL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "description" TEXT,
+          "industry" TEXT,
+          "background_info" TEXT,
+          "website" TEXT,
+          "contact_email" TEXT,
+          "contact_phone" TEXT,
+          "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      break;
+      
+    case 'projects':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "projects" (
+          "id" SERIAL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "description" TEXT,
+          "type" TEXT NOT NULL DEFAULT 'migration',
+          "user_id" INTEGER NOT NULL,
+          "customer_id" INTEGER,
+          "customer" TEXT,
+          "source_system" TEXT,
+          "target_system" TEXT,
+          "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE,
+          FOREIGN KEY ("customer_id") REFERENCES "customers" ("id") ON DELETE SET NULL
+        )
+      `);
+      break;
+      
+    case 'activities':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "activities" (
+          "id" SERIAL PRIMARY KEY,
+          "project_id" INTEGER,
+          "user_id" INTEGER,
+          "type" TEXT NOT NULL DEFAULT 'system',
+          "description" TEXT NOT NULL DEFAULT 'System activity',
+          "related_entity_id" INTEGER,
+          "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE CASCADE,
+          FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE SET NULL
+        )
+      `);
+      break;
+      
+    case 'input_data':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "input_data" (
+          "id" SERIAL PRIMARY KEY,
+          "project_id" INTEGER NOT NULL,
+          "name" TEXT NOT NULL,
+          "type" TEXT NOT NULL,
+          "size" INTEGER NOT NULL,
+          "status" TEXT,
+          "content_type" TEXT,
+          "metadata" JSONB,
+          "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE CASCADE
+        )
+      `);
+      break;
+      
+    case 'requirements':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "requirements" (
+          "id" SERIAL PRIMARY KEY,
+          "project_id" INTEGER NOT NULL,
+          "title" TEXT NOT NULL,
+          "description" TEXT NOT NULL,
+          "category" TEXT NOT NULL,
+          "priority" TEXT NOT NULL DEFAULT 'medium',
+          "input_data_id" INTEGER,
+          "acceptance_criteria" JSONB,
+          "source" TEXT,
+          "video_scenes" JSONB,
+          "audio_timestamps" JSONB,
+          "expert_analysis" JSONB,
+          "expert_review" JSONB,
+          "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE CASCADE,
+          FOREIGN KEY ("input_data_id") REFERENCES "input_data" ("id") ON DELETE SET NULL
+        )
+      `);
+      break;
+    
+    case 'implementation_tasks':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "implementation_tasks" (
+          "id" SERIAL PRIMARY KEY,
+          "requirement_id" INTEGER NOT NULL,
+          "title" TEXT NOT NULL,
+          "description" TEXT NOT NULL,
+          "status" TEXT DEFAULT 'pending',
+          "priority" TEXT DEFAULT 'medium',
+          "system" TEXT NOT NULL,
+          "estimated_hours" FLOAT,
+          "complexity" TEXT,
+          "assignee" TEXT,
+          "notes" TEXT,
+          "implementation_details" JSONB,
+          "review_comments" TEXT,
+          "dependencies" JSONB,
+          "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("requirement_id") REFERENCES "requirements" ("id") ON DELETE CASCADE
+        )
+      `);
+      break;
+  }
+  
+  console.log(`✅ Table '${tableName}' created successfully.`);
+}
+
+async function ensureTableColumns(tableName) {
+  // Define the required columns for each table
+  const requiredColumns = {
+    users: [
+      { name: 'id', type: 'integer' },
+      { name: 'username', type: 'text' },
+      { name: 'password', type: 'text' },
+      { name: 'role', type: 'text' },
+      { name: 'created_at', type: 'timestamp' },
+      { name: 'updated_at', type: 'timestamp' }
+    ],
+    customers: [
+      { name: 'id', type: 'integer' },
+      { name: 'name', type: 'text' },
+      { name: 'description', type: 'text' },
+      { name: 'industry', type: 'text' },
+      { name: 'created_at', type: 'timestamp' },
+      { name: 'updated_at', type: 'timestamp' }
+    ],
+    projects: [
+      { name: 'id', type: 'integer' },
+      { name: 'name', type: 'text' },
+      { name: 'description', type: 'text' },
+      { name: 'type', type: 'text' },
+      { name: 'user_id', type: 'integer' },
+      { name: 'customer_id', type: 'integer' },
+      { name: 'customer', type: 'text' },
+      { name: 'source_system', type: 'text' },
+      { name: 'target_system', type: 'text' },
+      { name: 'created_at', type: 'timestamp' },
+      { name: 'updated_at', type: 'timestamp' }
+    ],
+    activities: [
+      { name: 'id', type: 'integer' },
+      { name: 'project_id', type: 'integer' },
+      { name: 'user_id', type: 'integer' },
+      { name: 'type', type: 'text' },
+      { name: 'description', type: 'text' },
+      { name: 'related_entity_id', type: 'integer' },
+      { name: 'created_at', type: 'timestamp' }
+    ],
+    input_data: [
+      { name: 'id', type: 'integer' },
+      { name: 'project_id', type: 'integer' },
+      { name: 'name', type: 'text' },
+      { name: 'type', type: 'text' },
+      { name: 'size', type: 'integer' },
+      { name: 'status', type: 'text' },
+      { name: 'content_type', type: 'text' },
+      { name: 'metadata', type: 'jsonb' },
+      { name: 'created_at', type: 'timestamp' }
+    ],
+    requirements: [
+      { name: 'id', type: 'integer' },
+      { name: 'project_id', type: 'integer' },
+      { name: 'title', type: 'text' },
+      { name: 'description', type: 'text' },
+      { name: 'category', type: 'text' },
+      { name: 'priority', type: 'text' },
+      { name: 'input_data_id', type: 'integer' },
+      { name: 'created_at', type: 'timestamp' },
+      { name: 'updated_at', type: 'timestamp' }
+    ],
+    implementation_tasks: [
+      { name: 'id', type: 'integer' },
+      { name: 'requirement_id', type: 'integer' },
+      { name: 'title', type: 'text' },
+      { name: 'description', type: 'text' },
+      { name: 'status', type: 'text' },
+      { name: 'priority', type: 'text' },
+      { name: 'system', type: 'text' },
+      { name: 'created_at', type: 'timestamp' },
+      { name: 'updated_at', type: 'timestamp' }
+    ]
+  };
+  
+  // Check and add any missing columns
+  const columns = requiredColumns[tableName] || [];
+  for (const column of columns) {
+    const columnExists = await checkColumnExists(tableName, column.name);
+    if (!columnExists) {
+      console.log(`➕ Adding missing column '${column.name}' to table '${tableName}'...`);
+      await addColumnToTable(tableName, column.name, column.type);
+    }
+  }
+}
+
+async function checkColumnExists(tableName, columnName) {
+  const result = await pool.query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = $1
+      AND column_name = $2
+    )
+  `, [tableName, columnName]);
+  
+  return result.rows[0].exists;
+}
+
+async function addColumnToTable(tableName, columnName, columnType) {
+  // Default values for common column types
+  let defaultValue = '';
+  
+  if (columnName === 'type' && tableName === 'projects') {
+    defaultValue = " DEFAULT 'migration'";
+  } else if (columnName === 'type' && tableName === 'activities') {
+    defaultValue = " DEFAULT 'system'";
+  } else if (columnName === 'description' && tableName === 'activities') {
+    defaultValue = " DEFAULT 'System activity'";
+  } else if (columnName === 'priority') {
+    defaultValue = " DEFAULT 'medium'";
+  } else if (columnName === 'status' && tableName === 'implementation_tasks') {
+    defaultValue = " DEFAULT 'pending'";
+  } else if (columnType === 'timestamp') {
+    defaultValue = ' DEFAULT CURRENT_TIMESTAMP';
+  }
+  
+  await pool.query(`
+    ALTER TABLE "${tableName}" 
+    ADD COLUMN IF NOT EXISTS "${columnName}" ${columnType}${defaultValue}
+  `);
+  
+  console.log(`✅ Column '${columnName}' added to table '${tableName}'.`);
+}
+
+// Run the synchronization
+syncDatabaseSchema().then(success => {
+  if (success) {
+    console.log('Database schema is now fully synchronized and ready to use.');
+    process.exit(0);
+  } else {
+    console.error('Failed to synchronize database schema.');
+    process.exit(1);
+  }
+});
