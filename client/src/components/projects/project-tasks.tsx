@@ -14,6 +14,19 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { useToast } from '@/hooks/use-toast';
 import { ImplementationStepsTable } from '@/components/implementation-tasks/implementation-steps-table';
 import { 
@@ -25,7 +38,9 @@ import {
   Target, 
   Database, 
   CloudCog,
-  Plus
+  Plus,
+  Check,
+  ChevronsUpDown
 } from 'lucide-react';
 
 interface ProjectTasksProps {
@@ -334,47 +349,49 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
                 </Label>
                 <div className="col-span-3">
                   <div className="relative w-full">
-                    <Select 
-                      value={taskFormData.requirementId} 
-                      onValueChange={(value) => handleSelectChange('requirementId', value)}
-                    >
-                      <SelectTrigger id="requirementId" className="w-full">
-                        <SelectValue placeholder="Select requirement" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px] overflow-y-auto">
-                        <div className="py-2 px-3">
-                          <Input 
-                            placeholder="Search requirements..." 
-                            className="mb-2"
-                            onChange={(e) => {
-                              // This doesn't actually filter the dropdown options directly
-                              // It's just a visual component that users can type in to search
-                              // The filtering happens below with the requirements?.filter
-                            }}
-                            onClick={(e) => e.stopPropagation()} // Prevent closing dropdown on input click
-                          />
-                        </div>
-                        {requirements
-                          ?.filter((req) => {
-                            // Only show requirements with title that match the search term
-                            // Get the input element and its value
-                            const searchInput = document.querySelector('input[placeholder="Search requirements..."]') as HTMLInputElement;
-                            const searchTerm = searchInput?.value.toLowerCase() || '';
-                            
-                            // If no search term, show all requirements
-                            if (!searchTerm) return true;
-                            
-                            // Check if the requirement title contains the search term
-                            return req.title.toLowerCase().includes(searchTerm);
-                          })
-                          .map((req) => (
-                            <SelectItem key={req.id} value={req.id.toString()}>
-                              {req.title}
-                            </SelectItem>
-                          ))
-                        }
-                      </SelectContent>
-                    </Select>
+                    {/* We need a custom Command component instead of Select for better search */}
+                    <div className="w-full">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between"
+                          >
+                            {taskFormData.requirementId 
+                              ? requirements?.find(req => req.id.toString() === taskFormData.requirementId)?.title || "Select requirement"
+                              : "Select requirement"
+                            }
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Search requirements..." className="h-9" />
+                            <CommandEmpty>No requirement found.</CommandEmpty>
+                            <CommandGroup className="max-h-[300px] overflow-y-auto">
+                              {requirements?.map((req) => (
+                                <CommandItem
+                                  key={req.id}
+                                  value={req.title}
+                                  onSelect={() => {
+                                    handleSelectChange('requirementId', req.id.toString());
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      taskFormData.requirementId === req.id.toString() ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {req.title}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                 </div>
               </div>
