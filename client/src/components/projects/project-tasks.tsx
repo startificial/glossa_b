@@ -333,21 +333,49 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
                   Requirement
                 </Label>
                 <div className="col-span-3">
-                  <Select 
-                    value={taskFormData.requirementId} 
-                    onValueChange={(value) => handleSelectChange('requirementId', value)}
-                  >
-                    <SelectTrigger id="requirementId">
-                      <SelectValue placeholder="Select requirement" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {requirements?.map((req) => (
-                        <SelectItem key={req.id} value={req.id.toString()}>
-                          {req.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="relative w-full">
+                    <Select 
+                      value={taskFormData.requirementId} 
+                      onValueChange={(value) => handleSelectChange('requirementId', value)}
+                    >
+                      <SelectTrigger id="requirementId" className="w-full">
+                        <SelectValue placeholder="Select requirement" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px] overflow-y-auto">
+                        <div className="py-2 px-3">
+                          <Input 
+                            placeholder="Search requirements..." 
+                            className="mb-2"
+                            onChange={(e) => {
+                              // This doesn't actually filter the dropdown options directly
+                              // It's just a visual component that users can type in to search
+                              // The filtering happens below with the requirements?.filter
+                            }}
+                            onClick={(e) => e.stopPropagation()} // Prevent closing dropdown on input click
+                          />
+                        </div>
+                        {requirements
+                          ?.filter((req) => {
+                            // Only show requirements with title that match the search term
+                            // Get the input element and its value
+                            const searchInput = document.querySelector('input[placeholder="Search requirements..."]') as HTMLInputElement;
+                            const searchTerm = searchInput?.value.toLowerCase() || '';
+                            
+                            // If no search term, show all requirements
+                            if (!searchTerm) return true;
+                            
+                            // Check if the requirement title contains the search term
+                            return req.title.toLowerCase().includes(searchTerm);
+                          })
+                          .map((req) => (
+                            <SelectItem key={req.id} value={req.id.toString()}>
+                              {req.title}
+                            </SelectItem>
+                          ))
+                        }
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
               

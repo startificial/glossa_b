@@ -41,7 +41,13 @@ export function ImplementationStepsTable({
   const [editableSteps, setEditableSteps] = useState<ImplementationStep[]>(steps || []);
   
   // Handle adding a new step
-  const handleAddStep = () => {
+  const handleAddStep = (e?: React.MouseEvent) => {
+    // Prevent default form submission if event is provided
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     const newStepNumber = editableSteps.length > 0 
       ? Math.max(...editableSteps.map(s => s.stepNumber)) + 1 
       : 1;
@@ -195,8 +201,9 @@ export function ImplementationStepsTable({
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={handleAddStep}
+              onClick={(e) => handleAddStep(e)}
               className="h-8 gap-1"
+              type="button"
             >
               <Plus className="h-4 w-4" />
               Add Step
@@ -220,8 +227,9 @@ export function ImplementationStepsTable({
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={handleAddStep}
+            onClick={(e) => handleAddStep(e)}
             className="h-8 gap-1"
+            type="button"
           >
             <Plus className="h-4 w-4" />
             Add Step
@@ -238,8 +246,13 @@ export function ImplementationStepsTable({
                     variant="ghost" 
                     size="icon" 
                     className="h-6 w-6" 
-                    onClick={() => handleMoveStepUp(step.stepNumber)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleMoveStepUp(step.stepNumber);
+                    }}
                     disabled={index === 0}
+                    type="button"
                   >
                     <ArrowUp className="h-4 w-4" />
                   </Button>
@@ -247,8 +260,13 @@ export function ImplementationStepsTable({
                     variant="ghost" 
                     size="icon" 
                     className="h-6 w-6"
-                    onClick={() => handleMoveStepDown(step.stepNumber)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleMoveStepDown(step.stepNumber);
+                    }}
                     disabled={index === editableSteps.length - 1}
+                    type="button"
                   >
                     <ArrowDown className="h-4 w-4" />
                   </Button>
@@ -256,7 +274,12 @@ export function ImplementationStepsTable({
                     variant="ghost" 
                     size="icon" 
                     className="h-6 w-6 text-red-500 hover:text-red-700" 
-                    onClick={() => handleRemoveStep(step.stepNumber)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleRemoveStep(step.stepNumber);
+                    }}
+                    type="button"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -288,7 +311,12 @@ export function ImplementationStepsTable({
                         variant="outline" 
                         size="sm" 
                         className="h-7 text-xs gap-1"
-                        onClick={() => handleAddStepLink(step.stepNumber)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleAddStepLink(step.stepNumber);
+                        }}
+                        type="button"
                       >
                         <Plus className="h-3 w-3" />
                         Add Link
@@ -309,7 +337,12 @@ export function ImplementationStepsTable({
                               variant="ghost" 
                               size="icon" 
                               className="h-8 w-8 shrink-0 text-red-500 hover:text-red-700" 
-                              onClick={() => handleRemoveStepLink(step.stepNumber, linkIndex)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleRemoveStepLink(step.stepNumber, linkIndex);
+                              }}
+                              type="button"
                             >
                               <X className="h-4 w-4" />
                             </Button>
