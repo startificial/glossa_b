@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ImplementationTask } from "@/lib/types";
+import { ImplementationTask, ImplementationStep } from "@/lib/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { HourglassIcon, Loader2Icon, ClockIcon, BrainCircuitIcon, UserIcon } from "lucide-react";
+import { HourglassIcon, Loader2Icon, ClockIcon, BrainCircuitIcon, UserIcon, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ImplementationStepsTable } from "@/components/implementation-tasks/implementation-steps-table";
 
 interface TasksTableProps {
   projectId: number;
@@ -48,6 +49,7 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
     assignee: "",
     taskType: "implementation",
     sfDocumentationLinks: [],
+    implementationSteps: [] as ImplementationStep[]
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -104,6 +106,7 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
         assignee: "",
         taskType: "implementation",
         sfDocumentationLinks: [],
+        implementationSteps: []
       });
     },
     onError: (error) => {
@@ -384,7 +387,16 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
                       placeholder="(Optional)"
                     />
                   </div>
-                  <DialogFooter>
+                  <div className="mt-6">
+                    <Label className="mb-2 block">Implementation Steps</Label>
+                    <ImplementationStepsTable 
+                      steps={taskFormData.implementationSteps || []} 
+                      isEditing={true}
+                      onChange={(steps) => setTaskFormData(prev => ({ ...prev, implementationSteps: steps }))} 
+                    />
+                  </div>
+                  
+                  <DialogFooter className="mt-4">
                     <Button type="submit" disabled={createTaskMutation.isPending}>
                       {createTaskMutation.isPending ? (
                         <>
