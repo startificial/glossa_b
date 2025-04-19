@@ -132,6 +132,67 @@ app.use((req, res, next) => {
     // Initialize database if using PostgreSQL
     if (process.env.DATABASE_URL && process.env.USE_POSTGRES === 'true') {
       log('PostgreSQL database detected, initializing...', 'database');
+      
+      // First ensure the essential tables and columns exist
+      // This prevents "table does not exist" or "column does not exist" errors
+      try {
+        log('Ensuring essential database schema...', 'database');
+        const { neon } = await import('@neondatabase/serverless');
+        const sql = neon(process.env.DATABASE_URL);
+        
+        // Customers table
+        await sql`
+          CREATE TABLE IF NOT EXISTS "customers" (
+            "id" SERIAL PRIMARY KEY,
+            "name" TEXT NOT NULL,
+            "description" TEXT,
+            "industry" TEXT,
+            "background_info" TEXT,
+            "website" TEXT,
+            "contact_email" TEXT,
+            "contact_phone" TEXT,
+            "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `;
+        
+        // Projects table with all required columns
+        await sql`
+          CREATE TABLE IF NOT EXISTS "projects" (
+            "id" SERIAL PRIMARY KEY,
+            "name" TEXT NOT NULL,
+            "description" TEXT,
+            "type" TEXT NOT NULL DEFAULT 'migration',
+            "user_id" INTEGER NOT NULL,
+            "customer_id" INTEGER,
+            "customer" TEXT,
+            "source_system" TEXT,
+            "target_system" TEXT,
+            "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `;
+        
+        // Activities table with required "type" column
+        await sql`
+          CREATE TABLE IF NOT EXISTS "activities" (
+            "id" SERIAL PRIMARY KEY,
+            "project_id" INTEGER,
+            "user_id" INTEGER,
+            "type" TEXT NOT NULL DEFAULT 'system',
+            "description" TEXT NOT NULL DEFAULT 'System activity',
+            "related_entity_id" INTEGER,
+            "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `;
+        
+        log('Essential database schema verified', 'database');
+      } catch (schemaError) {
+        log(`Schema verification warning (non-fatal): ${schemaError}`, 'database');
+        // Continue with normal initialization - don't fail startup
+      }
+      
+      // Continue with normal initialization
       await initializeDatabase();
       await runMigrations();
     } else {
