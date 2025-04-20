@@ -11,9 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TabsContent, Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, AlertCircle } from "lucide-react";
-// Import IBM Plex Sans font
-import "@fontsource/ibm-plex-sans/400.css";
-import "@fontsource/ibm-plex-sans/700.css";
 
 // Main Auth Page Component
 export default function AuthPage() {
