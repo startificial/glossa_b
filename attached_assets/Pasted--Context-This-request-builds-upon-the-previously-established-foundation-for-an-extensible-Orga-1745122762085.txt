@@ -1,0 +1,87 @@
+**Context:**
+
+This request builds upon the previously established foundation for an extensible "Organization Wide Settings" page within our application (React/TypeScript frontend, Node.js/TypeScript/Express backend, Neon DB/Postgres with Drizzle ORM). This foundation includes a data-driven sidebar navigation, reusable components, defined API patterns, and a focus on architectural best practices (reusability, scalability, separation of concerns). Recall that Organization Wide Settings are distinct from user-specific "Profile Settings".
+
+**Objective:**
+
+Implement a new feature within the Organization Wide Settings to allow administrators to create, manage, and store "Implementation Task Templates". These templates will then be available for selection within individual projects to streamline the creation of new implementation tasks.
+
+This involves two main parts:
+1.  Creating the template management interface within Organization Wide Settings.
+2.  Updating the existing "Add New Task" functionality within the *project* context to allow users to optionally create tasks from these templates.
+
+**Part 1: Organization Wide Settings - Implementation Task Template Management**
+
+1.  **Add New Settings Section:**
+    * Update the Organization Wide Settings navigation configuration (e.g., `orgSettingsSections`) to include a new category:
+        * `id`: `task-templates`
+        * `title`: `Task Templates`
+        * `path`: `/organization/settings/task-templates`
+        * `component`: `TaskTemplatesSettings` (new component to be created)
+
+2.  **Task Templates UI (`TaskTemplatesSettings.tsx`):**
+    * Create the `TaskTemplatesSettings` React component.
+    * This component should provide a user interface for CRUD (Create, Read, Update, Delete) operations on Implementation Task Templates associated with the organization.
+    * **List View:** Display a list/table of existing task templates (showing at least Name and Description). Include buttons/links for editing or deleting each template.
+    * **Create/Edit Form:** Implement a form (potentially using a modal or separate view) to create or edit a template. Required fields:
+        * `Template Name` (text input)
+        * `Template Description` (textarea)
+        * *(Optional but recommended for future flexibility)*: Consider adding a simple way to define default task properties within the template (e.g., default title prefix, default description content, perhaps using basic fields or a JSON editor if more complex data is needed later). Start simple with just Name and Description if defining template content is too complex initially.
+    * **Delete:** Implement a confirmation mechanism before deleting a template.
+    * Use the previously established reusable components (`SettingsSection`, `SettingsTextInput`, `SettingsSaveButton`, etc.) where appropriate.
+    * Handle loading states and errors during API interactions.
+
+3.  **Backend API (Node.js/Express/TypeScript):**
+    * Create new RESTful API endpoints under `/api/organization/task-templates`:
+        * `GET /api/organization/task-templates`: List all task templates for the authenticated user's organization.
+        * `POST /api/organization/task-templates`: Create a new task template. Expect `name`, `description` (and potentially other template data) in the request body.
+        * `GET /api/organization/task-templates/:templateId`: Get details for a specific template (optional for listing, useful for editing).
+        * `PUT /api/organization/task-templates/:templateId`: Update an existing task template.
+        * `DELETE /api/organization/task-templates/:templateId`: Delete a task template.
+    * Ensure endpoints are protected and authorized for organization administrators.
+
+4.  **Database (Drizzle/Postgres):**
+    * Define a new Drizzle schema for a `task_templates` table.
+    * Required columns: `id` (primary key), `organization_id` (foreign key to organizations table), `name` (text, not null), `description` (text), `created_at`, `updated_at`.
+    * *(Optional/Recommended)*: Add a `template_details` JSONB column to flexibly store default task properties defined by the template.
+    * Implement corresponding backend service/repository functions using Drizzle to perform CRUD operations on this new table, respecting the `organization_id` for multi-tenancy.
+
+**Part 2: Project Context - Update "Add New Task" Functionality**
+
+1.  **Modify Existing Task Creation UI (Project Level):**
+    * Identify the existing React component(s) responsible for adding a new task within a project.
+    * Introduce a new initial step or option in this UI:
+        * Prompt the user: "How would you like to create this task?"
+        * Options: "Start from Scratch" (current behavior) OR "Use a Template". (Use radio buttons, a select dropdown, or similar).
+
+2.  **Template Selection Logic:**
+    * If the user selects "Use a Template":
+        * Fetch the list of available Implementation Task Templates for the organization using the `GET /api/organization/task-templates` endpoint created in Part 1.
+        * Display these templates in a dropdown or list for the user to select. Handle loading/error states for this fetch.
+    * If the user selects "Start from Scratch", proceed with the existing blank task form.
+
+3.  **Pre-filling Task Form:**
+    * When a user selects a template:
+        * Retrieve the details of the selected template (either from the initial list fetch if details are included, or via a specific fetch if needed).
+        * Pre-populate the relevant fields in the "Add New Task" form (e.g., Task Title, Description) based on the data stored in the selected template (`name`, `description`, and potentially fields from `template_details`).
+
+4.  **Implementation Notes:**
+    * Since the LLM doesn't have the exact code for the *existing* "Add New Task" component, provide the *logic, necessary state management (e.g., useState for template selection mode, selected template ID), API call integration (fetching templates), and component structure modifications* needed to integrate this template selection feature. Assume standard React practices (hooks, conditional rendering).
+
+**--- Important Safety Note - Database Changes ---**
+
+* **Non-Destructive Changes:** When generating the Drizzle schema definition for the new `task_templates` table and any associated database migration logic, ensure that these changes are **strictly additive and non-destructive**.
+* **Protect Existing Data:** Under no circumstances should the generated code or migration steps modify, delete, or otherwise endanger data in existing tables or alter existing table structures in a breaking way. The focus is solely on *adding* the new table and functionality safely.
+
+**-------------------------------------------------**
+
+**Deliverables:**
+
+* **New Org Settings Components:** `TaskTemplatesSettings.tsx` and any sub-components needed for listing, creating, editing templates.
+* **Updated Org Settings Config:** The modified `orgSettingsSections` configuration array/object.
+* **New Backend API:** Routes, controllers/handlers, service functions, and Drizzle schema/queries for `/api/organization/task-templates`.
+* **New Drizzle Schema:** Definition for the `task_templates` table.
+* **(If applicable) Additive Migration Logic:** Any necessary database migration script content (using Drizzle Migrate or equivalent) to create the new table safely.
+* **Modified Project Task Creation Logic:** Code snippets or descriptions outlining the necessary changes to the *existing* project-level "Add New Task" component(s) to incorporate template selection (state management, conditional rendering, API calls, form pre-population logic).
+
+Ensure all new code adheres to the established architectural principles (reusability, separation of concerns, type safety using TypeScript) and integrates smoothly with the existing structure, following the safety note regarding database modifications.
