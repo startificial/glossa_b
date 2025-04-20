@@ -6,11 +6,15 @@
  * this actively synchronizes the database schema to match the application's
  * required structure rather than just reporting errors.
  */
-import { Pool } from '@neondatabase/serverless';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
+
+// Configure WebSocket connection for Neon serverless
+neonConfig.webSocketConstructor = ws;
 
 // Create SQL client
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -22,7 +26,7 @@ async function syncDatabaseSchema() {
     // Check if each required table exists and create if not
     const requiredTables = [
       'users', 'customers', 'projects', 'activities', 
-      'input_data', 'requirements', 'implementation_tasks'
+      'input_data', 'requirements', 'implementation_tasks', 'workflows'
     ];
     
     for (const tableName of requiredTables) {
@@ -195,6 +199,24 @@ async function createTable(tableName) {
         )
       `);
       break;
+      
+    case 'workflows':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "workflows" (
+          "id" SERIAL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "description" TEXT,
+          "project_id" INTEGER NOT NULL,
+          "version" INTEGER DEFAULT 1 NOT NULL,
+          "status" TEXT DEFAULT 'draft' NOT NULL,
+          "nodes" JSONB DEFAULT '[]' NOT NULL,
+          "edges" JSONB DEFAULT '[]' NOT NULL,
+          "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE CASCADE
+        )
+      `);
+      break;
   }
   
   console.log(`✅ Table '${tableName}' created successfully.`);
@@ -273,6 +295,18 @@ async function ensureTableColumns(tableName) {
       { name: 'system', type: 'text' },
       { name: 'created_at', type: 'timestamp' },
       { name: 'updated_at', type: 'timestamp' }
+    ],
+    workflows: [
+      { name: 'id', type: 'integer' },
+      { name: 'name', type: 'text' },
+      { name: 'description', type: 'text' },
+      { name: 'project_id', type: 'integer' },
+      { name: 'version', type: 'integer' },
+      { name: 'status', type: 'text' },
+      { name: 'nodes', type: 'jsonb' },
+      { name: 'edges', type: 'jsonb' },
+      { name: 'created_at', type: 'timestamp' },
+      { name: 'updated_at', type: 'timestamp' }
     ]
   };
   
@@ -314,6 +348,14 @@ async function addColumnToTable(tableName, columnName, columnType) {
     defaultValue = " DEFAULT 'medium'";
   } else if (columnName === 'status' && tableName === 'implementation_tasks') {
     defaultValue = " DEFAULT 'pending'";
+  } else if (columnName === 'status' && tableName === 'workflows') {
+    defaultValue = " DEFAULT 'draft'";
+  } else if (columnName === 'version' && tableName === 'workflows') {
+    defaultValue = " DEFAULT 1";
+  } else if (columnName === 'nodes' && tableName === 'workflows') {
+    defaultValue = " DEFAULT '[]'";
+  } else if (columnName === 'edges' && tableName === 'workflows') {
+    defaultValue = " DEFAULT '[]'";
   } else if (columnType === 'timestamp') {
     defaultValue = ' DEFAULT CURRENT_TIMESTAMP';
   }

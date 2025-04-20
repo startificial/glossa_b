@@ -27,6 +27,7 @@ if [ $? -eq 0 ]; then
   echo "  - input_data"
   echo "  - requirements"
   echo "  - implementation_tasks"
+  echo "  - workflows"
   echo ""
   echo "You can now safely run the application and use database features."
   echo ""

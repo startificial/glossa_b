@@ -402,7 +402,7 @@ export function SearchResults() {
                                 <FileText className="h-5 w-5 text-muted-foreground" />
                               </CardHeader>
                               <CardContent>
-                                <p className="text-sm line-clamp-3">{req.text}</p>
+                                <p className="text-sm line-clamp-3">{req.description}</p>
                               </CardContent>
                               <CardFooter className="text-xs text-gray-500">
                                 Project: <Link href={`/projects/${req.projectId}`} className="hover:underline ml-1">
@@ -546,7 +546,7 @@ export function SearchResults() {
                               <FileText className="h-5 w-5 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                              <p className="text-sm line-clamp-3">{req.text}</p>
+                              <p className="text-sm line-clamp-3">{req.description}</p>
                             </CardContent>
                             <CardFooter className="text-xs text-gray-500">
                               Project: <Link href={`/projects/${req.projectId}`} className="hover:underline ml-1">
