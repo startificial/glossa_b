@@ -1,0 +1,1297 @@
+%PDF-1.3
+%ºß¬à
+3 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 4149
+>>
+stream
+0.5670000000000001 w
+0 G
+0.92 0.96 1. rg
+0. 841.8899999999999864 595.2799999999999727 -113.3858267716535551 re
+f
+BT
+/F2 24 Tf
+27.5999999999999979 TL
+0.173 0.243 0.314 rg
+192.1599999999999113 771.0238582677164914 Td
+(Statement of Work) Tj
+ET
+BT
+/F2 20 Tf
+23. TL
+0.173 0.243 0.314 rg
+292.1399999999999864 742.6774015748030706 Td
+(4) Tj
+ET
+0.2 0.6 0.86 RG
+56.6929133858267775 685.9844881889763428 m
+538.5870866141731312 685.9844881889763428 l
+S
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0.173 0.243 0.314 rg
+56.6929133858267775 671.8112598425196893 Td
+(1. PROJECT OVERVIEW) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+56.6929133858267775 643.4648031496062686 Td
+(test) Tj
+ET
+0.2 0.6 0.86 RG
+56.6929133858267775 595.2758267716534419 m
+538.5870866141731312 595.2758267716534419 l
+S
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0.173 0.243 0.314 rg
+56.6929133858267775 581.1025984251967884 Td
+(2. SCOPE OF WORK) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+56.6929133858267775 552.7561417322833677 Td
+(This Statement of Work outlines the deliverables and services to be provided for the 4) Tj
+T* (project. It includes detailed requirements, implementation tasks, acceptance criteria,) Tj
+T* (timeline, and costs.) Tj
+ET
+0.2 0.6 0.86 RG
+56.6929133858267775 464.8821259842518998 m
+538.5870866141731312 464.8821259842518998 l
+S
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0.173 0.243 0.314 rg
+56.6929133858267775 450.7088976377952463 Td
+(3. REQUIREMENTS) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 436.5356692913385359 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 422.3624409448818255 Td
+(Requirement 1: Intuitive Ticket Creation Process) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 394.0159842519684616 Td
+(The target system's user interface for creating service tickets must be intuitive and) Tj
+T* (streamlined, mirroring the workflow demonstrated in the 'Product Team Meeting -) Tj
+T* (2019-07-09.mp4' video. This includes clear labeling of fields, logical grouping of) Tj
+T* (related information, and intelligent form pre-population based on user context and) Tj
+T* (previous entries.  The navigation flow should guide users through the process with) Tj
+T* (minimal clicks and clear progress indicators.  The user experience should be) Tj
+T* (enhanced with features like auto-suggestions for common fields, real-time validation) Tj
+T* (of inputs, and the ability to easily attach relevant files.  The target system should also) Tj
+T* (support various input methods, including keyboard shortcuts and voice-to-text, to) Tj
+T* (cater to diverse user needs and improve efficiency in ticket creation.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 181.4175590551180051 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 167.2443307086613231 Td
+(Requirement 2: Seamless Ticket Search and Filtering) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 138.8978740157479024 Td
+(The target system must provide a robust search and filtering functionality for service) Tj
+T* (tickets, replicating the capabilities observed in the source system video. Users should) Tj
+T* (be able to search by keywords, ticket ID, customer name, assigned agent, status,) Tj
+T* (priority, and other relevant criteria.  The search interface should offer advanced) Tj
+T* (filtering options, including date ranges, custom fields, and logical operators \(AND,) Tj
+T* (OR, NOT\). The search results should be displayed in a clear and organized manner,) Tj
+T* (with customizable columns and sorting options. The user experience should prioritize) Tj
+T* (speed and efficiency, providing real-time search suggestions and displaying results as) Tj
+T* (the user types.  The system must also support saved searches and filters for) Tj
+T* (frequently used queries, improving user productivity and reducing repetitive tasks.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 1 of 9) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/20/2025) Tj
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 6 0 R
+>>
+endobj
+6 0 obj
+<<
+/Length 3686
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 3: Responsive Design for All Devices) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The target system's user interface must be responsive and adapt to different screen) Tj
+T* (sizes and devices, ensuring a consistent user experience across desktops, laptops,) Tj
+T* (tablets, and smartphones. This includes adjusting layout, font sizes, and interactive) Tj
+T* (elements to optimize usability on each device. The navigation flows should remain) Tj
+T* (intuitive and efficient regardless of screen size, with clear visual cues and) Tj
+T* (touch-friendly controls on mobile devices. The responsive design should prioritize) Tj
+T* (performance and minimize loading times across all devices, ensuring a seamless) Tj
+T* (user experience. This requirement is essential for supporting field technicians and) Tj
+T* (remote workers who access the service management system on various devices.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 564.0947244094487587 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 549.9214960629921052 Td
+(Requirement 4: Accessible UI for All Users) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 521.5750393700786844 Td
+(The target system's user interface must adhere to accessibility guidelines \(e.g.,) Tj
+T* (WCAG 2.1\) to ensure usability for all users, including those with disabilities. This) Tj
+T* (includes providing alternative text for images, keyboard navigation for all interactive) Tj
+T* (elements, sufficient color contrast, and support for assistive technologies like screen) Tj
+T* (readers.  The navigation flows should be designed with accessibility in mind,) Tj
+T* (providing clear and consistent landmarks and keyboard shortcuts for common) Tj
+T* (actions.  The user experience should be inclusive and cater to diverse needs,) Tj
+T* (ensuring that all users can access and interact with the service management) Tj
+T* (functionality effectively.  This is crucial for compliance and inclusivity.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 328.8191338582676622 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 314.6459055118109518 Td
+(Requirement 5: Consistent UI with Project Context 4) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 286.2994488188975311 Td
+(The target system's user interface and navigation flows for service management) Tj
+T* (functionality must maintain consistency with the overall design and branding) Tj
+T* (guidelines established for Project Context 4. This includes using consistent color) Tj
+T* (palettes, typography, iconography, and interaction patterns across all modules and) Tj
+T* (workflows.  The user experience should be cohesive and familiar, minimizing) Tj
+T* (cognitive load and facilitating seamless transitions between different parts of the) Tj
+T* (system.  This consistency is crucial for building a strong brand identity and ensuring a) Tj
+T* (positive user experience across the entire platform, as highlighted in the 'Product) Tj
+T* (Team Meeting - 2019-07-09.mp4' video's discussion on user adoption and training.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 2 of 9) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/20/2025) Tj
+ET
+endstream
+endobj
+7 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 8 0 R
+>>
+endobj
+8 0 obj
+<<
+/Length 3742
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 6: Service Request Approval Workflow) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The target system must replicate the service request approval workflow demonstrated) Tj
+T* (in the 'Product Team Meeting - 2019-07-09.mp4' video. This includes replicating the) Tj
+T* (conditional approval paths based on request type, priority, and estimated cost.  For) Tj
+T* (service requests exceeding $500, two levels of managerial approval are required: the) Tj
+T* (direct manager and a department head.  For requests below $500, only direct) Tj
+T* (manager approval is necessary. The system must enforce these rules and) Tj
+T* (automatically route requests to the appropriate approvers.  The workflow must also) Tj
+T* (include provisions for rejecting requests, with clear communication to the requestor) Tj
+T* (including the reason for rejection.  Finally, an audit trail of all approvals, rejections,) Tj
+T* (and modifications to the request must be maintained for reporting and compliance) Tj
+T* (purposes within project context 4.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 524.4096850393700606 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 510.2364566929133503 Td
+(Requirement 7: Automated Service Ticket Routing) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 481.8899999999999295 Td
+(The target system must implement the automated service ticket routing logic) Tj
+T* (observed in the source system video.  This includes routing tickets based on service) Tj
+T* (category, assigned team, and availability of support personnel.  The routing rules) Tj
+T* (must consider the skillset of the support team members, prioritizing tickets to agents) Tj
+T* (with the appropriate expertise.  If no agent with the required skills is available, the) Tj
+T* (ticket should be escalated to a secondary support team as demonstrated in the video.) Tj
+T* ( The target system must also maintain a queue management system with clear) Tj
+T* (visibility into ticket status, assigned agent, and time spent in each stage of the) Tj
+T* (workflow within project context 4.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 289.1340944881889072 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 274.9608661417322537 Td
+(Requirement 8: SLA Management and Escalation) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 246.614409448818833 Td
+(The target service management system must incorporate SLA management) Tj
+T* (functionality equivalent to the source system, including automated escalation) Tj
+T* (procedures for breached SLAs.  The video 'Product Team Meeting - 2019-07-09.mp4') Tj
+T* (showcases specific SLA timelines based on service priority. The target system must) Tj
+T* (adhere to these timelines and trigger automated notifications to relevant stakeholders) Tj
+T* (upon breach.  Escalation procedures must involve notifying higher management) Tj
+T* (levels and potentially re-assigning the ticket to a specialized team. The system should) Tj
+T* (also provide reporting capabilities to track SLA performance and identify areas for) Tj
+T* (improvement within project context 4.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 3 of 9) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/20/2025) Tj
+ET
+endstream
+endobj
+9 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 10 0 R
+>>
+endobj
+10 0 obj
+<<
+/Length 3590
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 9: System Performance and Response Times) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The target service management system must demonstrate acceptable performance) Tj
+T* (and response times under expected load conditions, comparable to or better than the) Tj
+T* (source system as observed in the video.  This includes page load times, search query) Tj
+T* (response times, and workflow execution times.  Performance testing should be) Tj
+T* (conducted to ensure that the system can handle the anticipated volume of service) Tj
+T* (requests and user interactions within project context 4.  Target response times for key) Tj
+T* (operations, such as creating a service request or retrieving ticket information, should) Tj
+T* (be defined and validated during testing to ensure a satisfactory user experience.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 583.9372440944881646 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 569.7640157480313974 Td
+(Requirement 10: Secure Data Migration and Access Control) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 541.4175590551180903 Td
+(Data security is paramount during the migration process.  All data transmitted) Tj
+T* (between the source and target systems must be encrypted using secure protocols. ) Tj
+T* (Access to migration data should be restricted to authorized personnel only.  The) Tj
+T* (target system must enforce appropriate access controls to ensure data confidentiality) Tj
+T* (and integrity.  Audit logs should be maintained to track all data access and) Tj
+T* (modifications during the migration process.  The migration process should comply) Tj
+T* (with all relevant security policies and regulations. Post-migration, data validation) Tj
+T* (checks should be performed to ensure data integrity and identify any potential) Tj
+T* (security breaches.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 348.6616535433070112 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 334.4884251968503008 Td
+(Requirement 11: Data Masking and Anonymization) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 306.1419685039369369 Td
+(The target system must implement data masking and anonymization techniques to) Tj
+T* (protect sensitive customer information within service records. This includes masking) Tj
+T* (or redacting personally identifiable information \(PII\) such as names, addresses,) Tj
+T* (phone numbers, and email addresses when accessed by unauthorized personnel.) Tj
+T* (The system must also support data anonymization for reporting and analytics) Tj
+T* (purposes, allowing aggregated data analysis without compromising individual) Tj
+T* (customer privacy. This functionality is crucial for complying with data privacy) Tj
+T* (regulations like GDPR and CCPA and maintaining customer trust. The masking and) Tj
+T* (anonymization rules should be configurable and auditable, ensuring transparency and) Tj
+T* (accountability in data handling practices.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 4 of 9) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/20/2025) Tj
+ET
+endstream
+endobj
+11 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 12 0 R
+>>
+endobj
+12 0 obj
+<<
+/Length 3550
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 12: Compliance with Service Management Regulations) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The target system must be designed and implemented to comply with relevant) Tj
+T* (service management regulations and industry standards, such as ITIL, ISO 20000,) Tj
+T* (and any applicable industry-specific regulations. This includes adhering to best) Tj
+T* (practices for service request management, incident management, problem) Tj
+T* (management, and change management. The system should provide features and) Tj
+T* (functionalities that support compliance reporting and documentation, enabling the) Tj
+T* (organization to demonstrate adherence to regulatory requirements.  This includes the) Tj
+T* (ability to generate reports on key performance indicators, service level agreements,) Tj
+T* (and security controls.  Maintaining compliance is essential for minimizing legal and) Tj
+T* (operational risks, enhancing customer trust, and ensuring the quality and reliability of) Tj
+T* (service delivery.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 524.4096850393700606 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 510.2364566929133503 Td
+(Requirement 13: Knowledge Base Article Integration) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 481.8899999999999295 Td
+(The target system must integrate with the existing knowledge base system.  This) Tj
+T* (integration should enable users to access relevant knowledge articles within the) Tj
+T* (service management workflow.  The data structure for knowledge articles in the target) Tj
+T* (system must be compatible with the existing knowledge base.  Field mappings should) Tj
+T* (be defined for key attributes like article ID, title, content, keywords, and related) Tj
+T* (categories.  The integration point should allow for real-time searching and retrieval of) Tj
+T* (knowledge articles based on keywords or context from within the target system. This) Tj
+T* (will enable agents to resolve incidents and fulfill service requests more efficiently.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0. g
+85.0393700787401627 308.9766141732283131 Td
+(Implementation Tasks:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 289.1340944881889072 Td
+(• Configure Knowledge Object and Field Mappings \(8 hours\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 269.2915748031495013 Td
+(• Develop Oracle Knowledge Base Integration API \(8 hours\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 249.4490551181102092 Td
+(• Create Knowledge Search Component for Service Console \(8 hours\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 229.6065354330708033 Td
+(• Implement Contextual Knowledge Suggestion Feature \(8 hours\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 209.7640157480313974 Td
+(• Develop Knowledge Article Formatting and Display Handler \(8 hours\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 189.9214960629919915 Td
+(• Implement Comprehensive Integration Testing Suite \(8 hours\)) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 5 of 9) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/20/2025) Tj
+ET
+endstream
+endobj
+13 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 14 0 R
+>>
+endobj
+14 0 obj
+<<
+/Length 3022
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+BT
+/F2 10 Tf
+11.5 TL
+0. g
+85.0393700787401627 785.1970866141732586 Td
+(Acceptance Criteria:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 765.3545669291338527 Td
+(• Given I am logged in as a service agent) Tj
+T* (And I am working on an incident ticket) Tj
+T* (When I search for knowledge articles using the keyword "network outage") Tj
+T* (Then the system should display a list of relevant...) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 685.9844881889763428 Td
+(• Given I am logged in as a service agent) Tj
+T* (And I am viewing a service request with category "password reset") Tj
+T* (When I click on the "Find Knowledge" button) Tj
+T* (And I select a knowledge article titled "Standard ...) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 606.614409448818833 Td
+(• Given I am logged in as a service agent) Tj
+T* (And I am working on a ticket) Tj
+T* (When I search for knowledge articles with the keyword "nonexistent topic") Tj
+T* (And no matching articles exist in the knowledge base) Tj
+T* (Then...) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 507.4018110236219741 Td
+(• Given I am logged in as a knowledge manager) Tj
+T* (And I create a new knowledge article in the existing knowledge base with:) Tj
+T* (  | Field     | Value                                   |) Tj
+T* (  | ID        | KB001023...) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0. g
+99.2125984251968589 428.0317322834645211 Td
+(• Given I am logged in as a service agent) Tj
+T* (And I am updating an incident with the description "User cannot access shared drive") Tj
+T* (When I type in the resolution field) Tj
+T* (Then the system should automatically su...) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 334.4884251968503008 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 320.3151968503935905 Td
+(Requirement 14: Data Integrity and Validation Rules) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 291.9687401574802834 Td
+(The target system must enforce data integrity and validation rules consistent with the) Tj
+T* (source system, as observed in the 'Product Team Meeting - 2019-07-09.mp4' video.) Tj
+T* (This includes input validation for fields such as request type, priority, description, and) Tj
+T* (contact information.  Specific validation rules, such as mandatory fields, data type) Tj
+T* (restrictions, and format requirements, must be implemented to prevent invalid data) Tj
+T* (entry.  The system should also incorporate error handling mechanisms to provide) Tj
+T* (clear and informative error messages to users in case of validation failures. This is) Tj
+T* (crucial for maintaining data quality and ensuring the reliability of the service) Tj
+T* (management processes within project context 4.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 6 of 9) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/20/2025) Tj
+ET
+endstream
+endobj
+15 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 16 0 R
+>>
+endobj
+16 0 obj
+<<
+/Length 3610
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 15: Incident Data Migration and Mapping) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The target service management system must seamlessly migrate all incident data) Tj
+T* (from the source system, including incident number, creation date, priority, status,) Tj
+T* (assigned technician, description, resolution notes, and related configuration items.) Tj
+T* (Field mappings between the source and target systems must be precisely defined) Tj
+T* (and validated to ensure data integrity.  Transformation rules must handle any data) Tj
+T* (format discrepancies, such as date formats or priority codes.  The integration point for) Tj
+T* (incident data migration should leverage a secure API or data export/import) Tj
+T* (mechanism.  Data validation checks must be implemented in the target system to) Tj
+T* (ensure data accuracy and completeness after migration.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 564.0947244094487587 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 549.9214960629921052 Td
+(Requirement 16: Service Request Data Transformation) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 521.5750393700786844 Td
+(Service request data from the source system requires transformation before loading) Tj
+T* (into the target system.  This includes mapping service categories, subcategories, and) Tj
+T* (request types to the equivalent structures in the target system.  Custom fields from) Tj
+T* (the source system must be evaluated and either mapped to existing fields in the) Tj
+T* (target system or new custom fields created. The integration process should handle) Tj
+T* (data type conversions where necessary.  For instance, if the source system uses a) Tj
+T* (text field for priority and the target uses a numerical value, a transformation rule) Tj
+T* (needs to be defined.  Any dependencies between service request data and other data) Tj
+T* (entities, such as users or CIs, should be preserved during the migration.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 328.8191338582676622 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 314.6459055118109518 Td
+(Requirement 17: Data Migration Performance Requirements) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 286.2994488188975311 Td
+(The data migration process must meet specific performance requirements to) Tj
+T* (minimize downtime and ensure business continuity.  The migration of incident and) Tj
+T* (service request data should be completed within a defined timeframe, for example,) Tj
+T* (within a weekend maintenance window.  The integration process must be optimized) Tj
+T* (to handle large volumes of data efficiently. Performance testing should be conducted) Tj
+T* (to validate the migration process and identify any potential bottlenecks.  Metrics such) Tj
+T* (as data throughput and processing time should be monitored and reported.  Any) Tj
+T* (performance issues identified during testing must be addressed before the final) Tj
+T* (migration.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 7 of 9) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/20/2025) Tj
+ET
+endstream
+endobj
+17 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 18 0 R
+>>
+endobj
+18 0 obj
+<<
+/Length 4047
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.94 0.97 1. rg
+56.6929133858267775 799.3703149606299121 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 785.1970866141732586 Td
+(Requirement 18: Role-Based Access Control for Service Data) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 756.8506299212598378 Td
+(The target service management system must implement role-based access control) Tj
+T* (\(RBAC\) to restrict access to sensitive service data based on user roles and) Tj
+T* (responsibilities.  Each role should have clearly defined permissions for viewing,) Tj
+T* (creating, modifying, and deleting service records, ensuring that users only have) Tj
+T* (access to the information necessary for their job function. This includes granular) Tj
+T* (control over specific fields within service records, preventing unauthorized access to) Tj
+T* (confidential customer data, internal notes, or financial information. The RBAC system) Tj
+T* (must be configurable and auditable, allowing administrators to easily manage roles) Tj
+T* (and permissions and track changes over time.  This is critical for complying with data) Tj
+T* (privacy regulations and maintaining the security of sensitive service data.  The) Tj
+T* (system should support integration with existing identity providers for seamless user) Tj
+T* (management and authentication.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 504.5671653543306547 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 490.3939370078739444 Td
+(Requirement 19: Comprehensive Audit Trail for Service Actions) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 462.0474803149605805 Td
+(The target system must maintain a comprehensive audit trail of all service-related) Tj
+T* (actions, including record creation, modification, deletion, and access attempts. The) Tj
+T* (audit trail must capture the user identity, timestamp, action performed, and any) Tj
+T* (changes made to the data.  This information should be securely stored and readily) Tj
+T* (retrievable for auditing and investigation purposes.  The audit trail must be) Tj
+T* (tamper-proof to ensure data integrity and provide evidence of compliance with) Tj
+T* (regulatory requirements.  Furthermore, the system should provide reporting) Tj
+T* (capabilities to analyze audit data and identify potential security breaches or) Tj
+T* (unauthorized activities. This is essential for maintaining accountability and) Tj
+T* (demonstrating compliance with industry regulations.) Tj
+ET
+0.94 0.97 1. rg
+56.6929133858267775 249.4490551181101523 481.8941732283464034 -28.3464566929133888 re
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0.173 0.243 0.314 rg
+70.8661417322834666 235.2758267716534419 Td
+(Requirement 20: Secure Data Retention and Disposal Policy) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+70.8661417322834666 206.9293700787401349 Td
+(The target system must adhere to a secure data retention and disposal policy that) Tj
+T* (aligns with industry best practices and relevant regulations.  This policy must define) Tj
+T* (the retention period for different types of service data, ensuring that data is retained) Tj
+T* (for the necessary duration for business operations, legal compliance, and audit) Tj
+T* (requirements.  The policy must also specify secure data disposal methods, such as) Tj
+T* (secure erasure or encryption, to prevent unauthorized access to deleted data.  The) Tj
+T* (system should automate data retention and disposal processes, minimizing manual) Tj
+T* (intervention and reducing the risk of human error. This is crucial for minimizing data) Tj
+T* (storage costs, mitigating legal risks, and protecting sensitive information throughout) Tj
+T* (its lifecycle.) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 8 of 9) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/20/2025) Tj
+ET
+endstream
+endobj
+19 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 20 0 R
+>>
+endobj
+20 0 obj
+<<
+/Length 2097
+>>
+stream
+0.5670000000000001 w
+0.2 0.6 0.86 RG
+0.2 0.6 0.86 RG
+56.6929133858267775 799.3703149606299121 m
+538.5870866141731312 799.3703149606299121 l
+S
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0.173 0.243 0.314 rg
+56.6929133858267775 785.1970866141732586 Td
+(4. TIMELINE AND MILESTONES) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+56.6929133858267775 756.8506299212598378 Td
+(Project Start: 4/20/2025) Tj
+T* (Estimated Completion: 7/19/2025) Tj
+T* () Tj
+T* (Key Milestones:) Tj
+T* (• Requirements Finalization: 5/4/2025) Tj
+T* (• Development Phase: 6/4/2025) Tj
+T* (• Testing and QA: 7/4/2025) Tj
+T* (• Final Delivery: 7/19/2025) Tj
+ET
+0.2 0.6 0.86 RG
+56.6929133858267775 569.7640157480313974 m
+538.5870866141731312 569.7640157480313974 l
+S
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0.173 0.243 0.314 rg
+56.6929133858267775 555.5907874015747439 Td
+(5. COSTS AND PAYMENT) Tj
+ET
+0.92 0.96 1. rg
+113.3858267716535551 527.2443307086613231 340.157480314960651 -28.3464566929133888 re
+f
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0. g
+127.5590551181102512 507.4018110236219741 Td
+(Item) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0. g
+368.5039370078740717 507.4018110236219741 Td
+(Amount) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+127.5590551181102512 484.7246456692913057 Td
+(Total Estimated Hours) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+368.5039370078740717 484.7246456692913057 Td
+(48 hours) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+127.5590551181102512 456.378188976377885 Td
+(Hourly Rate) Tj
+ET
+BT
+/F1 12 Tf
+13.7999999999999989 TL
+0. g
+368.5039370078740717 456.378188976377885 Td
+($150/hour) Tj
+ET
+0.96 g
+113.3858267716535551 442.2049606299211746 340.157480314960651 -28.3464566929133888 re
+f
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0. g
+127.5590551181102512 422.3624409448818255 Td
+(Total Estimated Cost) Tj
+ET
+BT
+/F2 12 Tf
+13.7999999999999989 TL
+0. g
+368.5039370078740717 422.3624409448818255 Td
+($7,200) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+272.2399999999999523 28.3464566929134207 Td
+(Page 9 of 9) Tj
+ET
+BT
+/F3 10 Tf
+11.5 TL
+0.502 g
+430.9870866141731085 28.3464566929134207 Td
+(Generated on 4/20/2025) Tj
+ET
+endstream
+endobj
+1 0 obj
+<</Type /Pages
+/Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R ]
+/Count 9
+>>
+endobj
+21 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+22 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+23 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+24 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+25 0 obj
+<<
+/Type /Font
+/BaseFont /Courier
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+26 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+27 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+28 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+29 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Roman
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+30 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+31 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Italic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+32 0 obj
+<<
+/Type /Font
+/BaseFont /Times-BoldItalic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+33 0 obj
+<<
+/Type /Font
+/BaseFont /ZapfDingbats
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+34 0 obj
+<<
+/Type /Font
+/BaseFont /Symbol
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+2 0 obj
+<<
+/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
+/Font <<
+/F1 21 0 R
+/F2 22 0 R
+/F3 23 0 R
+/F4 24 0 R
+/F5 25 0 R
+/F6 26 0 R
+/F7 27 0 R
+/F8 28 0 R
+/F9 29 0 R
+/F10 30 0 R
+/F11 31 0 R
+/F12 32 0 R
+/F13 33 0 R
+/F14 34 0 R
+>>
+/XObject <<
+>>
+>>
+endobj
+35 0 obj
+<<
+/Producer (jsPDF 3.0.1)
+/Title (Statement of Work - 4)
+/Subject (Document for 4)
+/Author (Requirements Management System)
+/Keywords (sow)
+/Creator (Document Generator)
+/CreationDate (D:20250420232301-00'00')
+>>
+endobj
+36 0 obj
+<<
+/Type /Catalog
+/Pages 1 0 R
+/OpenAction [3 0 R /FitH null]
+/PageLayout /OneColumn
+>>
+endobj
+xref
+0 37
+0000000000 65535 f 
+0000033226 00000 n 
+0000035101 00000 n 
+0000000015 00000 n 
+0000000152 00000 n 
+0000004353 00000 n 
+0000004490 00000 n 
+0000008228 00000 n 
+0000008365 00000 n 
+0000012159 00000 n 
+0000012297 00000 n 
+0000015940 00000 n 
+0000016079 00000 n 
+0000019682 00000 n 
+0000019821 00000 n 
+0000022896 00000 n 
+0000023035 00000 n 
+0000026698 00000 n 
+0000026837 00000 n 
+0000030937 00000 n 
+0000031076 00000 n 
+0000033336 00000 n 
+0000033462 00000 n 
+0000033593 00000 n 
+0000033727 00000 n 
+0000033865 00000 n 
+0000033989 00000 n 
+0000034118 00000 n 
+0000034250 00000 n 
+0000034386 00000 n 
+0000034514 00000 n 
+0000034641 00000 n 
+0000034770 00000 n 
+0000034903 00000 n 
+0000035005 00000 n 
+0000035354 00000 n 
+0000035584 00000 n 
+trailer
+<<
+/Size 37
+/Root 36 0 R
+/Info 35 0 R
+/ID [ <55108D393189689B49FD35B20BEF2809> <55108D393189689B49FD35B20BEF2809> ]
+>>
+startxref
+35688
+%%EOF

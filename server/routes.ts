@@ -325,7 +325,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Current user endpoint
+  // Current user endpoint - two paths for backward compatibility
+  // First path: /api/user (used by client components)
+  app.get("/api/user", async (req: Request, res: Response) => {
+    // Check if user is authenticated
+    if (req.session && req.session.userId) {
+      const user = await storage.getUser(req.session.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't return the password
+      const { password, ...userWithoutPassword } = user;
+      return res.json(userWithoutPassword);
+    }
+    
+    // Return 401 if not authenticated (don't auto-login)
+    return res.status(401).json({ message: "Unauthorized" });
+  });
+  
+  // Second path: /api/me (legacy path)
   app.get("/api/me", async (req: Request, res: Response) => {
     // Check if user is authenticated
     if (req.session && req.session.userId) {
