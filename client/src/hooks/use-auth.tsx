@@ -32,7 +32,6 @@ export const resetPasswordSchema = z.object({
 });
 
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
   newPassword: z.string()
     .min(8, "Password must be at least 8 characters")
     .max(100, "Password is too long"),
@@ -161,7 +160,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const changePasswordMutation = useMutation({
     mutationFn: async (data: z.infer<typeof changePasswordSchema>) => {
       return await apiRequest("POST", "/api/change-password", {
-        currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       });
     },
