@@ -472,12 +472,25 @@ export const insertTaskRoleEffortSchema = createInsertSchema(taskRoleEfforts).pi
  * 1. Adding new setting categories without schema changes
  * 2. Hierarchical settings organization
  * 3. Type-specific settings validation via Zod
+ * 
+ * The settings JSON structure is organized by category, for example:
+ * {
+ *   general: { applicationName: "...", companyName: "...", ... },
+ *   auth: { passwordPolicy: { ... }, sessionTimeout: 60, ... },
+ *   notifications: { emailNotificationsEnabled: true, ... },
+ *   integrations: { aiProvider: "google", aiModel: "gemini-pro", ... },
+ *   appearance: { theme: "light", accentColor: "#4F46E5", ... },
+ *   security: { ipAllowlist: ["..."], auditLogRetention: 90, ... },
+ *   emailConfig: { smtpServer: "...", smtpPort: 587, ... }
+ * }
  */
 export const applicationSettings = pgTable("application_settings", {
   id: serial("id").primaryKey(),
   settings: jsonb("settings").notNull().default({}), // Flexible JSON structure for all settings
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   updatedBy: integer("updated_by").references(() => users.id), // User who last updated the settings
+  version: integer("version").default(1).notNull(), // Schema version for tracking changes
+  description: text("description"), // Optional description of the settings configuration
 });
 
 /**
@@ -487,6 +500,8 @@ export const applicationSettings = pgTable("application_settings", {
 export const insertApplicationSettingsSchema = createInsertSchema(applicationSettings).pick({
   settings: true,
   updatedBy: true,
+  version: true,
+  description: true,
 });
 
 // Type exports

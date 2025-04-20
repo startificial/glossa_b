@@ -1503,8 +1503,10 @@ export class DatabaseStorage implements IStorage {
   // Application Settings methods
   
   /**
-   * Get the application settings record
-   * @returns The application settings record or undefined if not found
+   * Get application settings
+   * Retrieves the global application settings record
+   * 
+   * @returns The application settings or undefined if not found
    */
   async getApplicationSettings(): Promise<ApplicationSettings | undefined> {
     try {
@@ -1518,6 +1520,8 @@ export class DatabaseStorage implements IStorage {
   
   /**
    * Get application settings data object
+   * Retrieves just the settings JSON data from the application settings
+   * 
    * @returns The application settings data or undefined if not found
    */
   async getApplicationSettingsData(): Promise<Record<string, any> | undefined> {
@@ -1531,12 +1535,57 @@ export class DatabaseStorage implements IStorage {
   }
   
   /**
+   * Get application settings by category
+   * Retrieves a specific category of settings from the application settings
+   * 
+   * @param category The settings category to retrieve (e.g., 'general', 'auth', 'notifications')
+   * @returns The category settings or undefined if not found
+   */
+  async getApplicationSettingsByCategory(category: string): Promise<Record<string, any> | undefined> {
+    try {
+      const settingsData = await this.getApplicationSettingsData();
+      return settingsData?.[category];
+    } catch (error) {
+      console.error(`Error fetching application settings for category '${category}':`, error);
+      return undefined;
+    }
+  }
+  
+  /**
+   * Get application setting value
+   * Retrieves a specific setting value from the application settings
+   * 
+   * @param category The settings category (e.g., 'general', 'auth')
+   * @param key The setting key within the category
+   * @param defaultValue Optional default value to return if the setting is not found
+   * @returns The setting value or the default value if not found
+   */
+  async getApplicationSettingValue<T>(category: string, key: string, defaultValue?: T): Promise<T | undefined> {
+    try {
+      const categorySettings = await this.getApplicationSettingsByCategory(category);
+      if (!categorySettings) return defaultValue;
+      
+      return (categorySettings[key] as T) ?? defaultValue;
+    } catch (error) {
+      console.error(`Error fetching application setting '${category}.${key}':`, error);
+      return defaultValue;
+    }
+  }
+  
+  /**
    * Update application settings
+   * Updates the entire settings object
+   * 
    * @param userId The ID of the user making the update
    * @param settingsData The new settings data to save
+   * @param description Optional description for this configuration
    * @returns The updated application settings or undefined if failed
    */
-  async updateApplicationSettings(userId: number, settingsData: Record<string, any>): Promise<ApplicationSettings | undefined> {
+  async updateApplicationSettings(
+    userId: number, 
+    settingsData: Record<string, any>,
+    description?: string
+  ): Promise<ApplicationSettings | undefined> {
     try {
       const existingSettings = await this.getApplicationSettings();
       
@@ -1546,7 +1595,9 @@ export class DatabaseStorage implements IStorage {
           .set({ 
             settings: settingsData, 
             updatedAt: new Date(),
-            updatedBy: userId
+            updatedBy: userId,
+            version: existingSettings.version + 1,
+            description: description || existingSettings.description
           })
           .where(eq(applicationSettings.id, existingSettings.id))
           .returning();
@@ -1554,7 +1605,7 @@ export class DatabaseStorage implements IStorage {
         return updatedSettings;
       } else {
         // Create new settings record if none exists
-        return this.createDefaultApplicationSettings(userId);
+        return this.createDefaultApplicationSettings(userId, description);
       }
     } catch (error) {
       console.error('Error updating application settings:', error);
@@ -1563,53 +1614,182 @@ export class DatabaseStorage implements IStorage {
   }
   
   /**
+   * Update application settings for a specific category
+   * Updates only a specific category of settings while preserving others
+   * 
+   * @param userId The ID of the user making the update
+   * @param category The settings category to update (e.g., 'general', 'auth')
+   * @param categoryData The new category settings data
+   * @returns The updated application settings or undefined if failed
+   */
+  async updateApplicationSettingsCategory(
+    userId: number,
+    category: string,
+    categoryData: Record<string, any>
+  ): Promise<ApplicationSettings | undefined> {
+    try {
+      const existingSettings = await this.getApplicationSettings();
+      
+      if (existingSettings) {
+        // Create updated settings object with the new category data
+        const updatedSettingsData = {
+          ...existingSettings.settings,
+          [category]: categoryData
+        };
+        
+        // Update the settings with the new data
+        return this.updateApplicationSettings(userId, updatedSettingsData);
+      } else {
+        // Create default settings with this category
+        const defaultSettings = this.getDefaultSettingsData();
+        defaultSettings[category] = categoryData;
+        
+        // Create new settings record
+        const [newSettings] = await db.insert(applicationSettings)
+          .values({
+            settings: defaultSettings,
+            updatedBy: userId,
+            version: 1
+          })
+          .returning();
+          
+        return newSettings;
+      }
+    } catch (error) {
+      console.error(`Error updating application settings category '${category}':`, error);
+      return undefined;
+    }
+  }
+  
+  /**
+   * Update a specific application setting
+   * Updates a single setting value while preserving all other settings
+   * 
+   * @param userId The ID of the user making the update
+   * @param category The settings category (e.g., 'general', 'auth')
+   * @param key The setting key within the category
+   * @param value The new value for the setting
+   * @returns The updated application settings or undefined if failed
+   */
+  async updateApplicationSettingValue(
+    userId: number,
+    category: string,
+    key: string,
+    value: any
+  ): Promise<ApplicationSettings | undefined> {
+    try {
+      const existingSettings = await this.getApplicationSettings();
+      
+      if (existingSettings) {
+        // Get the current category data or create empty object if it doesn't exist
+        const currentCategoryData = existingSettings.settings[category] || {};
+        
+        // Create updated category data with the new value
+        const updatedCategoryData = {
+          ...currentCategoryData,
+          [key]: value
+        };
+        
+        // Update the category
+        return this.updateApplicationSettingsCategory(userId, category, updatedCategoryData);
+      } else {
+        // Create default settings with this value
+        const defaultSettings = this.getDefaultSettingsData();
+        
+        // Ensure the category exists
+        if (!defaultSettings[category]) {
+          defaultSettings[category] = {};
+        }
+        
+        // Set the value
+        defaultSettings[category][key] = value;
+        
+        // Create new settings record
+        return this.createDefaultApplicationSettings(userId, `Initial settings with ${category}.${key}`);
+      }
+    } catch (error) {
+      console.error(`Error updating application setting '${category}.${key}':`, error);
+      return undefined;
+    }
+  }
+  
+  /**
+   * Get the default settings data structure
+   * Used when creating the initial settings or as a fallback
+   * 
+   * @returns The default settings data object
+   */
+  getDefaultSettingsData(): Record<string, any> {
+    return {
+      general: {
+        applicationName: "Glossa - Requirement Management",
+        companyName: "Glossa AI",
+        supportEmail: "support@example.com",
+        maxFileUploadSize: 10485760, // 10MB
+        defaultLanguage: "en",
+        timeZone: "UTC"
+      },
+      auth: {
+        passwordPolicy: {
+          minLength: 8,
+          requireSpecialChars: true,
+          requireNumbers: true,
+          requireUppercase: true,
+          requireLowercase: true
+        },
+        mfaEnabled: false,
+        sessionTimeout: 60, // 60 minutes
+        allowSelfRegistration: false,
+        loginAttempts: 5
+      },
+      notifications: {
+        emailNotificationsEnabled: true,
+        systemNotificationsEnabled: true,
+        defaultReminderTime: 24 // 24 hours
+      },
+      integrations: {
+        aiProvider: "google",
+        aiModel: "gemini-pro",
+        aiApiRateLimit: 10,
+        enableThirdPartyIntegrations: true
+      },
+      appearance: {
+        theme: "light",
+        accentColor: "#4F46E5",
+        cardRadius: 8,
+        density: "comfortable"
+      },
+      security: {
+        ipAllowlist: [],
+        auditLogRetention: 90,
+        allowConcurrentSessions: true
+      }
+    };
+  }
+  
+  /**
    * Create default application settings
+   * Creates the initial application settings record with default values
+   * 
    * @param userId The ID of the user creating the settings
+   * @param description Optional description for this configuration
    * @returns The created application settings
    */
-  async createDefaultApplicationSettings(userId: number): Promise<ApplicationSettings> {
+  async createDefaultApplicationSettings(
+    userId: number, 
+    description?: string
+  ): Promise<ApplicationSettings> {
     try {
-      // Define default application settings
-      const defaultSettings: Record<string, any> = {
-        general: {
-          applicationName: "Glossa - Requirement Management",
-          companyName: "Glossa AI",
-          supportEmail: "support@example.com",
-          maxFileUploadSize: 10485760, // 10MB
-          defaultLanguage: "en",
-          timeZone: "UTC"
-        },
-        auth: {
-          passwordPolicy: {
-            minLength: 8,
-            requireSpecialChars: true,
-            requireNumbers: true,
-            requireUppercase: true,
-            requireLowercase: true
-          },
-          mfaEnabled: false,
-          sessionTimeout: 60, // 60 minutes
-          allowSelfRegistration: false,
-          loginAttempts: 5
-        },
-        notifications: {
-          emailNotificationsEnabled: true,
-          systemNotificationsEnabled: true,
-          defaultReminderTime: 24 // 24 hours
-        },
-        integrations: {
-          aiProvider: "google",
-          aiModel: "gemini-pro",
-          aiApiRateLimit: 10,
-          enableThirdPartyIntegrations: true
-        }
-      };
+      // Get default settings data
+      const defaultSettings = this.getDefaultSettingsData();
       
       // Insert the default settings
       const [newSettings] = await db.insert(applicationSettings)
         .values({
           settings: defaultSettings,
-          updatedBy: userId
+          updatedBy: userId,
+          version: 1,
+          description: description || "Initial application settings"
         })
         .returning();
       

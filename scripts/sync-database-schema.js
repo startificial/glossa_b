@@ -242,7 +242,9 @@ async function ensureTableColumns(tableName) {
       { name: 'id', type: 'integer' },
       { name: 'settings', type: 'jsonb' },
       { name: 'updated_at', type: 'timestamp' },
-      { name: 'updated_by', type: 'integer' }
+      { name: 'updated_by', type: 'integer' },
+      { name: 'version', type: 'integer' },
+      { name: 'description', type: 'text' }
     ],
     users: [
       { name: 'id', type: 'integer' },
@@ -393,6 +395,10 @@ async function addColumnToTable(tableName, columnName, columnType) {
     defaultValue = " DEFAULT 'draft'";
   } else if (columnName === 'version' && tableName === 'workflows') {
     defaultValue = " DEFAULT 1";
+  } else if (columnName === 'version' && tableName === 'application_settings') {
+    defaultValue = " DEFAULT 1";
+  } else if (columnName === 'description' && tableName === 'application_settings') {
+    defaultValue = " DEFAULT 'Initial application settings'";
   } else if (columnName === 'nodes' && tableName === 'workflows') {
     defaultValue = " DEFAULT '[]'";
   } else if (columnName === 'edges' && tableName === 'workflows') {
