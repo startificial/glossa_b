@@ -273,20 +273,91 @@ export function setupAuth(app: Express): void {
         return res.status(400).json({ message: 'Invalid token or password' });
       }
       
-      const user = await userService.getUserByResetToken(token);
+      // Get user by reset token directly (don't use the service yet)
+      console.log(`[DEBUG] Reset password: Looking up user by reset token`);
+      const user = await storage.getUserByResetToken(token);
       
       if (!user || !user.resetPasswordExpires || TokenGenerator.isTokenExpired(user.resetPasswordExpires)) {
         return res.status(400).json({ message: 'Token is invalid or has expired' });
       }
       
-      // Hash the new password
-      const hashedPassword = await hashPassword(password);
+      console.log(`[DEBUG] Reset password: Found valid reset token for user: ${user.username}`);
       
-      // Update the user's password and clear the reset token
-      const result = await userService.resetPassword(token, hashedPassword);
+      // Hash the new password using bcrypt directly (like the successful script)
+      console.log(`[DEBUG] Reset password: Hashing new password with bcrypt directly`);
+      const bcrypt = await import('bcrypt');
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      console.log(`[DEBUG] Reset password: New hashed password: ${hashedPassword.substring(0, 10)}...`);
       
-      if (!result.success) {
-        return res.status(400).json({ message: result.message });
+      // Import direct neon client
+      console.log(`[DEBUG] Reset password: Using Neon HTTP client for password update`);
+      const { neon } = await import('@neondatabase/serverless');
+      
+      // Create SQL client
+      const sql = neon(process.env.DATABASE_URL!);
+      
+      // Get username for direct query
+      const username = user.username;
+      
+      // Execute the update by username directly (matching the successful script exactly)
+      console.log(`[DEBUG] Reset password: Updating password for user: ${username}`);
+      const updateResult = await sql`
+        UPDATE users 
+        SET password = ${hashedPassword}, 
+            reset_password_token = NULL,
+            reset_password_expires = NULL,
+            updated_at = NOW() 
+        WHERE username = ${username} 
+        RETURNING id, username, password
+      `;
+      
+      if (!updateResult || updateResult.length === 0) {
+        console.error(`[ERROR] Reset password: Update failed, no rows returned`);
+        return res.status(500).json({ message: 'Failed to update password' });
+      }
+      
+      console.log('Password update result:', updateResult);
+      
+      // Verify the password was updated correctly
+      const userCheck = await sql`
+        SELECT id, username, password
+        FROM users 
+        WHERE username = ${username}
+      `;
+      
+      console.log('User after update:', userCheck);
+      
+      // Verify the new password works with the hash
+      const fullPasswordResult = await sql`
+        SELECT password FROM users WHERE username = ${username}
+      `;
+      
+      const fullPassword = fullPasswordResult[0].password;
+      
+      // Test that the stored password is valid
+      const isNewPasswordMatch = await bcrypt.compare(password, fullPassword);
+      console.log(`[DEBUG] Reset password: New password verification: ${isNewPasswordMatch ? 'SUCCESS' : 'FAILED'}`);
+      
+      if (!isNewPasswordMatch) {
+        console.error('[ERROR] Critical: Password verification failed after update!');
+        return res.status(500).json({ message: 'Password update verification failed' });
+      }
+      
+      // Log the user in if they're not already logged in
+      if (!req.isAuthenticated()) {
+        const updatedUser = await storage.getUser(user.id);
+        
+        if (updatedUser) {
+          req.login(updatedUser, (err) => {
+            if (err) {
+              logger.error('Error logging in user after password reset:', err);
+              // Continue with the response anyway since the password was reset
+            } else {
+              logger.info(`User ${updatedUser.username} logged in automatically after password reset`);
+            }
+          });
+        }
       }
       
       res.status(200).json({ message: 'Password has been reset successfully' });
@@ -318,10 +389,12 @@ export function setupAuth(app: Express): void {
         return res.status(404).json({ message: 'User not found' });
       }
       
-      console.log(`[DEBUG] Change password: Got user from database: ${user.username}`);
+      // Also get username for direct query
+      const username = user.username;
+      console.log(`[DEBUG] Change password: Got user from database: ${username}`);
       
       // Verify current password
-      console.log(`[DEBUG] Change password: verifying current password for user ${user.username}`);
+      console.log(`[DEBUG] Change password: verifying current password for user ${username}`);
       console.log(`[DEBUG] Change password: stored password format: ${user.password.substring(0, 10)}...`);
       
       // Use the standardized password-utils comparePasswords function
@@ -332,72 +405,64 @@ export function setupAuth(app: Express): void {
         return res.status(400).json({ message: 'Current password is incorrect' });
       }
       
-      // Hash the new password using the standardized password-utils hashPassword function
-      console.log(`[DEBUG] Change password: hashing new password`);
-      const hashedPassword = await hashPassword(newPassword);
-      console.log(`[DEBUG] Change password: new hashed password format: ${hashedPassword.substring(0, 10)}...`);
+      // Hash the new password using bcrypt directly (like the successful script)
+      console.log(`[DEBUG] Change password: Hashing new password with bcrypt directly`);
+      const bcrypt = await import('bcrypt');
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+      console.log(`[DEBUG] Change password: New hashed password: ${hashedPassword.substring(0, 10)}...`);
       
-      console.log(`[DEBUG] Change password: updating password for user ID ${userId}`);
-      
-      // *** IMPORTANT: The script that worked used the Neon HTTP client, which is what we're using here
-      // Import direct neon client from db.ts - the HTTP client approach that was proven to work
+      // Import direct neon client
       console.log(`[DEBUG] Change password: Using Neon HTTP client for password update`);
       const { neon } = await import('@neondatabase/serverless');
       
-      // Same approach as the successful script
+      // Create SQL client
       const sql = neon(process.env.DATABASE_URL!);
       
-      // Execute the update
+      // Execute the update by username directly (matching the successful script exactly)
+      console.log(`[DEBUG] Change password: Updating password for user: ${username}`);
       const updateResult = await sql`
         UPDATE users 
         SET password = ${hashedPassword}, 
             updated_at = NOW() 
-        WHERE id = ${userId} 
+        WHERE username = ${username} 
         RETURNING id, username, password
       `;
       
       if (!updateResult || updateResult.length === 0) {
-        console.error(`[ERROR] Change password: Neon HTTP update failed, no rows returned`);
+        console.error(`[ERROR] Change password: Update failed, no rows returned`);
         return res.status(500).json({ message: 'Failed to update password' });
       }
       
-      console.log(`[DEBUG] Change password: Neon HTTP update successful for user ${updateResult[0].username}`);
-      console.log(`[DEBUG] Change password: Updated password in DB: ${updateResult[0].password.substring(0, 15)}...`);
-          
-      // Verify password was updated by comparing values
-      if (updateResult[0].password !== hashedPassword) {
-        console.error('[ERROR] Change password: Password mismatch after update!');
-        console.log(`[DEBUG] Change password: Expected: ${hashedPassword.substring(0, 20)}...`);
-        console.log(`[DEBUG] Change password: Actual: ${updateResult[0].password.substring(0, 20)}...`);
-        return res.status(500).json({ message: 'Password update verification failed' });
-      }
+      console.log('Password update result:', updateResult);
       
-      // Verify that the new password works against the updated password
-      const verificationTest = await comparePasswords(newPassword, updateResult[0].password);
-      console.log(`[DEBUG] Change password: Verification test of new password: ${verificationTest}`);
-      
-      if (!verificationTest) {
-        console.error("[ERROR] Critical: New password doesn't pass verification after update!");
-        return res.status(500).json({ message: 'Password update verification failed' });
-      }
-      
-      // Final check with a fresh fetch to ensure persistence
-      const verifyResult = await sql`
-        SELECT id, username, password 
+      // Verify the password was updated correctly
+      const userCheck = await sql`
+        SELECT id, username, password
         FROM users 
-        WHERE id = ${userId}
+        WHERE username = ${username}
       `;
       
-      if (verifyResult && verifyResult.length > 0) {
-        console.log(`[DEBUG] Change password: Final verification - password in DB: ${verifyResult[0].password.substring(0, 15)}...`);
-        
-        if (verifyResult[0].password !== hashedPassword) {
-          console.error('[ERROR] Change password: Final verification failed - password didn\'t persist!');
-          return res.status(500).json({ message: 'Password update verification failed' });
-        }
+      console.log('User after update:', userCheck);
+      
+      // Verify the new password works with the hash
+      const fullPasswordResult = await sql`
+        SELECT password FROM users WHERE username = ${username}
+      `;
+      
+      const fullPassword = fullPasswordResult[0].password;
+      
+      // Test that the stored password is valid
+      const isNewPasswordMatch = await bcrypt.compare(newPassword, fullPassword);
+      console.log(`[DEBUG] Change password: New password verification: ${isNewPasswordMatch ? 'SUCCESS' : 'FAILED'}`);
+      
+      if (!isNewPasswordMatch) {
+        console.error('[ERROR] Critical: Password verification failed after update!');
+        return res.status(500).json({ message: 'Password update verification failed' });
       }
       
       // Refresh the user session after the password change
+      // The password has been successfully updated, so fetch the latest user record
       const userToRefresh = await storage.getUser(userId);
       if (userToRefresh) {
         console.log(`[DEBUG] Change password: refreshing user session with updated data`);

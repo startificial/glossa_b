@@ -169,7 +169,9 @@ export class UserService {
         };
       }
       
-      // Update the password and clear the reset token
+      logger.info(`Resetting password for user ID: ${user.id} using direct SQL method`);
+      
+      // Update the password and clear the reset token using direct SQL
       const updated = await this.storage.updatePasswordAndClearToken(user.id, newPassword);
       
       if (!updated) {

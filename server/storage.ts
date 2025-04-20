@@ -340,18 +340,39 @@ export class DatabaseStorage implements IStorage {
   
   async updatePasswordAndClearToken(userId: number, hashedPassword: string): Promise<boolean> {
     try {
-      // Password is already hashed in the auth-routes.ts before being passed here
-      // So we don't need to hash it again
+      console.log(`[DEBUG] updatePasswordAndClearToken: Updating password for user ID ${userId}`);
+      console.log(`[DEBUG] updatePasswordAndClearToken: New hashed password: ${hashedPassword.substring(0, 15)}...`);
       
-      // Update the user record
-      await db.update(users)
-        .set({
-          password: hashedPassword,
-          resetPasswordToken: null,
-          resetPasswordExpires: null,
-          updatedAt: new Date()
-        })
-        .where(eq(users.id, userId));
+      // Import the direct Neon HTTP client from db.ts
+      const { neon } = await import('@neondatabase/serverless');
+      const sql = neon(process.env.DATABASE_URL!);
+      
+      // Execute the update using the direct SQL approach
+      const updateResult = await sql`
+        UPDATE users 
+        SET password = ${hashedPassword}, 
+            reset_password_token = NULL,
+            reset_password_expires = NULL,
+            updated_at = NOW() 
+        WHERE id = ${userId} 
+        RETURNING id, username, password
+      `;
+      
+      if (!updateResult || updateResult.length === 0) {
+        console.error(`[ERROR] updatePasswordAndClearToken: Update failed, no rows returned`);
+        return false;
+      }
+      
+      console.log(`[DEBUG] updatePasswordAndClearToken: Update successful for user ${updateResult[0].username}`);
+      console.log(`[DEBUG] updatePasswordAndClearToken: Updated password in DB: ${updateResult[0].password.substring(0, 15)}...`);
+      
+      // Verify the password was stored correctly
+      if (updateResult[0].password !== hashedPassword) {
+        console.error('[ERROR] updatePasswordAndClearToken: Password mismatch after update!');
+        console.log(`[DEBUG] updatePasswordAndClearToken: Expected: ${hashedPassword.substring(0, 20)}...`);
+        console.log(`[DEBUG] updatePasswordAndClearToken: Actual: ${updateResult[0].password.substring(0, 20)}...`);
+        return false;
+      }
       
       return true;
     } catch (error) {
