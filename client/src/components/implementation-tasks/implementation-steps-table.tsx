@@ -326,7 +326,7 @@ export function ImplementationStepsTable({
                     {step.relevantDocumentationLinks && step.relevantDocumentationLinks.length > 0 ? (
                       <div className="space-y-2">
                         {step.relevantDocumentationLinks.map((link, linkIndex) => (
-                          <div key={linkIndex} className="flex items-center gap-2">
+                          <div key={`${step.stepNumber}-link-${linkIndex}`} className="flex items-center gap-2">
                             <Input 
                               value={link}
                               onChange={(e) => handleUpdateStepLink(step.stepNumber, linkIndex, e.target.value)}
@@ -377,7 +377,7 @@ export function ImplementationStepsTable({
                     {step.relevantDocumentationLinks && step.relevantDocumentationLinks.length > 0 ? (
                       <div className="space-y-1">
                         {step.relevantDocumentationLinks.map((link, linkIndex) => (
-                          <div key={linkIndex} className="flex items-center">
+                          <div key={`${step.stepNumber}-view-link-${linkIndex}`} className="flex items-center">
                             <a
                               href={link}
                               target="_blank"

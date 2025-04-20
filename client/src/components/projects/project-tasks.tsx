@@ -242,9 +242,10 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
         complexity: selectedTemplateData.complexity,
         taskType: selectedTemplateData.taskType,
         estimatedHours: selectedTemplateData.estimatedHours.toString(),
-        implementationSteps: selectedTemplateData.implementationSteps.map(step => ({
-          description: step,
-          completed: false
+        implementationSteps: selectedTemplateData.implementationSteps.map((step, index) => ({
+          stepNumber: index + 1,
+          stepDescription: step,
+          relevantDocumentationLinks: []
         }))
       }));
     }
