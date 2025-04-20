@@ -93,6 +93,7 @@ export async function runMigrations() {
         "name" VARCHAR(255) NOT NULL,
         "description" TEXT,
         "type" VARCHAR(50) NOT NULL DEFAULT 'migration',
+        "stage" VARCHAR(50) DEFAULT 'discovery',
         "user_id" INTEGER NOT NULL,
         "customer_id" INTEGER,
         "customer" VARCHAR(255),

@@ -95,8 +95,8 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
         console.error("Failed to save to sessionStorage:", e);
       }
       
-      // Use direct href navigation instead of wouter's navigate
-      window.location.href = url;
+      // Use wouter's navigate instead of direct href navigation to preserve session
+      navigate(url);
       
       // Also close the popover
       setIsSearchPopoverOpen(false);
