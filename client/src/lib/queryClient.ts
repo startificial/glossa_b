@@ -20,14 +20,36 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest<T = any>(
-  url: string,
-  options: {
+  methodOrUrl: string,
+  endpointOrOptions?: string | {
     method?: string;
     data?: unknown;
-  } = {},
-  parseJson: boolean = true
+  },
+  dataOrParseJson?: unknown | boolean
 ): Promise<T> {
-  const { method = "GET", data } = options;
+  // Handle both function signatures:
+  // 1. apiRequest(method, endpoint, data)
+  // 2. apiRequest(url, options, parseJson)
+  
+  let method: string;
+  let url: string;
+  let data: unknown;
+  let parseJson: boolean = true;
+  
+  if (typeof endpointOrOptions === 'string') {
+    // First signature: apiRequest(method, endpoint, data)
+    method = methodOrUrl;
+    url = endpointOrOptions;
+    data = dataOrParseJson;
+  } else {
+    // Second signature: apiRequest(url, options, parseJson)
+    url = methodOrUrl;
+    const options = endpointOrOptions || {};
+    method = options.method || 'GET';
+    data = options.data;
+    parseJson = typeof dataOrParseJson === 'boolean' ? dataOrParseJson : true;
+  }
+  
   console.log(`API Request: ${method} ${url}`, { data });
   
   try {
