@@ -243,6 +243,18 @@ export async function runMigrations() {
       )
     `;
     
+    // Application Settings table
+    await sql`
+      CREATE TABLE IF NOT EXISTS "application_settings" (
+        "id" SERIAL PRIMARY KEY,
+        "settings" JSONB NOT NULL DEFAULT '{}',
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_by" INTEGER REFERENCES "users" ("id"),
+        "version" INTEGER DEFAULT 1 NOT NULL,
+        "description" TEXT
+      )
+    `;
+    
     log('Database migrations completed successfully', 'database');
   } catch (error) {
     log(`Database migration error: ${error}`, 'database');

@@ -226,7 +226,9 @@ async function createTable(tableName) {
           "id" SERIAL PRIMARY KEY,
           "settings" JSONB NOT NULL DEFAULT '{}',
           "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updated_by" INTEGER REFERENCES "users" ("id")
+          "updated_by" INTEGER REFERENCES "users" ("id"),
+          "version" INTEGER DEFAULT 1 NOT NULL,
+          "description" TEXT
         )
       `);
       break;
