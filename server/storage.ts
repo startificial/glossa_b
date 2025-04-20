@@ -20,7 +20,8 @@ import {
   requirementComparisonTasks, type RequirementComparisonTask, type InsertRequirementComparisonTask,
   projectRoles, type ProjectRole, type InsertProjectRole,
   requirementRoleEfforts, type RequirementRoleEffort, type InsertRequirementRoleEffort,
-  taskRoleEfforts, type TaskRoleEffort, type InsertTaskRoleEffort
+  taskRoleEfforts, type TaskRoleEffort, type InsertTaskRoleEffort,
+  applicationSettings, type ApplicationSettings, type InsertApplicationSettings
 } from "@shared/schema";
 import { ExtendedImplementationTask } from './extended-types';
 import { and, desc, eq, or, like, sql as drizzleSql, gte, lte, inArray } from 'drizzle-orm';
@@ -156,6 +157,12 @@ export interface IStorage {
     totalResults: number;
     totalPages: number;
   }>;
+  
+  // Application Settings methods
+  getApplicationSettings(): Promise<ApplicationSettings | undefined>;
+  getApplicationSettingsData(): Promise<Record<string, any> | undefined>;
+  updateApplicationSettings(userId: number, settingsData: Record<string, any>): Promise<ApplicationSettings | undefined>;
+  createDefaultApplicationSettings(userId: number): Promise<ApplicationSettings>;
 }
 
 // PostgreSQL Database Storage Implementation
@@ -1490,6 +1497,126 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error marking previous tasks as not current:', error);
       return false;
+    }
+  }
+  
+  // Application Settings methods
+  
+  /**
+   * Get the application settings record
+   * @returns The application settings record or undefined if not found
+   */
+  async getApplicationSettings(): Promise<ApplicationSettings | undefined> {
+    try {
+      const result = await db.select().from(applicationSettings).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error fetching application settings:', error);
+      return undefined;
+    }
+  }
+  
+  /**
+   * Get application settings data object
+   * @returns The application settings data or undefined if not found
+   */
+  async getApplicationSettingsData(): Promise<Record<string, any> | undefined> {
+    try {
+      const settingsRecord = await this.getApplicationSettings();
+      return settingsRecord?.settings;
+    } catch (error) {
+      console.error('Error fetching application settings data:', error);
+      return undefined;
+    }
+  }
+  
+  /**
+   * Update application settings
+   * @param userId The ID of the user making the update
+   * @param settingsData The new settings data to save
+   * @returns The updated application settings or undefined if failed
+   */
+  async updateApplicationSettings(userId: number, settingsData: Record<string, any>): Promise<ApplicationSettings | undefined> {
+    try {
+      const existingSettings = await this.getApplicationSettings();
+      
+      if (existingSettings) {
+        // Update existing settings
+        const [updatedSettings] = await db.update(applicationSettings)
+          .set({ 
+            settings: settingsData, 
+            updatedAt: new Date(),
+            updatedBy: userId
+          })
+          .where(eq(applicationSettings.id, existingSettings.id))
+          .returning();
+        
+        return updatedSettings;
+      } else {
+        // Create new settings record if none exists
+        return this.createDefaultApplicationSettings(userId);
+      }
+    } catch (error) {
+      console.error('Error updating application settings:', error);
+      return undefined;
+    }
+  }
+  
+  /**
+   * Create default application settings
+   * @param userId The ID of the user creating the settings
+   * @returns The created application settings
+   */
+  async createDefaultApplicationSettings(userId: number): Promise<ApplicationSettings> {
+    try {
+      // Define default application settings
+      const defaultSettings: Record<string, any> = {
+        general: {
+          applicationName: "Glossa - Requirement Management",
+          companyName: "Glossa AI",
+          supportEmail: "support@example.com",
+          maxFileUploadSize: 10485760, // 10MB
+          defaultLanguage: "en",
+          timeZone: "UTC"
+        },
+        auth: {
+          passwordPolicy: {
+            minLength: 8,
+            requireSpecialChars: true,
+            requireNumbers: true,
+            requireUppercase: true,
+            requireLowercase: true
+          },
+          mfaEnabled: false,
+          sessionTimeout: 60, // 60 minutes
+          allowSelfRegistration: false,
+          loginAttempts: 5
+        },
+        notifications: {
+          emailNotificationsEnabled: true,
+          systemNotificationsEnabled: true,
+          defaultReminderTime: 24 // 24 hours
+        },
+        integrations: {
+          aiProvider: "google",
+          aiModel: "gemini-pro",
+          aiApiRateLimit: 10,
+          enableThirdPartyIntegrations: true
+        }
+      };
+      
+      // Insert the default settings
+      const [newSettings] = await db.insert(applicationSettings)
+        .values({
+          settings: defaultSettings,
+          updatedBy: userId
+        })
+        .returning();
+      
+      return newSettings;
+    } catch (error) {
+      console.error('Error creating default application settings:', error);
+      throw error;
     }
   }
 }

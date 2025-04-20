@@ -7,6 +7,7 @@ import documentTemplateRoutes from './routes/document-templates';
 import documentRoutes from './routes/documents';
 import pdfRoutes from './routes/pdf-route';
 import projectRolesRoutes from './routes/project-roles';
+import applicationSettingsRoutes from './routes/application-settings';
 import { requirementRoleEffortController } from './controllers/requirement-role-effort-controller';
 import { taskRoleEffortController } from './controllers/task-role-effort-controller';
 import { 
@@ -3013,6 +3014,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Project roles routes
   app.use('/api', projectRolesRoutes);
+  
+  // Application settings routes
+  app.use('/api/application-settings', applicationSettingsRoutes);
   
   // Direct routes for requirement and task role efforts (needed for frontend compatibility)
   app.get('/api/requirements/:requirementId/role-efforts', isAuthenticated, async (req, res) => {

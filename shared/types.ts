@@ -42,3 +42,69 @@ export interface WorkflowEdge {
   style?: Record<string, any>;
   data?: Record<string, any>;
 }
+
+/**
+ * Application Settings Types
+ * 
+ * These interfaces define the structure of application-wide settings.
+ * They are organized in a hierarchical way to allow for modular and
+ * extensible settings management.
+ */
+
+// General application settings
+export interface GeneralSettings {
+  applicationName: string;
+  companyName: string;
+  supportEmail: string;
+  maxFileUploadSize: number; // In bytes
+  defaultLanguage: string;
+  timeZone: string;
+}
+
+// User and authentication settings
+export interface AuthSettings {
+  passwordPolicy: {
+    minLength: number;
+    requireSpecialChars: boolean;
+    requireNumbers: boolean;
+    requireUppercase: boolean;
+    requireLowercase: boolean;
+  };
+  mfaEnabled: boolean;
+  sessionTimeout: number; // In minutes
+  allowSelfRegistration: boolean;
+  loginAttempts: number; // Max failed login attempts
+}
+
+// Notification settings
+export interface NotificationSettings {
+  emailNotificationsEnabled: boolean;
+  systemNotificationsEnabled: boolean;
+  defaultReminderTime: number; // In hours before deadline
+}
+
+// Integration settings 
+export interface IntegrationSettings {
+  aiProvider: 'google' | 'openai' | 'anthropic' | 'huggingface';
+  aiModel: string;
+  aiApiRateLimit: number;
+  enableThirdPartyIntegrations: boolean;
+}
+
+// Full application settings object
+export interface ApplicationSettingsData {
+  general: GeneralSettings;
+  auth: AuthSettings;
+  notifications: NotificationSettings;
+  integrations: IntegrationSettings;
+  [key: string]: any; // Allow for future extension of settings categories
+}
+
+// Application settings section definition for UI navigation
+export interface AppSettingsSection {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  path: string;
+}

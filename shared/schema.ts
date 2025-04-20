@@ -461,6 +461,34 @@ export const insertTaskRoleEffortSchema = createInsertSchema(taskRoleEfforts).pi
   effortUnit: true,
 });
 
+/**
+ * Application Settings Table - Global application configuration
+ * 
+ * Stores application-wide settings in a flexible JSON structure.
+ * Uses a single row with a JSONB column for maximum flexibility in adding
+ * new settings without requiring schema changes.
+ * 
+ * This approach allows for:
+ * 1. Adding new setting categories without schema changes
+ * 2. Hierarchical settings organization
+ * 3. Type-specific settings validation via Zod
+ */
+export const applicationSettings = pgTable("application_settings", {
+  id: serial("id").primaryKey(),
+  settings: jsonb("settings").notNull().default({}), // Flexible JSON structure for all settings
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedBy: integer("updated_by").references(() => users.id), // User who last updated the settings
+});
+
+/**
+ * Application settings insert validation schema
+ * Defines the fields required when creating or updating application settings
+ */
+export const insertApplicationSettingsSchema = createInsertSchema(applicationSettings).pick({
+  settings: true,
+  updatedBy: true,
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -494,6 +522,9 @@ export type InsertRequirementRoleEffort = z.infer<typeof insertRequirementRoleEf
 
 export type TaskRoleEffort = typeof taskRoleEfforts.$inferSelect;
 export type InsertTaskRoleEffort = z.infer<typeof insertTaskRoleEffortSchema>;
+
+export type ApplicationSettings = typeof applicationSettings.$inferSelect;
+export type InsertApplicationSettings = z.infer<typeof insertApplicationSettingsSchema>;
 
 /**
  * Document Templates Table - Reusable document design templates
