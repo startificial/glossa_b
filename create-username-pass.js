@@ -4,12 +4,52 @@
  * This script takes a username and password as command-line arguments
  * and creates a new user in the database with the provided credentials.
  * The password is hashed using the application's scrypt implementation.
+ * 
+ * This is a command-line utility for administrators to create new users directly,
+ * bypassing the need for registration through the application interface.
+ * It's especially useful for creating the initial admin user or for bulk user creation.
  *
- * Usage: node create-user.js <username> <password> [firstName] [lastName] [email] [company] [role]
- * Optional fields default to placeholders or 'user' role.
+ * Usage: node create-username-pass.js <username> <password> [firstName] [lastName] [email] [company] [role]
+ * 
+ * Parameters:
+ * - username: Required. The unique username for the new user
+ * - password: Required. The password for the new user (will be hashed)
+ * - firstName: Optional. The user's first name (defaults to 'New')
+ * - lastName: Optional. The user's last name (defaults to 'User')
+ * - email: Optional. The user's email address (defaults to username@example.com)
+ * - company: Optional. The user's company (defaults to 'Default Company')
+ * - role: Optional. The user's role, either 'user' or 'admin' (defaults to 'user')
+ * 
+ * Examples:
+ * - Basic user: node create-username-pass.js johndoe password123
+ * - Full details: node create-username-pass.js janedoe securepass Jane Doe jane@example.com "Acme Inc" admin
+ * 
+ * The script will check if the username already exists before creating a new user.
  */
-import { sql } from './server/db'; // Assuming './server/db' exports your tagged template literal setup
-import { hashPassword } from './server/utils/password-utils'; // Assuming this path is correct
+import { neon } from '@neondatabase/serverless';
+import dotenv from 'dotenv';
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+
+// Load environment variables
+dotenv.config();
+
+// Create SQL client
+const sql = neon(process.env.DATABASE_URL);
+
+// Setup password hashing functions
+const scryptAsync = promisify(scrypt);
+
+/**
+ * Hashes a password using scrypt with a random salt
+ * @param password The password to hash
+ * @returns The hashed password with salt in the format hash.salt
+ */
+async function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64));
+  return `${buf.toString("hex")}.${salt}`;
+}
 
 async function createUser() {
   // --- 1. Get Input Arguments ---
@@ -26,7 +66,13 @@ async function createUser() {
   // --- 2. Validate Input ---
   if (!username || !password) {
     console.error('Error: Username and password are required.');
-    console.log('Usage: node create-user.js <username> <password> [firstName] [lastName] [email] [company] [role]');
+    console.log('Usage: node create-username-pass.js <username> <password> [firstName] [lastName] [email] [company] [role]');
+    process.exit(1); // Exit with an error code
+  }
+
+  // Validate role
+  if (role !== 'user' && role !== 'admin') {
+    console.error('Error: Role must be either "user" or "admin".');
     process.exit(1); // Exit with an error code
   }
 
@@ -49,7 +95,9 @@ async function createUser() {
 
       // --- 5. Create User in Database ---
       console.log('Inserting user into database...');
-      await sql`
+      const now = new Date();
+      
+      const result = await sql`
         INSERT INTO users (
           username,
           password,
@@ -57,7 +105,9 @@ async function createUser() {
           last_name,
           email,
           company,
-          role
+          role,
+          created_at,
+          updated_at
         ) VALUES (
           ${username},
           ${hashedPassword},
@@ -65,11 +115,13 @@ async function createUser() {
           ${lastName},
           ${email},
           ${company},
-          ${role}
-        )
+          ${role},
+          ${now},
+          ${now}
+        ) RETURNING id, username, role
       `;
 
-      console.log(`User '${username}' created successfully with specified details.`);
+      console.log(`User '${username}' created successfully with ID: ${result[0].id}`);
       console.log(`Role set to: '${role}'`);
     }
   } catch (error) {
@@ -77,9 +129,6 @@ async function createUser() {
     exitCode = 1; // Set error exit code
   } finally {
     // --- 6. Exit ---
-    // Close the database connection if necessary. Some libraries manage pools
-    // automatically, but if your 'sql' object requires explicit closing, do it here.
-    // e.g., await sql.end();
     console.log(`Script finished with exit code ${exitCode}.`);
     process.exit(exitCode); // Exit with success (0) or error (1)
   }
