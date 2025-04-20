@@ -90,6 +90,7 @@ async function pushSchema() {
         "category" VARCHAR(100) NOT NULL,
         "priority" VARCHAR(50) DEFAULT 'medium',
         "source" VARCHAR(255),
+        "code_id" TEXT,
         "acceptance_criteria" JSONB,
         "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
