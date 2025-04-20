@@ -27,7 +27,7 @@ async function syncDatabaseSchema() {
     const requiredTables = [
       'users', 'customers', 'projects', 'activities', 
       'input_data', 'requirements', 'implementation_tasks', 'workflows',
-      'application_settings'
+      'application_settings', 'project_role_templates', 'project_roles'
     ];
     
     for (const tableName of requiredTables) {
@@ -232,6 +232,46 @@ async function createTable(tableName) {
         )
       `);
       break;
+      
+    case 'project_role_templates':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "project_role_templates" (
+          "id" SERIAL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "role_type" TEXT NOT NULL,
+          "location_type" TEXT NOT NULL,
+          "seniority_level" TEXT NOT NULL,
+          "description" TEXT,
+          "cost_rate" TEXT NOT NULL,
+          "cost_unit" TEXT NOT NULL,
+          "currency" TEXT NOT NULL,
+          "is_active" BOOLEAN NOT NULL DEFAULT true,
+          "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      break;
+      
+    case 'project_roles':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "project_roles" (
+          "id" SERIAL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "role_type" TEXT NOT NULL,
+          "location_type" TEXT NOT NULL,
+          "seniority_level" TEXT NOT NULL,
+          "project_id" INTEGER NOT NULL,
+          "description" TEXT,
+          "cost_rate" TEXT NOT NULL,
+          "cost_unit" TEXT NOT NULL,
+          "currency" TEXT NOT NULL,
+          "is_active" BOOLEAN NOT NULL DEFAULT true,
+          "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE CASCADE
+        )
+      `);
+      break;
   }
   
   console.log(`✅ Table '${tableName}' created successfully.`);
@@ -240,6 +280,35 @@ async function createTable(tableName) {
 async function ensureTableColumns(tableName) {
   // Define the required columns for each table
   const requiredColumns = {
+    project_role_templates: [
+      { name: 'id', type: 'integer' },
+      { name: 'name', type: 'text' },
+      { name: 'role_type', type: 'text' },
+      { name: 'location_type', type: 'text' },
+      { name: 'seniority_level', type: 'text' },
+      { name: 'description', type: 'text' },
+      { name: 'cost_rate', type: 'text' },
+      { name: 'cost_unit', type: 'text' },
+      { name: 'currency', type: 'text' },
+      { name: 'is_active', type: 'boolean' },
+      { name: 'created_at', type: 'timestamp' },
+      { name: 'updated_at', type: 'timestamp' }
+    ],
+    project_roles: [
+      { name: 'id', type: 'integer' },
+      { name: 'name', type: 'text' },
+      { name: 'role_type', type: 'text' },
+      { name: 'location_type', type: 'text' },
+      { name: 'seniority_level', type: 'text' },
+      { name: 'project_id', type: 'integer' },
+      { name: 'description', type: 'text' },
+      { name: 'cost_rate', type: 'text' },
+      { name: 'cost_unit', type: 'text' },
+      { name: 'currency', type: 'text' },
+      { name: 'is_active', type: 'boolean' },
+      { name: 'created_at', type: 'timestamp' },
+      { name: 'updated_at', type: 'timestamp' }
+    ],
     application_settings: [
       { name: 'id', type: 'integer' },
       { name: 'settings', type: 'jsonb' },
@@ -409,6 +478,8 @@ async function addColumnToTable(tableName, columnName, columnType) {
     defaultValue = " DEFAULT '[]'";
   } else if (columnName === 'acceptance_criteria') {
     defaultValue = " DEFAULT '[]'";
+  } else if (columnName === 'is_active') {
+    defaultValue = " DEFAULT true";
   } else if (columnType === 'timestamp') {
     defaultValue = ' DEFAULT CURRENT_TIMESTAMP';
   }

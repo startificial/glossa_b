@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Save, RefreshCw } from 'lucide-react';
+import { ProjectRoleTemplate } from '@/lib/types';
 
 // Application Settings Types - imported from shared
 interface GeneralSettings {
@@ -62,6 +63,7 @@ interface TaskTemplate {
 
 interface TemplateSettings {
   implementationTaskTemplates: TaskTemplate[];
+  projectRoleTemplates: ProjectRoleTemplate[];
   defaultTaskType: string;
   defaultComplexity: 'low' | 'medium' | 'high';
   enableTemplateLibrary: boolean;
@@ -137,6 +139,44 @@ const defaultSettings: ApplicationSettingsData = {
         implementationSteps: ['Reproduce issue', 'Identify root cause', 'Implement fix', 'Verify resolution']
       }
     ],
+    projectRoleTemplates: [
+      {
+        id: 'default-1',
+        name: 'Onshore Senior Developer',
+        roleType: 'Developer',
+        locationType: 'Onshore',
+        seniorityLevel: 'Senior',
+        description: 'Experienced developer working in client timezone',
+        costRate: '120',
+        costUnit: 'Hour',
+        currency: 'USD',
+        isActive: true
+      },
+      {
+        id: 'default-2',
+        name: 'Offshore Junior QA',
+        roleType: 'QA',
+        locationType: 'Offshore',
+        seniorityLevel: 'Junior',
+        description: 'Entry-level quality assurance specialist working remotely',
+        costRate: '40',
+        costUnit: 'Hour',
+        currency: 'USD',
+        isActive: true
+      },
+      {
+        id: 'default-3',
+        name: 'Onshore Business Analyst',
+        roleType: 'Business Analyst',
+        locationType: 'Onshore',
+        seniorityLevel: 'Mid-Level',
+        description: 'Requirements gathering and analysis specialist',
+        costRate: '95',
+        costUnit: 'Hour',
+        currency: 'USD',
+        isActive: true
+      }
+    ],
     defaultTaskType: 'implementation',
     defaultComplexity: 'medium',
     enableTemplateLibrary: true
@@ -193,6 +233,44 @@ export function ApplicationSettings() {
               complexity: 'low',
               taskType: 'bug-fix',
               implementationSteps: ['Reproduce issue', 'Identify root cause', 'Implement fix', 'Verify resolution']
+            }
+          ],
+          projectRoleTemplates: [
+            {
+              id: 'default-1',
+              name: 'Onshore Senior Developer',
+              roleType: 'Developer',
+              locationType: 'Onshore',
+              seniorityLevel: 'Senior',
+              description: 'Experienced developer working in client timezone',
+              costRate: '120',
+              costUnit: 'Hour',
+              currency: 'USD',
+              isActive: true
+            },
+            {
+              id: 'default-2',
+              name: 'Offshore Junior QA',
+              roleType: 'QA',
+              locationType: 'Offshore',
+              seniorityLevel: 'Junior',
+              description: 'Entry-level quality assurance specialist working remotely',
+              costRate: '40',
+              costUnit: 'Hour',
+              currency: 'USD',
+              isActive: true
+            },
+            {
+              id: 'default-3',
+              name: 'Onshore Business Analyst',
+              roleType: 'Business Analyst',
+              locationType: 'Onshore',
+              seniorityLevel: 'Mid-Level',
+              description: 'Requirements gathering and analysis specialist',
+              costRate: '95',
+              costUnit: 'Hour',
+              currency: 'USD',
+              isActive: true
             }
           ],
           defaultTaskType: 'implementation',
@@ -277,6 +355,44 @@ export function ApplicationSettings() {
               implementationSteps: ['Analyze requirements', 'Design solution', 'Implement code', 'Test functionality']
             }
           ],
+          projectRoleTemplates: [
+            {
+              id: 'default-1',
+              name: 'Onshore Senior Developer',
+              roleType: 'Developer',
+              locationType: 'Onshore',
+              seniorityLevel: 'Senior',
+              description: 'Experienced developer working in client timezone',
+              costRate: '120',
+              costUnit: 'Hour',
+              currency: 'USD',
+              isActive: true
+            },
+            {
+              id: 'default-2',
+              name: 'Offshore Junior QA',
+              roleType: 'QA',
+              locationType: 'Offshore',
+              seniorityLevel: 'Junior',
+              description: 'Entry-level quality assurance specialist working remotely',
+              costRate: '40',
+              costUnit: 'Hour',
+              currency: 'USD',
+              isActive: true
+            },
+            {
+              id: 'default-3',
+              name: 'Onshore Business Analyst',
+              roleType: 'Business Analyst',
+              locationType: 'Onshore',
+              seniorityLevel: 'Mid-Level',
+              description: 'Requirements gathering and analysis specialist',
+              costRate: '95',
+              costUnit: 'Hour',
+              currency: 'USD',
+              isActive: true
+            }
+          ],
           defaultTaskType: 'implementation',
           defaultComplexity: 'medium',
           enableTemplateLibrary: true
@@ -343,6 +459,7 @@ export function ApplicationSettings() {
               <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="integrations">Integrations</TabsTrigger>
               <TabsTrigger value="templates">Task Templates</TabsTrigger>
+              <TabsTrigger value="roleTemplates">Role Templates</TabsTrigger>
             </TabsList>
             
             {/* General Settings */}
@@ -839,6 +956,233 @@ export function ApplicationSettings() {
                         Add New Template
                       </Button>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Project Role Templates */}
+            <TabsContent value="roleTemplates" className="space-y-4">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium">Project Role Templates</h3>
+                  <Separator className="my-4" />
+                  
+                  <div className="space-y-6 mt-6">
+                    <h4 className="text-md font-medium">Available Role Templates</h4>
+                    
+                    {formData.templates.projectRoleTemplates?.map((template, index) => (
+                      <Card key={index} className="p-4">
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`role-template-${index}-name`}>Role Name</Label>
+                              <Input 
+                                id={`role-template-${index}-name`}
+                                value={template.name} 
+                                onChange={(e) => {
+                                  const updatedTemplates = [...(formData.templates.projectRoleTemplates || [])];
+                                  updatedTemplates[index] = { ...template, name: e.target.value };
+                                  handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                                }}
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor={`role-template-${index}-roleType`}>Role Type</Label>
+                              <Select 
+                                value={template.roleType}
+                                onValueChange={(value) => {
+                                  const updatedTemplates = [...(formData.templates.projectRoleTemplates || [])];
+                                  updatedTemplates[index] = { ...template, roleType: value };
+                                  handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select role type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Developer">Developer</SelectItem>
+                                  <SelectItem value="QA">QA</SelectItem>
+                                  <SelectItem value="Business Analyst">Business Analyst</SelectItem>
+                                  <SelectItem value="Project Manager">Project Manager</SelectItem>
+                                  <SelectItem value="DevOps">DevOps</SelectItem>
+                                  <SelectItem value="Designer">Designer</SelectItem>
+                                  <SelectItem value="Technical Lead">Technical Lead</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`role-template-${index}-locationType`}>Location Type</Label>
+                              <Select 
+                                value={template.locationType}
+                                onValueChange={(value) => {
+                                  const updatedTemplates = [...(formData.templates.projectRoleTemplates || [])];
+                                  updatedTemplates[index] = { ...template, locationType: value };
+                                  handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select location type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Onshore">Onshore</SelectItem>
+                                  <SelectItem value="Offshore">Offshore</SelectItem>
+                                  <SelectItem value="Nearshore">Nearshore</SelectItem>
+                                  <SelectItem value="Remote">Remote</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor={`role-template-${index}-seniorityLevel`}>Seniority Level</Label>
+                              <Select 
+                                value={template.seniorityLevel}
+                                onValueChange={(value) => {
+                                  const updatedTemplates = [...(formData.templates.projectRoleTemplates || [])];
+                                  updatedTemplates[index] = { ...template, seniorityLevel: value };
+                                  handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select seniority level" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Junior">Junior</SelectItem>
+                                  <SelectItem value="Mid-Level">Mid-Level</SelectItem>
+                                  <SelectItem value="Senior">Senior</SelectItem>
+                                  <SelectItem value="Principal">Principal</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`role-template-${index}-description`}>Description</Label>
+                            <Input 
+                              id={`role-template-${index}-description`}
+                              value={template.description} 
+                              onChange={(e) => {
+                                const updatedTemplates = [...(formData.templates.projectRoleTemplates || [])];
+                                updatedTemplates[index] = { ...template, description: e.target.value };
+                                handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                              }}
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`role-template-${index}-costRate`}>Cost Rate</Label>
+                              <Input 
+                                id={`role-template-${index}-costRate`}
+                                value={template.costRate} 
+                                onChange={(e) => {
+                                  const updatedTemplates = [...(formData.templates.projectRoleTemplates || [])];
+                                  updatedTemplates[index] = { ...template, costRate: e.target.value };
+                                  handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                                }}
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor={`role-template-${index}-costUnit`}>Cost Unit</Label>
+                              <Select 
+                                value={template.costUnit}
+                                onValueChange={(value) => {
+                                  const updatedTemplates = [...(formData.templates.projectRoleTemplates || [])];
+                                  updatedTemplates[index] = { ...template, costUnit: value };
+                                  handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select cost unit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Hour">Hour</SelectItem>
+                                  <SelectItem value="Day">Day</SelectItem>
+                                  <SelectItem value="Week">Week</SelectItem>
+                                  <SelectItem value="Month">Month</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor={`role-template-${index}-currency`}>Currency</Label>
+                              <Select 
+                                value={template.currency}
+                                onValueChange={(value) => {
+                                  const updatedTemplates = [...(formData.templates.projectRoleTemplates || [])];
+                                  updatedTemplates[index] = { ...template, currency: value };
+                                  handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select currency" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="USD">USD</SelectItem>
+                                  <SelectItem value="EUR">EUR</SelectItem>
+                                  <SelectItem value="GBP">GBP</SelectItem>
+                                  <SelectItem value="CAD">CAD</SelectItem>
+                                  <SelectItem value="AUD">AUD</SelectItem>
+                                  <SelectItem value="INR">INR</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <Switch 
+                              id={`role-template-${index}-isActive`}
+                              checked={template.isActive}
+                              onCheckedChange={(checked) => {
+                                const updatedTemplates = [...(formData.templates.projectRoleTemplates || [])];
+                                updatedTemplates[index] = { ...template, isActive: checked };
+                                handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                              }}
+                            />
+                            <Label htmlFor={`role-template-${index}-isActive`}>Active</Label>
+                          </div>
+                          
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              const updatedTemplates = (formData.templates.projectRoleTemplates || []).filter((_, i) => i !== index);
+                              handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                            }}
+                          >
+                            Remove Template
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                    
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const newId = `template-${Date.now().toString(36)}`;
+                        const newTemplate: ProjectRoleTemplate = {
+                          id: newId,
+                          name: 'New Role Template',
+                          roleType: 'Developer',
+                          locationType: 'Onshore',
+                          seniorityLevel: 'Mid-Level',
+                          description: 'Description for new role template',
+                          costRate: '100',
+                          costUnit: 'Hour',
+                          currency: 'USD',
+                          isActive: true
+                        };
+                        const updatedTemplates = [...(formData.templates.projectRoleTemplates || []), newTemplate];
+                        handleInputChange('templates', 'projectRoleTemplates', updatedTemplates);
+                      }}
+                    >
+                      Add New Role Template
+                    </Button>
                   </div>
                 </div>
               </div>

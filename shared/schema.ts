@@ -355,6 +355,47 @@ export const insertImplementationTaskSchema = createInsertSchema(implementationT
 });
 
 /**
+ * Project Role Templates Table - Reusable templates for project roles
+ * 
+ * Represents predefined role templates that can be automatically applied to new projects.
+ * These templates define standard project roles with their associated costs and responsibilities.
+ * 
+ * Relationships:
+ * - None (standalone reference table)
+ * - Used as a template source for creating ProjectRole records
+ */
+export const projectRoleTemplates = pgTable("project_role_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(), // User-friendly descriptive name (e.g., "Onshore Senior Developer")
+  roleType: text("role_type").notNull(), // Functional type (e.g., "Developer", "BA", "QA", "PM", "Architect")
+  locationType: text("location_type").notNull(), // Location category (e.g., "Onshore", "Offshore", "Nearshore")
+  seniorityLevel: text("seniority_level").notNull(), // Experience level (e.g., "Junior", "Mid-Level", "Senior", "Lead", "Principal")
+  description: text("description"), // Detailed description of responsibilities and skills
+  costRate: text("cost_rate").notNull(), // Cost associated with this role per unit of effort
+  costUnit: text("cost_unit").notNull(), // Unit for the cost rate (e.g., "Hour", "Day", "Story Point", "Sprint")
+  currency: text("currency").notNull(), // Currency for the cost rate (e.g., "USD", "EUR")
+  isActive: boolean("is_active").default(true).notNull(), // Whether the template is currently available for use
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
+ * Project Role Template insert validation schema
+ * Defines fields required when creating a new project role template
+ */
+export const insertProjectRoleTemplateSchema = createInsertSchema(projectRoleTemplates).pick({
+  name: true,
+  roleType: true,
+  locationType: true,
+  seniorityLevel: true,
+  description: true,
+  costRate: true,
+  costUnit: true,
+  currency: true,
+  isActive: true,
+});
+
+/**
  * Project Roles Table - Define project personnel roles
  * 
  * Represents the descriptive roles of personnel involved in a migration project.
@@ -528,6 +569,9 @@ export type InsertActivity = z.infer<typeof insertActivitySchema>;
 
 export type ImplementationTask = typeof implementationTasks.$inferSelect;
 export type InsertImplementationTask = z.infer<typeof insertImplementationTaskSchema>;
+
+export type ProjectRoleTemplate = typeof projectRoleTemplates.$inferSelect;
+export type InsertProjectRoleTemplate = z.infer<typeof insertProjectRoleTemplateSchema>;
 
 export type ProjectRole = typeof projectRoles.$inferSelect;
 export type InsertProjectRole = z.infer<typeof insertProjectRoleSchema>;

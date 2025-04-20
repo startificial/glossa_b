@@ -329,3 +329,16 @@ export interface CreateProjectRoleFormData {
   currency: string;
   isActive: boolean;
 }
+
+export interface ProjectRoleTemplate {
+  id?: string;
+  name: string;
+  roleType: string;
+  locationType: string;
+  seniorityLevel: string;
+  description: string;
+  costRate: string;
+  costUnit: string;
+  currency: string;
+  isActive: boolean;
+}

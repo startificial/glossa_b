@@ -18,6 +18,7 @@ import {
   workflows, type Workflow, type InsertWorkflow, type WorkflowNode, type WorkflowEdge,
   requirementComparisons, type RequirementComparison, type InsertRequirementComparison,
   requirementComparisonTasks, type RequirementComparisonTask, type InsertRequirementComparisonTask,
+  projectRoleTemplates, type ProjectRoleTemplate, type InsertProjectRoleTemplate,
   projectRoles, type ProjectRole, type InsertProjectRole,
   requirementRoleEfforts, type RequirementRoleEffort, type InsertRequirementRoleEffort,
   taskRoleEfforts, type TaskRoleEffort, type InsertTaskRoleEffort,
@@ -71,6 +72,7 @@ export interface IStorage {
   createProjectRole(role: InsertProjectRole): Promise<ProjectRole>;
   updateProjectRole(id: number, role: Partial<InsertProjectRole>): Promise<ProjectRole | undefined>;
   deleteProjectRole(id: number): Promise<boolean>;
+  createProjectRolesFromTemplates(projectId: number, templateIds: string[]): Promise<ProjectRole[]>;
   
   // Requirement Role Effort methods
   getRequirementRoleEfforts(requirementId: number): Promise<RequirementRoleEffort[]>;
@@ -475,6 +477,74 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  // Project Role Template methods
+  async getProjectRoleTemplate(id: number): Promise<ProjectRoleTemplate | undefined> {
+    try {
+      const result = await db.select().from(projectRoleTemplates).where(eq(projectRoleTemplates.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error fetching project role template:', error);
+      return undefined;
+    }
+  }
+
+  async getAllProjectRoleTemplates(): Promise<ProjectRoleTemplate[]> {
+    try {
+      return await db.select()
+        .from(projectRoleTemplates)
+        .orderBy(projectRoleTemplates.name);
+    } catch (error) {
+      console.error('Error fetching all project role templates:', error);
+      return [];
+    }
+  }
+
+  async getActiveProjectRoleTemplates(): Promise<ProjectRoleTemplate[]> {
+    try {
+      return await db.select()
+        .from(projectRoleTemplates)
+        .where(eq(projectRoleTemplates.isActive, true))
+        .orderBy(projectRoleTemplates.name);
+    } catch (error) {
+      console.error('Error fetching active project role templates:', error);
+      return [];
+    }
+  }
+
+  async createProjectRoleTemplate(template: InsertProjectRoleTemplate): Promise<ProjectRoleTemplate> {
+    try {
+      const [newTemplate] = await db.insert(projectRoleTemplates).values(template).returning();
+      return newTemplate;
+    } catch (error) {
+      console.error('Error creating project role template:', error);
+      throw error;
+    }
+  }
+
+  async updateProjectRoleTemplate(id: number, templateData: Partial<InsertProjectRoleTemplate>): Promise<ProjectRoleTemplate | undefined> {
+    try {
+      const [updatedTemplate] = await db.update(projectRoleTemplates)
+        .set({ ...templateData, updatedAt: new Date() })
+        .where(eq(projectRoleTemplates.id, id))
+        .returning();
+      
+      return updatedTemplate;
+    } catch (error) {
+      console.error('Error updating project role template:', error);
+      return undefined;
+    }
+  }
+
+  async deleteProjectRoleTemplate(id: number): Promise<boolean> {
+    try {
+      await db.delete(projectRoleTemplates).where(eq(projectRoleTemplates.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error deleting project role template:', error);
+      return false;
+    }
+  }
+
   // Project Role methods
   async getProjectRole(id: number): Promise<ProjectRole | undefined> {
     try {
@@ -483,6 +553,46 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching project role:', error);
       return undefined;
+    }
+  }
+  
+  async createProjectRolesFromTemplates(projectId: number, templateIds: string[]): Promise<ProjectRole[]> {
+    try {
+      // Get application settings to access templates
+      const appSettingsData = await this.getApplicationSettingsData();
+      if (!appSettingsData || !appSettingsData.templates || !appSettingsData.templates.projectRoleTemplates) {
+        console.error('No project role templates found in application settings');
+        return [];
+      }
+      
+      const allTemplates = appSettingsData.templates.projectRoleTemplates;
+      const selectedTemplates = allTemplates.filter(template => templateIds.includes(template.id));
+      
+      if (selectedTemplates.length === 0) {
+        console.error('No matching templates found for the provided template IDs');
+        return [];
+      }
+      
+      // Convert templates to project roles
+      const rolesToCreate = selectedTemplates.map(template => ({
+        projectId,
+        name: template.name,
+        roleType: template.roleType,
+        locationType: template.locationType,
+        seniorityLevel: template.seniorityLevel,
+        description: template.description,
+        costRate: template.costRate,
+        costUnit: template.costUnit,
+        currency: template.currency,
+        isActive: template.isActive
+      }));
+      
+      // Insert all project roles
+      const createdRoles = await db.insert(projectRoles).values(rolesToCreate).returning();
+      return createdRoles;
+    } catch (error) {
+      console.error('Error creating project roles from templates:', error);
+      return [];
     }
   }
 
