@@ -367,6 +367,113 @@ Your entire response must be parseable as a JSON array.`,
         console.log('Strategy 5 failed entirely:', repairAttemptErr);
       }
       
+      // Strategy 6: Handle partial JSON - extract complete objects from a potentially truncated response
+      try {
+        console.log('Attempting to extract complete objects from partial response...');
+        
+        // Find all objects with complete structure (from opening { to closing })
+        const completeObjectsRegex = /\{\s*"title"[\s\S]*?("implementationSteps"\s*:[\s\S]*?\])\s*\}/g;
+        const completeObjects = [];
+        let match;
+        
+        while ((match = completeObjectsRegex.exec(cleanedResponse)) !== null) {
+          try {
+            const objectText = match[0];
+            const taskObject = JSON.parse(objectText);
+            completeObjects.push(taskObject);
+          } catch (parseErr) {
+            // Skip this match if it's not valid JSON
+            console.log('Skipping invalid object match');
+          }
+        }
+        
+        if (completeObjects.length > 0) {
+          console.log(`Strategy 6: Extracted ${completeObjects.length} valid task objects from partial response`);
+          const validatedTasks = validateAndFixImplementationTasks(completeObjects);
+          return validatedTasks;
+        }
+      } catch (err) {
+        console.log('Strategy 6 (handle partial JSON) failed:', err.message);
+      }
+      
+      // Strategy 7: Handle severely truncated response - try to fix the JSON and complete it
+      try {
+        console.log('Attempting to fix truncated JSON response...');
+        
+        // Check if the response starts with an array opening but doesn't properly end
+        if (cleanedResponse.trim().startsWith('[') && !cleanedResponse.trim().endsWith(']')) {
+          // Find the last complete object ending
+          const lastObjectEnd = cleanedResponse.lastIndexOf('}');
+          
+          if (lastObjectEnd > 0) {
+            // Extract up to the last complete object and close the array
+            const fixedJson = cleanedResponse.substring(0, lastObjectEnd + 1) + ']';
+            try {
+              const partialTasks = JSON.parse(fixedJson);
+              console.log(`Strategy 7: Fixed truncated array with ${partialTasks.length} tasks`);
+              
+              const validatedTasks = validateAndFixImplementationTasks(partialTasks);
+              return validatedTasks;
+            } catch (parseErr) {
+              console.log('Strategy 7 (fix truncated array) parsing failed:', parseErr.message);
+            }
+          }
+        }
+      } catch (err) {
+        console.log('Strategy 7 (fix truncated JSON) failed:', err.message);
+      }
+      
+      // If we have logs showing visible tasks in the output but parsing fails, 
+      // create at least the tasks we can see in the logs
+      if (responseText.includes('"title"') && responseText.includes('"description"')) {
+        console.log('Attempting to extract tasks from visible logs...');
+        
+        // Look for complete task objects with titles
+        const titleMatches = [...responseText.matchAll(/"title"\s*:\s*"([^"]+)"/g)];
+        
+        if (titleMatches.length > 0) {
+          // We found at least some task titles, create basic tasks from what we can see
+          const basicTasks = titleMatches.map((match, index) => {
+            const title = match[1];
+            
+            // Try to find description near this title
+            const titlePos = match.index;
+            const descStart = responseText.indexOf('"description"', titlePos);
+            let description = "Implementation task details";
+            
+            if (descStart > 0) {
+              const descValueStart = responseText.indexOf('"', descStart + 14) + 1;
+              const descValueEnd = responseText.indexOf('"', descValueStart);
+              if (descValueEnd > descValueStart) {
+                description = responseText.substring(descValueStart, descValueEnd);
+              }
+            }
+            
+            return {
+              title,
+              description,
+              system: "Salesforce",
+              taskType: "development",
+              complexity: "moderate",
+              estimatedHours: 8,
+              priority: "medium",
+              implementationSteps: [
+                {
+                  stepNumber: 1,
+                  stepDescription: "Implement the core functionality",
+                  relevantDocumentationLinks: []
+                }
+              ],
+              sfDocumentationLinks: [],
+              overallDocumentationLinks: []
+            };
+          });
+          
+          console.log(`Strategy 8: Created ${basicTasks.length} basic tasks from visible titles`);
+          return basicTasks;
+        }
+      }
+      
       // If we're here, all parsing strategies failed
       console.error('All JSON parsing strategies failed for response');
       console.error('Raw response:', responseText);
