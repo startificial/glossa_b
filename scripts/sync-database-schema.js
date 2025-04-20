@@ -164,6 +164,7 @@ async function createTable(tableName) {
           "input_data_id" INTEGER,
           "acceptance_criteria" JSONB,
           "source" TEXT,
+          "code_id" TEXT,
           "video_scenes" JSONB,
           "audio_timestamps" JSONB,
           "expert_analysis" JSONB,
