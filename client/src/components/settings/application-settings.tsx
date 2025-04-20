@@ -51,11 +51,28 @@ interface IntegrationSettings {
   enableThirdPartyIntegrations: boolean;
 }
 
+interface TaskTemplate {
+  name: string;
+  description: string;
+  estimatedHours: number;
+  complexity: 'low' | 'medium' | 'high';
+  taskType: string;
+  implementationSteps: string[];
+}
+
+interface TemplateSettings {
+  implementationTaskTemplates: TaskTemplate[];
+  defaultTaskType: string;
+  defaultComplexity: 'low' | 'medium' | 'high';
+  enableTemplateLibrary: boolean;
+}
+
 interface ApplicationSettingsData {
   general: GeneralSettings;
   auth: AuthSettings;
   notifications: NotificationSettings;
   integrations: IntegrationSettings;
+  templates: TemplateSettings;
   [key: string]: any; // Allow for future extension of settings categories
 }
 
@@ -92,6 +109,37 @@ const defaultSettings: ApplicationSettingsData = {
     aiModel: 'gemini-pro',
     aiApiRateLimit: 10,
     enableThirdPartyIntegrations: true
+  },
+  templates: {
+    implementationTaskTemplates: [
+      {
+        name: 'Basic Implementation',
+        description: 'Standard implementation task for basic features',
+        estimatedHours: 4,
+        complexity: 'medium',
+        taskType: 'implementation',
+        implementationSteps: ['Analyze requirements', 'Design solution', 'Implement code', 'Test functionality']
+      },
+      {
+        name: 'Complex Integration',
+        description: 'Integration task requiring multiple systems',
+        estimatedHours: 8,
+        complexity: 'high',
+        taskType: 'integration',
+        implementationSteps: ['Analyze integration points', 'Design data flow', 'Implement adapters', 'Configure endpoints', 'Test end-to-end flow']
+      },
+      {
+        name: 'Bug Fix',
+        description: 'Task for fixing identified issues',
+        estimatedHours: 2,
+        complexity: 'low',
+        taskType: 'bug-fix',
+        implementationSteps: ['Reproduce issue', 'Identify root cause', 'Implement fix', 'Verify resolution']
+      }
+    ],
+    defaultTaskType: 'implementation',
+    defaultComplexity: 'medium',
+    enableTemplateLibrary: true
   }
 };
 
@@ -117,7 +165,42 @@ export function ApplicationSettings() {
   // Update local form state when settings are loaded
   useEffect(() => {
     if (settings) {
-      setFormData(settings);
+      // Make sure templates property exists, if not, initialize it with defaults
+      const updatedSettings = {
+        ...settings,
+        templates: settings.templates || {
+          implementationTaskTemplates: [
+            {
+              name: 'Basic Implementation',
+              description: 'Standard implementation task for basic features',
+              estimatedHours: 4,
+              complexity: 'medium',
+              taskType: 'implementation',
+              implementationSteps: ['Analyze requirements', 'Design solution', 'Implement code', 'Test functionality']
+            },
+            {
+              name: 'Complex Integration',
+              description: 'Integration task requiring multiple systems',
+              estimatedHours: 8,
+              complexity: 'high',
+              taskType: 'integration',
+              implementationSteps: ['Analyze integration points', 'Design data flow', 'Implement adapters', 'Configure endpoints', 'Test end-to-end flow']
+            },
+            {
+              name: 'Bug Fix',
+              description: 'Task for fixing identified issues',
+              estimatedHours: 2,
+              complexity: 'low',
+              taskType: 'bug-fix',
+              implementationSteps: ['Reproduce issue', 'Identify root cause', 'Implement fix', 'Verify resolution']
+            }
+          ],
+          defaultTaskType: 'implementation',
+          defaultComplexity: 'medium',
+          enableTemplateLibrary: true
+        }
+      };
+      setFormData(updatedSettings);
     }
   }, [settings]);
   
@@ -180,7 +263,26 @@ export function ApplicationSettings() {
   // Reset form to last saved settings
   const handleReset = () => {
     if (settings) {
-      setFormData(settings);
+      // Make sure templates property exists when resetting too
+      const updatedSettings = {
+        ...settings,
+        templates: settings.templates || {
+          implementationTaskTemplates: [
+            {
+              name: 'Basic Implementation',
+              description: 'Standard implementation task for basic features',
+              estimatedHours: 4,
+              complexity: 'medium',
+              taskType: 'implementation',
+              implementationSteps: ['Analyze requirements', 'Design solution', 'Implement code', 'Test functionality']
+            }
+          ],
+          defaultTaskType: 'implementation',
+          defaultComplexity: 'medium',
+          enableTemplateLibrary: true
+        }
+      };
+      setFormData(updatedSettings);
       toast({
         title: 'Form reset',
         description: 'Settings have been reset to last saved values.',
@@ -240,6 +342,7 @@ export function ApplicationSettings() {
               <TabsTrigger value="auth">Authentication</TabsTrigger>
               <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="integrations">Integrations</TabsTrigger>
+              <TabsTrigger value="templates">Task Templates</TabsTrigger>
             </TabsList>
             
             {/* General Settings */}
@@ -522,6 +625,221 @@ export function ApplicationSettings() {
                     onCheckedChange={(checked) => handleInputChange('integrations', 'enableThirdPartyIntegrations', checked)}
                   />
                   <Label htmlFor="enableThirdPartyIntegrations">Enable Third-Party Integrations</Label>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Implementation Task Templates */}
+            <TabsContent value="templates" className="space-y-4">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium">Implementation Task Templates</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Configure task templates for implementation activities
+                  </p>
+                  <Separator className="my-4" />
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="defaultTaskType">Default Task Type</Label>
+                        <Input 
+                          id="defaultTaskType" 
+                          value={formData.templates.defaultTaskType} 
+                          onChange={(e) => handleInputChange('templates', 'defaultTaskType', e.target.value)}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="defaultComplexity">Default Complexity</Label>
+                        <Select 
+                          value={formData.templates.defaultComplexity} 
+                          onValueChange={(value) => handleInputChange('templates', 'defaultComplexity', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select complexity" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Switch 
+                        id="enableTemplateLibrary"
+                        checked={formData.templates.enableTemplateLibrary}
+                        onCheckedChange={(checked) => handleInputChange('templates', 'enableTemplateLibrary', checked)}
+                      />
+                      <Label htmlFor="enableTemplateLibrary">Enable Template Library</Label>
+                    </div>
+                    
+                    <div className="space-y-4 mt-6">
+                      <h4 className="text-md font-medium">Defined Templates</h4>
+                      
+                      {formData.templates.implementationTaskTemplates.map((template, index) => (
+                        <Card key={index} className="p-4">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor={`template-${index}-name`}>Template Name</Label>
+                                <Input 
+                                  id={`template-${index}-name`} 
+                                  value={template.name} 
+                                  onChange={(e) => {
+                                    const updatedTemplates = [...formData.templates.implementationTaskTemplates];
+                                    updatedTemplates[index] = { ...template, name: e.target.value };
+                                    handleInputChange('templates', 'implementationTaskTemplates', updatedTemplates);
+                                  }}
+                                />
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor={`template-${index}-taskType`}>Task Type</Label>
+                                <Input 
+                                  id={`template-${index}-taskType`} 
+                                  value={template.taskType} 
+                                  onChange={(e) => {
+                                    const updatedTemplates = [...formData.templates.implementationTaskTemplates];
+                                    updatedTemplates[index] = { ...template, taskType: e.target.value };
+                                    handleInputChange('templates', 'implementationTaskTemplates', updatedTemplates);
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor={`template-${index}-description`}>Description</Label>
+                              <Input 
+                                id={`template-${index}-description`} 
+                                value={template.description} 
+                                onChange={(e) => {
+                                  const updatedTemplates = [...formData.templates.implementationTaskTemplates];
+                                  updatedTemplates[index] = { ...template, description: e.target.value };
+                                  handleInputChange('templates', 'implementationTaskTemplates', updatedTemplates);
+                                }}
+                              />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor={`template-${index}-estimatedHours`}>Estimated Hours</Label>
+                                <Input 
+                                  id={`template-${index}-estimatedHours`} 
+                                  type="number"
+                                  min={0.5}
+                                  step={0.5}
+                                  value={template.estimatedHours} 
+                                  onChange={(e) => {
+                                    const updatedTemplates = [...formData.templates.implementationTaskTemplates];
+                                    updatedTemplates[index] = { ...template, estimatedHours: parseFloat(e.target.value) };
+                                    handleInputChange('templates', 'implementationTaskTemplates', updatedTemplates);
+                                  }}
+                                />
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor={`template-${index}-complexity`}>Complexity</Label>
+                                <Select 
+                                  value={template.complexity} 
+                                  onValueChange={(value) => {
+                                    const updatedTemplates = [...formData.templates.implementationTaskTemplates];
+                                    updatedTemplates[index] = { ...template, complexity: value as 'low' | 'medium' | 'high' };
+                                    handleInputChange('templates', 'implementationTaskTemplates', updatedTemplates);
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select complexity" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="low">Low</SelectItem>
+                                    <SelectItem value="medium">Medium</SelectItem>
+                                    <SelectItem value="high">High</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor={`template-${index}-steps`}>Implementation Steps</Label>
+                              <div className="border rounded-md p-2 space-y-2">
+                                {template.implementationSteps.map((step, stepIndex) => (
+                                  <div key={stepIndex} className="flex items-center gap-2">
+                                    <Input 
+                                      value={step} 
+                                      onChange={(e) => {
+                                        const updatedTemplates = [...formData.templates.implementationTaskTemplates];
+                                        const updatedSteps = [...template.implementationSteps];
+                                        updatedSteps[stepIndex] = e.target.value;
+                                        updatedTemplates[index] = { ...template, implementationSteps: updatedSteps };
+                                        handleInputChange('templates', 'implementationTaskTemplates', updatedTemplates);
+                                      }}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        const updatedTemplates = [...formData.templates.implementationTaskTemplates];
+                                        const updatedSteps = template.implementationSteps.filter((_, i) => i !== stepIndex);
+                                        updatedTemplates[index] = { ...template, implementationSteps: updatedSteps };
+                                        handleInputChange('templates', 'implementationTaskTemplates', updatedTemplates);
+                                      }}
+                                    >
+                                      Remove
+                                    </Button>
+                                  </div>
+                                ))}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const updatedTemplates = [...formData.templates.implementationTaskTemplates];
+                                    const updatedSteps = [...template.implementationSteps, ''];
+                                    updatedTemplates[index] = { ...template, implementationSteps: updatedSteps };
+                                    handleInputChange('templates', 'implementationTaskTemplates', updatedTemplates);
+                                  }}
+                                >
+                                  Add Step
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                const updatedTemplates = formData.templates.implementationTaskTemplates.filter((_, i) => i !== index);
+                                handleInputChange('templates', 'implementationTaskTemplates', updatedTemplates);
+                              }}
+                            >
+                              Remove Template
+                            </Button>
+                          </div>
+                        </Card>
+                      ))}
+                      
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const newTemplate: TaskTemplate = {
+                            name: 'New Template',
+                            description: 'Description for new template',
+                            estimatedHours: 4,
+                            complexity: 'medium',
+                            taskType: 'implementation',
+                            implementationSteps: ['Step 1']
+                          };
+                          const updatedTemplates = [...formData.templates.implementationTaskTemplates, newTemplate];
+                          handleInputChange('templates', 'implementationTaskTemplates', updatedTemplates);
+                        }}
+                      >
+                        Add New Template
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </TabsContent>
