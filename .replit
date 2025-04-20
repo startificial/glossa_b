@@ -39,7 +39,7 @@ waitForPort = 5000
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm db:push"
+args = "npm run db:push"
 
 [[workflows.workflow]]
 name = "Reset DB"

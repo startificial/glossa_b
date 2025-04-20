@@ -176,6 +176,7 @@ export interface CreateProjectFormData {
   customer?: string;  // Legacy field for backward compatibility
   sourceSystem?: string;  // React form input needs string (we'll handle null conversion)
   targetSystem?: string;  // React form input needs string (we'll handle null conversion)
+  roleTemplateIds?: string[];  // IDs of role templates to apply to the project
 }
 
 export interface CreateRequirementFormData {

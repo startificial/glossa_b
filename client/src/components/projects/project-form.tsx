@@ -5,7 +5,7 @@ import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { CreateProjectFormData, Customer } from "@/lib/types";
+import { CreateProjectFormData, Customer, ProjectRoleTemplate } from "@/lib/types";
 import { useLocation } from "wouter";
 import {
   Dialog,
@@ -18,6 +18,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -33,8 +34,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FolderPlus, PlusCircle } from "lucide-react";
 import { CustomerDialog } from "@/components/customers/customer-dialog";
+import { useProjectRoleTemplates } from "@/hooks/use-application-settings";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -43,6 +46,7 @@ const projectSchema = z.object({
   customerId: z.string().optional(), // We'll convert to number when submitting
   sourceSystem: z.string().optional(),
   targetSystem: z.string().optional(),
+  roleTemplateIds: z.array(z.string()).optional(),
 });
 
 interface ProjectFormProps {
@@ -66,6 +70,12 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
     enabled: isOpen, // Only fetch when dialog is open
   });
   
+  // Fetch role templates for the form
+  const { templates: roleTemplates, isLoading: isLoadingTemplates } = useProjectRoleTemplates();
+  
+  // State to track selected role templates
+  const [selectedRoleTemplates, setSelectedRoleTemplates] = useState<string[]>([]);
+  
   const form = useForm<CreateProjectFormData>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
@@ -75,6 +85,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       customerId: "none",
       sourceSystem: "",
       targetSystem: "",
+      roleTemplateIds: [],
     },
   });
   
@@ -151,6 +162,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       customerId: data.customerId && data.customerId !== 'none' ? parseInt(data.customerId) : null,
       sourceSystem: data.sourceSystem?.trim() === '' ? null : data.sourceSystem,
       targetSystem: data.targetSystem?.trim() === '' ? null : data.targetSystem,
+      roleTemplateIds: data.roleTemplateIds || [],
     };
     console.log('Submitting project with data:', apiData);
     // Use a type assertion to handle the server-side typing correctly
@@ -182,7 +194,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
           if (!open) onClose();
         }}
       >
-        <DialogContent className="sm:max-w-[525px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900">
@@ -341,6 +353,135 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="roleTemplateIds"
+                render={() => (
+                  <FormItem>
+                    <div className="mb-4">
+                      <FormLabel className="text-base">Project Roles</FormLabel>
+                      <FormDescription>
+                        Select role templates to include in this project
+                      </FormDescription>
+                    </div>
+                    
+                    {/* Role template selection UI */}
+                    <div className="space-y-4">
+                      {/* Search filter input */}
+                      <Input 
+                        type="text"
+                        placeholder="Search roles..."
+                        onChange={(e) => {
+                          // We'd implement filtering logic here in a real app
+                          // For now we'll just show all templates
+                        }}
+                        className="mb-2"
+                      />
+                      
+                      {/* Selected roles display */}
+                      {selectedRoleTemplates.length > 0 && (
+                        <div className="p-2 border rounded-md bg-muted/40">
+                          <h4 className="text-sm font-medium mb-2">Selected Roles:</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedRoleTemplates.map(id => {
+                              const template = roleTemplates.find(t => t.id === id);
+                              return template ? (
+                                <div key={id} className="flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs">
+                                  <span>{template.name}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-4 w-4 ml-1 p-0"
+                                    onClick={() => {
+                                      const updatedSelection = selectedRoleTemplates.filter(
+                                        templateId => templateId !== id
+                                      );
+                                      setSelectedRoleTemplates(updatedSelection);
+                                      form.setValue('roleTemplateIds', updatedSelection);
+                                    }}
+                                  >
+                                    <span className="sr-only">Remove</span>
+                                    <svg 
+                                      xmlns="http://www.w3.org/2000/svg" 
+                                      width="12" 
+                                      height="12" 
+                                      viewBox="0 0 24 24" 
+                                      fill="none" 
+                                      stroke="currentColor" 
+                                      strokeWidth="2" 
+                                      strokeLinecap="round" 
+                                      strokeLinejoin="round"
+                                    >
+                                      <path d="M18 6 6 18"/>
+                                      <path d="m6 6 12 12"/>
+                                    </svg>
+                                  </Button>
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Available templates list */}
+                      <div className="grid gap-2 max-h-64 overflow-y-auto">
+                        {roleTemplates.map((template) => {
+                          const isSelected = selectedRoleTemplates.includes(template.id as string);
+                          return (
+                            <div
+                              key={template.id}
+                              className={`
+                                flex items-center justify-between p-3 rounded-md cursor-pointer
+                                ${isSelected ? 'bg-primary/10 border-primary' : 'border'}
+                                hover:bg-accent transition-colors
+                              `}
+                              onClick={() => {
+                                let updatedSelection: string[];
+                                if (isSelected) {
+                                  // Remove if already selected
+                                  updatedSelection = selectedRoleTemplates.filter(id => id !== template.id);
+                                } else {
+                                  // Add if not selected
+                                  updatedSelection = [...selectedRoleTemplates, template.id as string];
+                                }
+                                setSelectedRoleTemplates(updatedSelection);
+                                form.setValue('roleTemplateIds', updatedSelection);
+                              }}
+                            >
+                              <div>
+                                <div className="font-medium">{template.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {template.roleType} ({template.locationType}, {template.seniorityLevel}) - {template.costRate} {template.currency}/{template.costUnit}
+                                </div>
+                              </div>
+                              {isSelected && (
+                                <div className="h-4 w-4 rounded-full bg-primary flex items-center justify-center">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="10"
+                                    height="10"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="white"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter>
                 <Button

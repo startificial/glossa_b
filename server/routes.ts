@@ -644,6 +644,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use database to create project instead of in-memory storage
       const project = await createProjectInDb(validatedData);
       
+      // If role template IDs were provided, create project roles from those templates
+      if (req.body.roleTemplateIds && Array.isArray(req.body.roleTemplateIds) && req.body.roleTemplateIds.length > 0) {
+        console.log(`Creating project roles from ${req.body.roleTemplateIds.length} templates`);
+        try {
+          const createdRoles = await storage.createProjectRolesFromTemplates(project.id, req.body.roleTemplateIds);
+          console.log(`Created ${createdRoles.length} project roles`);
+        } catch (error) {
+          console.error('Error creating project roles from templates:', error);
+          // We don't want to fail the project creation if role creation fails
+        }
+      }
+      
       // Add activity for project creation
       await storage.createActivity({
         type: "created_project",

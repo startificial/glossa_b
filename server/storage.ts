@@ -558,15 +558,24 @@ export class DatabaseStorage implements IStorage {
   
   async createProjectRolesFromTemplates(projectId: number, templateIds: string[]): Promise<ProjectRole[]> {
     try {
+      console.log(`Creating project roles for project ${projectId} with template IDs:`, templateIds);
+      
       // Get application settings to access templates
       const appSettingsData = await this.getApplicationSettingsData();
+      
+      // Log the application settings data for debugging
+      console.log('Application settings data:', JSON.stringify(appSettingsData, null, 2));
+      
       if (!appSettingsData || !appSettingsData.templates || !appSettingsData.templates.projectRoleTemplates) {
         console.error('No project role templates found in application settings');
         return [];
       }
       
       const allTemplates = appSettingsData.templates.projectRoleTemplates;
+      console.log('All available templates:', allTemplates);
+      
       const selectedTemplates = allTemplates.filter(template => templateIds.includes(template.id));
+      console.log('Selected templates:', selectedTemplates);
       
       if (selectedTemplates.length === 0) {
         console.error('No matching templates found for the provided template IDs');
@@ -587,8 +596,11 @@ export class DatabaseStorage implements IStorage {
         isActive: template.isActive
       }));
       
+      console.log('Creating roles:', rolesToCreate);
+      
       // Insert all project roles
       const createdRoles = await db.insert(projectRoles).values(rolesToCreate).returning();
+      console.log(`Created ${createdRoles.length} project roles`);
       return createdRoles;
     } catch (error) {
       console.error('Error creating project roles from templates:', error);
