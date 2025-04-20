@@ -20,7 +20,7 @@ export async function getApplicationSettings(req: Request, res: Response) {
     if (!settings) {
       // If no settings exist yet, create default settings
       const userId = req.session?.userId || 1; // Use the current user or fall back to admin (1)
-      const newSettings = await storage.createDefaultApplicationSettings(userId);
+      const newSettings = await storage.createDefaultApplicationSettings(userId, "Initial application settings creation");
       return res.status(200).json(newSettings.settings);
     }
     
@@ -118,7 +118,8 @@ export async function updateApplicationSettings(req: Request, res: Response) {
     }
     
     // Update the settings
-    const updatedSettings = await storage.updateApplicationSettings(userId, settingsData);
+    const description = req.body.description || "Settings update";
+    const updatedSettings = await storage.updateApplicationSettings(userId, settingsData, description);
     
     if (!updatedSettings) {
       return res.status(500).json({ error: 'Failed to update application settings' });
