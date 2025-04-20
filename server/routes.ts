@@ -8,6 +8,7 @@ import documentRoutes from './routes/documents';
 import pdfRoutes from './routes/pdf-route';
 import projectRolesRoutes from './routes/project-roles';
 import applicationSettingsRoutes from './routes/application-settings';
+import { registerAdminRoutes } from './routes/admin-routes';
 import { requirementRoleEffortController } from './controllers/requirement-role-effort-controller';
 import { taskRoleEffortController } from './controllers/task-role-effort-controller';
 import { 
@@ -3382,6 +3383,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: error.message || "Error checking requirement quality" });
     }
   });
+  
+  // Register admin routes
+  registerAdminRoutes(app);
   
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Unhandled error:", err);

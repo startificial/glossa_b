@@ -42,6 +42,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | null>;
   getUserByUsername(username: string): Promise<User | null>;
   getUserByEmail(email: string): Promise<User | null>;
+  getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | null>;
   authenticateUser(usernameOrEmail: string, password: string): Promise<User | null>;
@@ -214,6 +215,16 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching user by email:', error);
       return null;
+    }
+  }
+  
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const result = await db.select().from(users).orderBy(users.username);
+      return result;
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      return [];
     }
   }
 

@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Save, RefreshCw } from 'lucide-react';
+import { Loader2, Save, RefreshCw, Users } from 'lucide-react';
 import { ProjectRoleTemplate } from '@/lib/types';
+import { UserManagement } from './user-management';
 
 // Application Settings Types - imported from shared
 interface GeneralSettings {
@@ -460,6 +461,10 @@ export function ApplicationSettings() {
               <TabsTrigger value="integrations">Integrations</TabsTrigger>
               <TabsTrigger value="templates">Task Templates</TabsTrigger>
               <TabsTrigger value="roleTemplates">Role Templates</TabsTrigger>
+              <TabsTrigger value="users">
+                <Users className="h-4 w-4 mr-2" />
+                User Management
+              </TabsTrigger>
             </TabsList>
             
             {/* General Settings */}
@@ -1186,6 +1191,11 @@ export function ApplicationSettings() {
                   </div>
                 </div>
               </div>
+            </TabsContent>
+            
+            {/* User Management */}
+            <TabsContent value="users" className="space-y-4">
+              <UserManagement />
             </TabsContent>
           </Tabs>
         </form>
