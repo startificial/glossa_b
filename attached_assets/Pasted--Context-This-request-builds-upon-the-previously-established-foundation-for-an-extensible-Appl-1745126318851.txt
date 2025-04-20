@@ -1,0 +1,83 @@
+**Context:**
+
+This request builds upon the previously established foundation for an extensible "Application Settings" page within our application (React/TypeScript frontend, Node.js/TypeScript/Express backend, Neon DB/Postgres with Drizzle ORM). This foundation includes potentially a data-driven sidebar navigation, reusable components, defined API patterns, and potentially existing sections like a "Templates" area. We prioritize architectural best practices (reusability, scalability, separation of concerns) and careful schema management (including updates to `schema.ts`, `database.ts`, `sync-database-schema.js`, and `db-sync.sh` for any schema changes).
+
+**Objective:**
+
+Implement a new feature for creating and managing "Project Role Templates" within the Application Settings. These templates define standard project roles based on the provided screenshot fields. Additionally, modify the project creation process so that all defined role templates are automatically added as actual roles to every newly created project by default.
+
+This involves two main parts:
+1.  Creating the template management interface within the Application Settings -> Templates section.
+2.  Updating the backend logic for new project creation to automatically populate default roles based on these templates.
+
+**Part 1: Application Settings - Project Role Template Management**
+
+1.  **Integrate into Templates Section:**
+    * Locate the existing "Templates" section within the Application Settings UI. If it doesn't exist, create a basic structure for it (e.g., a new entry in the `appSettingsSections` config pointing to a `TemplatesSettingsPage` component).
+    * Within this "Templates" section/page, implement a mechanism to manage different template types (e.g., using sub-tabs, accordions, or distinct areas). Add a new area/sub-tab specifically for "Project Role Templates".
+    * This new area should render a dedicated component, e.g., `ProjectRoleTemplatesSettings`.
+
+2.  **Project Role Templates UI (`ProjectRoleTemplatesSettings.tsx`):**
+    * Create the `ProjectRoleTemplatesSettings` React component.
+    * This component must provide a user interface for CRUD (Create, Read, Update, Delete) operations on Project Role Templates.
+    * **List View:** Display a list/table of existing project role templates (showing at least Role Name). Include buttons/links for editing or deleting each template.
+    * **Create/Edit Form:** Implement a form (modal or separate view) based *specifically* on the fields shown in the provided screenshot (`Screenshot 2025-04-19 at 21.55.07.png`):
+        * `Role Name` (text input, descriptive text: "A descriptive name for this project role")
+        * `Role Type` (select dropdown)
+        * `Location` (select dropdown)
+        * `Seniority Level` (select dropdown)
+        * `Description` (textarea, descriptive text: "Detailed description of this role's responsibilities and required skills")
+        * `Cost Rate` (number/text input)
+        * `Currency` (select dropdown, defaulting likely to USD)
+        * `Cost Unit` (select dropdown, e.g., "Hour", "Day", descriptive text: "The unit for the cost rate (e.g., per hour, per day)")
+    * **Dropdown Options:** For fields like `Role Type`, `Location`, `Seniority Level`, `Currency`, and `Cost Unit`, assume that the necessary predefined options/enums are available elsewhere in the application or can be hardcoded for now. The focus is on building the template structure to store the *selected* value.
+    * **Delete:** Implement a confirmation mechanism before deleting a template.
+    * Utilize existing reusable components (`SettingsSection`, inputs, buttons) where applicable. Handle loading/error states.
+
+3.  **Backend API (Node.js/Express/TypeScript):**
+    * Create new RESTful API endpoints, logically grouped, perhaps under `/api/application/project-role-templates`:
+        * `GET /api/application/project-role-templates`: List all project role templates.
+        * `POST /api/application/project-role-templates`: Create a new template. Expect fields matching the screenshot in the request body.
+        * `GET /api/application/project-role-templates/:templateId`: Get details for a specific template.
+        * `PUT /api/application/project-role-templates/:templateId`: Update an existing template.
+        * `DELETE /api/application/project-role-templates/:templateId`: Delete a template.
+    * Ensure endpoints require appropriate administrator permissions.
+
+4.  **Database (Drizzle/Postgres) & Schema Management:**
+    * **Define Schema:** Define a new Drizzle schema in `schema.ts` for a `project_role_templates` table.
+    * **Columns:** Include columns corresponding directly to the screenshot fields: `id` (PK), `name` (text, not null), `role_type` (text/enum), `location` (text/enum), `seniority` (text/enum), `description` (text), `cost_rate` (numeric/decimal), `currency` (text, e.g., 3-char code), `cost_unit` (text/enum), `created_at`, `updated_at`. Choose appropriate data types (e.g., `numeric` for `cost_rate`).
+    * **Schema Definition and Sync Updates:** If this involves creating a new table (it does):
+        * Ensure `schema.ts` contains the complete Drizzle definition.
+        * Provide necessary modifications/additions for `database.ts` (imports/exports if needed).
+        * Provide necessary modifications/additions for `sync-database-schema.js` reflecting the new table and columns.
+        * Provide necessary modifications/additions for `db-sync.sh` adding `project_role_templates` to the list of required tables.
+    * **Safety Note:** Ensure all schema changes are additive and non-destructive to existing data/tables.
+    * Implement corresponding backend service/repository functions using Drizzle for CRUD operations on `project_role_templates`.
+
+**Part 2: Project Creation Logic - Auto-Add Default Roles**
+
+1.  **Modify Project Creation Backend Logic:**
+    * Identify the existing backend service/function responsible for creating a new project.
+    * **Assumption:** Assume there is an existing table (e.g., `project_roles`) designed to store role instances *within* a specific project, likely having columns similar to `project_role_templates` plus a `project_id` foreign key.
+    * **Implement Logic:** After the new project record is successfully created and its `project_id` is obtained:
+        * Fetch all currently active/defined records from the `project_role_templates` table.
+        * Iterate through each fetched template.
+        * For each template, create a new record in the *actual* project roles table (e.g., `project_roles`), copying the relevant data (name, type, location, seniority, description, cost rate, currency, cost unit) from the template and associating it with the `project_id` of the newly created project.
+    * **Default Behavior:** This process should occur automatically and without specific user action during the standard project creation flow.
+    * **Error Handling:** Consider transaction safety if possible (either create project and all default roles, or none).
+
+**Deliverables:**
+
+* React component files (`.tsx`) for managing Project Role Templates within Application Settings (e.g., `ProjectRoleTemplatesSettings.tsx`, potentially updates to a `TemplatesSettingsPage.tsx`).
+* Updated Application Settings navigation configuration if needed.
+* New Node.js/Express API route definitions (`.ts`) for `/api/application/project-role-templates`.
+* New Drizzle schema definition in `schema.ts` for the `project_role_templates` table.
+* Backend service/repository functions (`.ts`) for `project_role_templates`.
+* **Code/Logic for Project Creation Update:** Backend code modifications (TypeScript) within the project creation service/function demonstrating how to fetch templates and create corresponding `project_roles` records.
+* **If schema changes are introduced (expected):**
+    * Code snippets or descriptions detailing the required modifications to `database.ts`.
+    * Code snippets or descriptions detailing the required modifications to `sync-database-schema.js`.
+    * Code snippets or descriptions detailing the required modifications to `db-sync.sh`.
+* Clear comments, especially explaining the automatic role creation logic in the project creation service.
+
+Ensure all code adheres to the established architectural principles and safety guidelines regarding database changes.

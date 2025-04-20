@@ -532,17 +532,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Project endpoints
-  app.get("/api/projects", async (req: Request, res: Response) => {
+  app.get("/api/projects", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      // Get user ID from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get user to ensure it exists
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Query projects from the database
+      // Query projects from the database using the authenticated user's ID
       const projectsList = await db.query.projects.findMany({
-        where: eq(projects.userId, user.id),
+        where: eq(projects.userId, userId),
         orderBy: [desc(projects.updatedAt)]
       });
       
@@ -553,11 +559,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projects/:id", async (req: Request, res: Response) => {
+  app.get("/api/projects/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.id);
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Get user ID from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
       }
 
       // Query project from the database
@@ -567,6 +579,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
+      }
+
+      // Verify project belongs to the authenticated user
+      if (project.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to view this project" });
       }
 
       // If the project has a customer ID, fetch the customer details
@@ -591,10 +608,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projects", async (req: Request, res: Response) => {
+  app.post("/api/projects", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      // Get user ID from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get user to ensure it exists
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -615,7 +638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = insertProjectSchema.parse({
         ...req.body,
-        userId: user.id
+        userId: userId
       });
 
       // Use database to create project instead of in-memory storage
@@ -625,7 +648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createActivity({
         type: "created_project",
         description: `${user.username} created project "${project.name}"`,
-        userId: user.id,
+        userId: userId,
         projectId: project.id,
         relatedEntityId: null
       });
@@ -637,11 +660,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/projects/:id", async (req: Request, res: Response) => {
+  app.put("/api/projects/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.id);
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Get user ID from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get user to ensure it exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
 
       // Check if project exists in the database
@@ -653,10 +688,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      // Verify project belongs to the authenticated user
+      if (project.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to update this project" });
       }
 
       // If customerId is provided, verify it exists
@@ -691,7 +725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createActivity({
         type: "updated_project",
         description: `${user.username} updated project "${updatedProject.name}"`,
-        userId: user.id,
+        userId: userId,
         projectId: projectId,
         relatedEntityId: null
       });
@@ -703,22 +737,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/projects/:id", async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.id);
-    if (isNaN(projectId)) {
-      return res.status(400).json({ message: "Invalid project ID" });
-    }
-
-    // Check if project exists in the database
-    const project = await db.query.projects.findFirst({
-      where: eq(projects.id, projectId)
-    });
-    
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
+  app.delete("/api/projects/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Get user ID from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // Verify project belongs to the authenticated user
+      if (project.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to delete this project" });
+      }
+
       // Delete from database (this will cascade delete related records since we defined CASCADE on FOREIGN KEYS)
       await db.delete(projects).where(eq(projects.id, projectId));
       
