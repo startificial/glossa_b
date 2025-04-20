@@ -282,6 +282,13 @@ async function ensureTableColumns(tableName) {
       { name: 'category', type: 'text' },
       { name: 'priority', type: 'text' },
       { name: 'input_data_id', type: 'integer' },
+      { name: 'acceptance_criteria', type: 'jsonb' },
+      { name: 'source', type: 'text' },
+      { name: 'code_id', type: 'text' },
+      { name: 'video_scenes', type: 'jsonb' },
+      { name: 'text_references', type: 'jsonb' },
+      { name: 'audio_timestamps', type: 'jsonb' },
+      { name: 'expert_review', type: 'jsonb' },
       { name: 'created_at', type: 'timestamp' },
       { name: 'updated_at', type: 'timestamp' }
     ],
@@ -355,6 +362,10 @@ async function addColumnToTable(tableName, columnName, columnType) {
   } else if (columnName === 'nodes' && tableName === 'workflows') {
     defaultValue = " DEFAULT '[]'";
   } else if (columnName === 'edges' && tableName === 'workflows') {
+    defaultValue = " DEFAULT '[]'";
+  } else if (columnName === 'video_scenes' || columnName === 'text_references' || columnName === 'audio_timestamps') {
+    defaultValue = " DEFAULT '[]'";
+  } else if (columnName === 'acceptance_criteria') {
     defaultValue = " DEFAULT '[]'";
   } else if (columnType === 'timestamp') {
     defaultValue = ' DEFAULT CURRENT_TIMESTAMP';
