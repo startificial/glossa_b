@@ -1,8 +1,6 @@
 import { Express, Request, Response } from 'express';
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
-import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
-import { promisify } from 'util';
 import session from 'express-session';
 import { storage } from '../storage';
 import { logger } from '../logger';
@@ -10,61 +8,10 @@ import { User } from '@shared/schema';
 import { UserService } from '../services/user-service';
 import { sendPasswordResetEmail } from '../services/email-service';
 import { TokenGenerator } from '../utils/token-generator';
-
-// Convert scrypt to promise-based API
-const scryptAsync = promisify(scrypt);
+import { hashPassword, comparePasswords } from '../utils/password-utils';
 
 // Initialize user service
 const userService = new UserService(storage);
-
-/**
- * Hash a password using bcrypt to match the existing database format
- * @param password The plain text password to hash
- * @returns The hashed password
- */
-async function hashPassword(password: string): Promise<string> {
-  try {
-    // Import and use the bcrypt directly
-    const bcrypt = await import('bcrypt');
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-    console.log(`[DEBUG] Password hashed successfully. Format: ${hashedPassword.substring(0, 10)}...`);
-    return hashedPassword;
-  } catch (error) {
-    logger.error('Error in hashPassword:', error);
-    throw new Error('Failed to hash password');
-  }
-}
-
-/**
- * Compare a supplied password with a stored hashed password
- * @param supplied The plain text password to check
- * @param stored The stored hashed password with salt
- * @returns True if the passwords match, false otherwise
- */
-async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
-  try {
-    // Check if the stored password is in bcrypt format (starts with $2a$ or $2b$)
-    if (stored.startsWith('$2a$') || stored.startsWith('$2b$') || stored.startsWith('$2y$')) {
-      // Use bcrypt directly for comparison
-      const bcrypt = await import('bcrypt');
-      return await bcrypt.compare(supplied, stored);
-    } else {
-      // Use the original scrypt method for scrypt-formatted passwords
-      const [hashed, salt] = stored.split('.');
-      if (!salt) {
-        logger.error('Invalid password format in database (no salt found)');
-        return false;
-      }
-      const hashedBuf = Buffer.from(hashed, 'hex');
-      const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-      return timingSafeEqual(hashedBuf, suppliedBuf);
-    }
-  } catch (error) {
-    logger.error('Error in comparePasswords:', error);
-    return false;
-  }
-}
 
 /**
  * Set up authentication routes and middleware
@@ -267,7 +214,7 @@ export function setupAuth(app: Express): void {
         user.email,
         user.username,
         resetToken,
-        req.headers.origin ? `${req.headers.origin}/auth` : undefined
+        req.headers.origin || undefined
       );
       
       if (!mailSent) {
@@ -364,15 +311,20 @@ export function setupAuth(app: Express): void {
       }
       
       const userId = req.user.id;
+      console.log(`[DEBUG] Change password: Getting user with ID ${userId}`);
       const user = await storage.getUser(userId);
       
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
       
+      console.log(`[DEBUG] Change password: Got user from database: ${user.username}`);
+      
       // Verify current password
       console.log(`[DEBUG] Change password: verifying current password for user ${user.username}`);
       console.log(`[DEBUG] Change password: stored password format: ${user.password.substring(0, 10)}...`);
+      
+      // Use the standardized password-utils comparePasswords function
       const isCurrentPasswordValid = await comparePasswords(currentPassword, user.password);
       console.log(`[DEBUG] Change password: current password verification result: ${isCurrentPasswordValid}`);
       
@@ -380,20 +332,83 @@ export function setupAuth(app: Express): void {
         return res.status(400).json({ message: 'Current password is incorrect' });
       }
       
-      // Hash the new password using the same method as elsewhere in this file
-      // We explicitly use our local hashPassword function, not the one from password-utils
+      // Hash the new password using the standardized password-utils hashPassword function
       console.log(`[DEBUG] Change password: hashing new password`);
       const hashedPassword = await hashPassword(newPassword);
       console.log(`[DEBUG] Change password: new hashed password format: ${hashedPassword.substring(0, 10)}...`);
       
       console.log(`[DEBUG] Change password: updating password for user ID ${userId}`);
-      // Update the password
-      const updated = await storage.updatePasswordAndClearToken(userId, hashedPassword);
       
-      console.log(`[DEBUG] Change password: update result: ${updated}`);
+      // *** IMPORTANT: The script that worked used the Neon HTTP client, which is what we're using here
+      // Import direct neon client from db.ts - the HTTP client approach that was proven to work
+      console.log(`[DEBUG] Change password: Using Neon HTTP client for password update`);
+      const { neon } = await import('@neondatabase/serverless');
       
-      if (!updated) {
+      // Same approach as the successful script
+      const sql = neon(process.env.DATABASE_URL!);
+      
+      // Execute the update
+      const updateResult = await sql`
+        UPDATE users 
+        SET password = ${hashedPassword}, 
+            updated_at = NOW() 
+        WHERE id = ${userId} 
+        RETURNING id, username, password
+      `;
+      
+      if (!updateResult || updateResult.length === 0) {
+        console.error(`[ERROR] Change password: Neon HTTP update failed, no rows returned`);
         return res.status(500).json({ message: 'Failed to update password' });
+      }
+      
+      console.log(`[DEBUG] Change password: Neon HTTP update successful for user ${updateResult[0].username}`);
+      console.log(`[DEBUG] Change password: Updated password in DB: ${updateResult[0].password.substring(0, 15)}...`);
+          
+      // Verify password was updated by comparing values
+      if (updateResult[0].password !== hashedPassword) {
+        console.error('[ERROR] Change password: Password mismatch after update!');
+        console.log(`[DEBUG] Change password: Expected: ${hashedPassword.substring(0, 20)}...`);
+        console.log(`[DEBUG] Change password: Actual: ${updateResult[0].password.substring(0, 20)}...`);
+        return res.status(500).json({ message: 'Password update verification failed' });
+      }
+      
+      // Verify that the new password works against the updated password
+      const verificationTest = await comparePasswords(newPassword, updateResult[0].password);
+      console.log(`[DEBUG] Change password: Verification test of new password: ${verificationTest}`);
+      
+      if (!verificationTest) {
+        console.error("[ERROR] Critical: New password doesn't pass verification after update!");
+        return res.status(500).json({ message: 'Password update verification failed' });
+      }
+      
+      // Final check with a fresh fetch to ensure persistence
+      const verifyResult = await sql`
+        SELECT id, username, password 
+        FROM users 
+        WHERE id = ${userId}
+      `;
+      
+      if (verifyResult && verifyResult.length > 0) {
+        console.log(`[DEBUG] Change password: Final verification - password in DB: ${verifyResult[0].password.substring(0, 15)}...`);
+        
+        if (verifyResult[0].password !== hashedPassword) {
+          console.error('[ERROR] Change password: Final verification failed - password didn\'t persist!');
+          return res.status(500).json({ message: 'Password update verification failed' });
+        }
+      }
+      
+      // Refresh the user session after the password change
+      const userToRefresh = await storage.getUser(userId);
+      if (userToRefresh) {
+        console.log(`[DEBUG] Change password: refreshing user session with updated data`);
+        // Re-authenticate the user with the updated password
+        req.login(userToRefresh, (err) => {
+          if (err) {
+            logger.error('Error refreshing session after password change:', err);
+          } else {
+            console.log(`[DEBUG] Change password: session successfully refreshed`);
+          }
+        });
       }
       
       console.log(`[DEBUG] Change password: successfully changed password`);

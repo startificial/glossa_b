@@ -66,6 +66,12 @@ export const insertUserSchema = createInsertSchema(users).pick({
 });
 
 /**
+ * TypeScript type definitions for ORM models
+ */
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
+/**
  * Customers Table - Organizations that use the system
  * 
  * Represents client organizations for which projects are executed.

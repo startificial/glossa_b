@@ -234,11 +234,12 @@ export class DatabaseStorage implements IStorage {
         return null;
       }
       
-      // Import the password utilities
+      // Import the standardized comparePasswords utility function
       const { comparePasswords } = await import('./utils/password-utils');
       
-      // Verify the password
+      // Verify the password using the standardized function
       const passwordMatches = await comparePasswords(password, user.password);
+      console.log(`[DEBUG] authenticateUser: Password verification result: ${passwordMatches}`);
       
       // If password doesn't match, return null
       if (!passwordMatches) {
@@ -255,11 +256,12 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     try {
-      // Import the password utilities
+      // Import the standardized hashPassword utility function
       const { hashPassword } = await import('./utils/password-utils');
       
       // Hash the password before storing it
       const hashedPassword = await hashPassword(user.password);
+      console.log(`[DEBUG] createUser: Password hashed successfully. Format: ${hashedPassword.substring(0, 10)}...`);
       
       // Create the user with the hashed password
       const [newUser] = await db.insert(users).values({
@@ -280,11 +282,12 @@ export class DatabaseStorage implements IStorage {
       
       // If password is being updated, hash it
       if (userData.password) {
-        // Import the password utilities
+        // Import the standardized hashPassword utility function
         const { hashPassword } = await import('./utils/password-utils');
         
         // Hash the new password
         const hashedPassword = await hashPassword(userData.password);
+        console.log(`[DEBUG] updateUser: Password hashed successfully. Format: ${hashedPassword.substring(0, 10)}...`);
         
         // Update the data object with the hashed password
         dataToUpdate = { ...dataToUpdate, password: hashedPassword };
@@ -354,6 +357,97 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error updating password and clearing token:', error);
       return false;
+    }
+  }
+  
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<User | null> {
+    try {
+      // This function is specifically designed for user-initiated password changes
+      // It uses direct SQL for reliable password updates
+      console.log(`[DEBUG] updateUserPassword: Updating password for user ID ${userId}`);
+      console.log(`[DEBUG] updateUserPassword: New hashed password: ${hashedPassword.substring(0, 15)}...`);
+      
+      // Import the SQL client
+      const { sql } = await import('./db');
+      
+      // Get current user data for verification
+      const userData = await sql`
+        SELECT id, username, password 
+        FROM users 
+        WHERE id = ${userId}
+      `;
+      
+      if (!userData || userData.length === 0) {
+        console.error(`[ERROR] updateUserPassword: User not found with ID ${userId}`);
+        return null;
+      }
+      
+      console.log(`[DEBUG] updateUserPassword: Found user ${userData[0].username}`);
+      console.log(`[DEBUG] updateUserPassword: Current password: ${userData[0].password.substring(0, 15)}...`);
+      
+      // Use direct SQL to update the password - this has been verified to work reliably
+      console.log(`[DEBUG] updateUserPassword: Executing direct SQL update...`);
+      const updateResult = await sql`
+        UPDATE users 
+        SET password = ${hashedPassword}, 
+            updated_at = NOW() 
+        WHERE id = ${userId} 
+        RETURNING *
+      `;
+      
+      if (!updateResult || updateResult.length === 0) {
+        console.error(`[ERROR] updateUserPassword: Update failed, no rows returned`);
+        return null;
+      }
+      
+      console.log(`[DEBUG] updateUserPassword: Update successful for user ${updateResult[0].username}`);
+      console.log(`[DEBUG] updateUserPassword: Password in DB after update: ${updateResult[0].password.substring(0, 15)}...`);
+      
+      // Verify the update succeeded by retrieving the user again
+      const verifyResult = await sql`
+        SELECT id, username, password 
+        FROM users 
+        WHERE id = ${userId}
+      `;
+      
+      if (!verifyResult || verifyResult.length === 0) {
+        console.error(`[ERROR] updateUserPassword: Verification failed, user not found`);
+        return null;
+      }
+      
+      // Check if password was actually updated
+      if (verifyResult[0].password === hashedPassword) {
+        console.log(`[DEBUG] updateUserPassword: Password update verification confirmed`);
+      } else {
+        console.error(`[ERROR] updateUserPassword: Password mismatch after update!`);
+        console.log(`[DEBUG] updateUserPassword: Expected: ${hashedPassword.substring(0, 20)}...`);
+        console.log(`[DEBUG] updateUserPassword: Actual: ${verifyResult[0].password.substring(0, 20)}...`);
+        return null;
+      }
+      
+      // Convert SQL result to User type
+      const user: User = {
+        id: verifyResult[0].id,
+        username: verifyResult[0].username,
+        password: verifyResult[0].password,
+        firstName: verifyResult[0].first_name,
+        lastName: verifyResult[0].last_name,
+        email: verifyResult[0].email,
+        role: verifyResult[0].role,
+        company: verifyResult[0].company,
+        avatarUrl: verifyResult[0].avatar_url,
+        invitedBy: verifyResult[0].invited_by,
+        resetPasswordToken: verifyResult[0].reset_password_token,
+        resetPasswordExpires: verifyResult[0].reset_password_expires,
+        createdAt: new Date(verifyResult[0].created_at),
+        updatedAt: new Date(verifyResult[0].updated_at)
+      };
+      
+      console.log(`[DEBUG] updateUserPassword: Password updated successfully`);
+      return user;
+    } catch (error) {
+      console.error('Error updating user password:', error);
+      return null;
     }
   }
 
