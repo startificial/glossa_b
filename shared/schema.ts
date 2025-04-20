@@ -194,6 +194,9 @@ export const inputData = pgTable("input_data", {
   metadata: jsonb("metadata"), // Additional structured information about the file
   processed: boolean("processed").default(false), // Flag indicating if AI processing is complete
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Add missing fields that exist in the database
+  filePath: text("filePath").notNull(), // Path to the uploaded file
+  fileType: text("fileType").notNull(), // Type of file (mimetype)
 });
 
 /**
@@ -208,6 +211,8 @@ export const insertInputDataSchema = createInsertSchema(inputData).pick({
   projectId: true,
   status: true,
   metadata: true,
+  filePath: true,
+  fileType: true,
 });
 
 /**

@@ -1342,6 +1342,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         size: req.file.size,
         projectId,
         status: "processing",
+        filePath: req.file.path, // Use correct field name to match schema
+        fileType: type, // Use correct field name to match schema
         metadata: { 
           path: req.file.path,
           contentType

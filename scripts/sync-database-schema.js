@@ -271,6 +271,8 @@ async function ensureTableColumns(tableName) {
       { name: 'size', type: 'integer' },
       { name: 'status', type: 'text' },
       { name: 'content_type', type: 'text' },
+      { name: 'filePath', type: 'text' },
+      { name: 'fileType', type: 'text' },
       { name: 'metadata', type: 'jsonb' },
       { name: 'created_at', type: 'timestamp' }
     ],
