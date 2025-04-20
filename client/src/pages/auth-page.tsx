@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TabsContent, Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, AlertCircle } from "lucide-react";
-import glossaLogoPath from "@/assets/glossa-logo.png";
+// Import IBM Plex Sans font
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/700.css";
 
 // Main Auth Page Component
 export default function AuthPage() {
@@ -71,10 +73,6 @@ export default function AuthPage() {
       {/* Auth Forms Container */}
       <div className="flex flex-col items-center justify-center w-full md:w-1/2 p-8">
         <div className="w-full max-w-md">
-          <div className="flex justify-center mb-8">
-            <img src={glossaLogoPath} alt="Glossa Logo" className="h-16" />
-          </div>
-
           <Tabs
             defaultValue="login"
             value={activeTab}
@@ -123,8 +121,10 @@ export default function AuthPage() {
         </div>
       </div>
 
-      {/* Hero Section - Background Only */}
-      <div className="hidden md:flex md:w-1/2 bg-primary"></div>
+      {/* Hero Section - Black background with Glossa text */}
+      <div className="hidden md:flex md:w-1/2 bg-black flex-col justify-center items-center">
+        <h1 className="text-8xl font-bold text-white font-['IBM_Plex_Sans']">Glossa</h1>
+      </div>
     </div>
   );
 }
