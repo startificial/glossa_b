@@ -77,6 +77,7 @@ async function createTable(tableName) {
           "email" TEXT,
           "company" TEXT,
           "avatar_url" TEXT,
+          "invited_by" INTEGER,
           "role" TEXT NOT NULL DEFAULT 'user',
           "reset_password_token" TEXT,
           "reset_password_expires" TIMESTAMP,
