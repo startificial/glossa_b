@@ -44,6 +44,7 @@ const projectEditSchema = z.object({
   name: z.string().min(3, "Project name must be at least 3 characters"),
   description: z.string().nullable().optional(),
   type: z.string(),
+  stage: z.string(),
   customer: z.string().nullable().optional(),
   sourceSystem: z.string().nullable().optional(),
   targetSystem: z.string().nullable().optional(),
@@ -68,6 +69,7 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
       name: project.name,
       description: project.description || '',
       type: project.type,
+      stage: project.stage || 'discovery',
       customer: getCustomerValue(project.customer),
       sourceSystem: project.sourceSystem || '',
       targetSystem: project.targetSystem || '',
@@ -80,6 +82,7 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
         name: project.name,
         description: project.description || '',
         type: project.type,
+        stage: project.stage || 'discovery',
         customer: getCustomerValue(project.customer),
         sourceSystem: project.sourceSystem || '',
         targetSystem: project.targetSystem || '',
@@ -122,6 +125,7 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
     const apiData = {
       name: data.name,
       type: data.type,
+      stage: data.stage,
       description: data.description?.trim() === '' ? null : data.description,
       customer: data.customer?.trim() === '' ? null : data.customer,
       sourceSystem: data.sourceSystem?.trim() === '' ? null : data.sourceSystem,
@@ -193,6 +197,36 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
                     <SelectContent>
                       <SelectItem value="Software Migration">Software Migration</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="stage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Project Stage</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select project stage" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="discovery">Discovery</SelectItem>
+                      <SelectItem value="planning">Planning</SelectItem>
+                      <SelectItem value="implementation">Implementation</SelectItem>
+                      <SelectItem value="testing">Testing</SelectItem>
+                      <SelectItem value="deployment">Deployment</SelectItem>
+                      <SelectItem value="closed/won">Closed / Won</SelectItem>
+                      <SelectItem value="closed/lost">Closed / Lost</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

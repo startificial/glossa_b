@@ -145,6 +145,24 @@ export function ProjectHeader({ projectId, onAddInputData }: ProjectHeaderProps)
             </p>
 
             
+            {/* Stage information */}
+            <div className="mt-2 flex items-center gap-3">
+              {project.stage && (
+                <div className="flex items-center">
+                  <span className="text-xs font-medium mr-1 text-gray-600 dark:text-gray-400">Stage:</span> 
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    project.stage === 'closed/won' 
+                      ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' 
+                      : project.stage === 'closed/lost' 
+                      ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                      : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                  }`}>
+                    {project.stage.charAt(0).toUpperCase() + project.stage.slice(1)}
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Systems information */}
             {(project.sourceSystem || project.targetSystem) && (
               <div className="mt-2 flex items-center gap-2">

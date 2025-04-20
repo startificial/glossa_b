@@ -43,6 +43,7 @@ const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().optional(),
   type: z.string().min(1, "Project type is required"),
+  stage: z.string().min(1, "Project stage is required"),
   customerId: z.string().optional(), // We'll convert to number when submitting
   sourceSystem: z.string().optional(),
   targetSystem: z.string().optional(),
@@ -82,6 +83,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       name: "",
       description: "",
       type: "Software Migration",
+      stage: "discovery", // Default to discovery stage
       customerId: "none",
       sourceSystem: "",
       targetSystem: "",
@@ -158,6 +160,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
     const apiData = {
       name: data.name,
       type: data.type,
+      stage: data.stage,
       description: data.description.trim() === '' ? null : data.description,
       customerId: data.customerId && data.customerId !== 'none' ? parseInt(data.customerId) : null,
       sourceSystem: data.sourceSystem?.trim() === '' ? null : data.sourceSystem,
@@ -262,6 +265,36 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                       <SelectContent>
                         <SelectItem value="Software Migration">Software Migration</SelectItem>
                         <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="stage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Stage</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select project stage" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="discovery">Discovery</SelectItem>
+                        <SelectItem value="planning">Planning</SelectItem>
+                        <SelectItem value="implementation">Implementation</SelectItem>
+                        <SelectItem value="testing">Testing</SelectItem>
+                        <SelectItem value="deployment">Deployment</SelectItem>
+                        <SelectItem value="closed/won">Closed / Won</SelectItem>
+                        <SelectItem value="closed/lost">Closed / Lost</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

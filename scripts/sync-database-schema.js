@@ -111,6 +111,7 @@ async function createTable(tableName) {
           "name" TEXT NOT NULL,
           "description" TEXT,
           "type" TEXT NOT NULL DEFAULT 'migration',
+          "stage" TEXT DEFAULT 'discovery',
           "user_id" INTEGER NOT NULL,
           "customer_id" INTEGER,
           "customer" TEXT,
@@ -350,6 +351,7 @@ async function ensureTableColumns(tableName) {
       { name: 'name', type: 'text' },
       { name: 'description', type: 'text' },
       { name: 'type', type: 'text' },
+      { name: 'stage', type: 'text' },
       { name: 'user_id', type: 'integer' },
       { name: 'customer_id', type: 'integer' },
       { name: 'customer', type: 'text' },
@@ -462,6 +464,8 @@ async function addColumnToTable(tableName, columnName, columnType) {
     defaultValue = " DEFAULT 'migration'";
   } else if (columnName === 'type' && tableName === 'activities') {
     defaultValue = " DEFAULT 'system'";
+  } else if (columnName === 'stage' && tableName === 'projects') {
+    defaultValue = " DEFAULT 'discovery'";
   } else if (columnName === 'description' && tableName === 'activities') {
     defaultValue = " DEFAULT 'System activity'";
   } else if (columnName === 'priority') {

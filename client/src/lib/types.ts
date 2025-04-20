@@ -34,6 +34,7 @@ export interface Project {
   name: string;
   description: string | null;
   type: string;
+  stage: string | null;
   userId: number;
   customerId: number | null;
   customer: string | Customer | null; // Can be a string or Customer object
@@ -172,6 +173,7 @@ export interface CreateProjectFormData {
   name: string;
   description: string;  // React form input needs string (we'll handle null conversion)
   type: string;
+  stage: string;  // Project stage (e.g., 'discovery', 'planning', 'implementation')
   customerId?: string;  // String in the form, will be converted to number when submitting
   customer?: string;  // Legacy field for backward compatibility
   sourceSystem?: string;  // React form input needs string (we'll handle null conversion)

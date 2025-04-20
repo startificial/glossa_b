@@ -156,6 +156,7 @@ export const projects = pgTable("projects", {
   name: text("name").notNull(),
   description: text("description"),
   type: text("type").notNull(), // Type of project (e.g., 'migration', 'implementation', 'analysis')
+  stage: text("stage").default("discovery"), // Project stage (e.g., 'discovery', 'planning', 'implementation', 'closed/won', 'closed/lost')
   userId: integer("user_id").notNull().references(() => users.id),
   customerId: integer("customer_id").references(() => customers.id),
   customer: text("customer"), // Legacy field for backward compatibility
@@ -173,6 +174,7 @@ export const insertProjectSchema = createInsertSchema(projects).pick({
   name: true,
   description: true,
   type: true,
+  stage: true,
   userId: true,
   customerId: true,
   customer: true, 
