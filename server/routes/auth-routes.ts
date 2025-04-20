@@ -27,7 +27,9 @@ async function hashPassword(password: string): Promise<string> {
     // Import and use the bcrypt directly
     const bcrypt = await import('bcrypt');
     const saltRounds = 10;
-    return await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    console.log(`[DEBUG] Password hashed successfully. Format: ${hashedPassword.substring(0, 10)}...`);
+    return hashedPassword;
   } catch (error) {
     logger.error('Error in hashPassword:', error);
     throw new Error('Failed to hash password');
@@ -42,8 +44,8 @@ async function hashPassword(password: string): Promise<string> {
  */
 async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
   try {
-    // Check if the stored password is in bcrypt format (starts with $2b$)
-    if (stored.startsWith('$2b$')) {
+    // Check if the stored password is in bcrypt format (starts with $2a$ or $2b$)
+    if (stored.startsWith('$2a$') || stored.startsWith('$2b$') || stored.startsWith('$2y$')) {
       // Use bcrypt directly for comparison
       const bcrypt = await import('bcrypt');
       return await bcrypt.compare(supplied, stored);
