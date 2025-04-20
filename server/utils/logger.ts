@@ -1,108 +1,67 @@
 /**
- * Logger Utility
+ * Logger utility for consistent logging throughout the application
  * 
- * Provides a standardized logging interface for the application.
- * Using a wrapper around console logging for now, but can be easily
- * replaced with a more robust logging solution like Winston or Pino.
+ * This provides a standardized interface for logging messages with different 
+ * severity levels and consistent formatting.
  */
 
-/**
- * LogLevel enum for different logging levels
- */
-export enum LogLevel {
-  ERROR = 'error',
-  WARN = 'warn',
-  INFO = 'info',
-  DEBUG = 'debug',
+// Log levels
+enum LogLevel {
+  ERROR = 'ERROR',
+  WARN = 'WARN',
+  INFO = 'INFO',
+  DEBUG = 'DEBUG'
 }
 
-/**
- * Logger interface
- */
-export interface Logger {
-  error(data: any, message?: string): void;
-  warn(data: any, message?: string): void;
-  info(data: any, message?: string): void;
-  debug(data: any, message?: string): void;
+// Utility function to format date/time consistently
+function formatTimestamp(): string {
+  return new Date().toLocaleTimeString();
 }
 
-/**
- * Current log level based on environment
- */
-const currentLogLevel = process.env.LOG_LEVEL || 
-  (process.env.NODE_ENV === 'production' ? LogLevel.INFO : LogLevel.DEBUG);
+// Format a log message with timestamp and level
+function formatLog(level: LogLevel, message: string, ...args: any[]): string {
+  const timestamp = formatTimestamp();
+  return `${timestamp} [${level}] ${message}`;
+}
 
-/**
- * Simple console logger
- */
-class ConsoleLogger implements Logger {
+// Logger interface implementation
+export const logger = {
   /**
    * Log an error message
+   * @param message The message to log
+   * @param args Optional arguments to include
    */
-  error(data: any, message?: string): void {
-    this.log(LogLevel.ERROR, data, message);
-  }
+  error(message: string, ...args: any[]): void {
+    console.error(formatLog(LogLevel.ERROR, message), ...args);
+  },
 
   /**
    * Log a warning message
+   * @param message The message to log
+   * @param args Optional arguments to include
    */
-  warn(data: any, message?: string): void {
-    this.log(LogLevel.WARN, data, message);
-  }
+  warn(message: string, ...args: any[]): void {
+    console.warn(formatLog(LogLevel.WARN, message), ...args);
+  },
 
   /**
-   * Log an info message
+   * Log an informational message
+   * @param message The message to log
+   * @param args Optional arguments to include
    */
-  info(data: any, message?: string): void {
-    this.log(LogLevel.INFO, data, message);
-  }
+  info(message: string, ...args: any[]): void {
+    console.log(formatLog(LogLevel.INFO, message), ...args);
+  },
 
   /**
    * Log a debug message
+   * @param message The message to log
+   * @param args Optional arguments to include
    */
-  debug(data: any, message?: string): void {
-    this.log(LogLevel.DEBUG, data, message);
-  }
-
-  /**
-   * Internal logging method
-   */
-  private log(level: LogLevel, data: any, message?: string): void {
-    // Skip logging if the current level is higher than the requested level
-    if (!this.shouldLog(level)) {
-      return;
-    }
-
-    const timestamp = new Date().toISOString();
-    const logPrefix = `[${timestamp}] [${level.toUpperCase()}]`;
-
-    if (message) {
-      // If we have a message, log it alongside the data
-      console[level](`${logPrefix}: ${message}`, data);
-    } else if (typeof data === 'string') {
-      // If data is a string and no message, treat data as the message
-      console[level](`${logPrefix}: ${data}`);
-    } else {
-      // Otherwise, log the data with a generic prefix
-      console[level](`${logPrefix}:`, data);
+  debug(message: string, ...args: any[]): void {
+    // Only log debug messages in development environment
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug(formatLog(LogLevel.DEBUG, message), ...args);
     }
   }
-
-  /**
-   * Determine if we should log at this level
-   */
-  private shouldLog(level: LogLevel): boolean {
-    const levels = [LogLevel.ERROR, LogLevel.WARN, LogLevel.INFO, LogLevel.DEBUG];
-    const currentIndex = levels.indexOf(currentLogLevel as LogLevel);
-    const requestedIndex = levels.indexOf(level);
-    
-    // Log only if the requested level is less than or equal to the current level
-    // (ERROR is highest priority, DEBUG is lowest)
-    return requestedIndex <= currentIndex;
-  }
-}
-
-/**
- * Export a singleton logger instance
- */
-export const logger: Logger = new ConsoleLogger();
+};

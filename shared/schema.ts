@@ -43,6 +43,8 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   role: text("role").default("user").notNull(), // Valid values: 'user', 'admin'
   invitedBy: integer("invited_by"), // Self-reference to track who invited this user
+  resetPasswordToken: text("reset_password_token"), // Token for password reset
+  resetPasswordExpires: timestamp("reset_password_expires"), // Expiration for reset token
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -546,7 +548,7 @@ export const insertApplicationSettingsSchema = createInsertSchema(applicationSet
 });
 
 // Type exports
-export type User = typeof users.$inferSelect;
+export type User = InferSelectModel<typeof users>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type Customer = typeof customers.$inferSelect;

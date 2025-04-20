@@ -39,12 +39,17 @@ export interface IStorage {
   sessionStore: session.Store;
   
   // User methods
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
+  getUser(id: number): Promise<User | null>;
+  getUserByUsername(username: string): Promise<User | null>;
+  getUserByEmail(email: string): Promise<User | null>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
-  authenticateUser(usernameOrEmail: string, password: string): Promise<User | undefined>;
+  updateUser(id: number, userData: Partial<InsertUser>): Promise<User | null>;
+  authenticateUser(usernameOrEmail: string, password: string): Promise<User | null>;
+  
+  // Password reset methods
+  getUserByResetToken(token: string): Promise<User | null>;
+  saveResetToken(userId: number, token: string, expiresAt: Date): Promise<boolean>;
+  updatePasswordAndClearToken(userId: number, hashedPassword: string): Promise<boolean>;
 
   // Invite methods
   getInvite(token: string): Promise<Invite | undefined>;
@@ -182,37 +187,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: number): Promise<User | null> {
     try {
       const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-      return result[0];
+      return result[0] || null;
     } catch (error) {
       console.error('Error fetching user:', error);
-      return undefined;
+      return null;
     }
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
+  async getUserByUsername(username: string): Promise<User | null> {
     try {
       const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
-      return result[0];
+      return result[0] || null;
     } catch (error) {
       console.error('Error fetching user by username:', error);
-      return undefined;
+      return null;
     }
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
+  async getUserByEmail(email: string): Promise<User | null> {
     try {
       const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      return result[0];
+      return result[0] || null;
     } catch (error) {
       console.error('Error fetching user by email:', error);
-      return undefined;
+      return null;
     }
   }
 
-  async authenticateUser(usernameOrEmail: string, password: string): Promise<User | undefined> {
+  async authenticateUser(usernameOrEmail: string, password: string): Promise<User | null> {
     try {
       const result = await db.select().from(users).where(
         and(
@@ -224,10 +229,10 @@ export class DatabaseStorage implements IStorage {
         )
       ).limit(1);
       
-      return result[0];
+      return result[0] || null;
     } catch (error) {
       console.error('Error authenticating user:', error);
-      return undefined;
+      return null;
     }
   }
 
@@ -241,17 +246,67 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | null> {
     try {
       const [updatedUser] = await db.update(users)
         .set({ ...userData, updatedAt: new Date() })
         .where(eq(users.id, id))
         .returning();
       
-      return updatedUser;
+      return updatedUser || null;
     } catch (error) {
       console.error('Error updating user:', error);
-      return undefined;
+      return null;
+    }
+  }
+  
+  // Password reset methods
+  async getUserByResetToken(token: string): Promise<User | null> {
+    try {
+      const result = await db.select()
+        .from(users)
+        .where(eq(users.resetPasswordToken, token))
+        .limit(1);
+      
+      return result[0] || null;
+    } catch (error) {
+      console.error('Error finding user by reset token:', error);
+      return null;
+    }
+  }
+  
+  async saveResetToken(userId: number, token: string, expiresAt: Date): Promise<boolean> {
+    try {
+      await db.update(users)
+        .set({ 
+          resetPasswordToken: token,
+          resetPasswordExpires: expiresAt,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error saving reset token:', error);
+      return false;
+    }
+  }
+  
+  async updatePasswordAndClearToken(userId: number, hashedPassword: string): Promise<boolean> {
+    try {
+      await db.update(users)
+        .set({
+          password: hashedPassword,
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating password and clearing token:', error);
+      return false;
     }
   }
 

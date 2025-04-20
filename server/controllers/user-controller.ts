@@ -1,118 +1,161 @@
-/**
- * User Controller
- * 
- * Handles HTTP requests related to user management.
- * Processes request input, calls appropriate services, and formats responses.
- */
 import { Request, Response } from 'express';
-import { userService } from '../services';
-import { asyncHandler } from '../utils/async-handler';
-import { insertUserSchema } from '@shared/schema';
+import { UserService } from '../services/user-service';
+import { logger } from '../utils/logger';
 import { z } from 'zod';
-import { UnauthorizedError } from '../error/api-error';
 
 /**
- * Controller for user-related endpoints
+ * Controller handling user-related operations
  */
 export class UserController {
+  constructor(private userService: UserService) {}
+
   /**
-   * Get the current authenticated user
+   * Request a password reset
+   * @param req Express request object
+   * @param res Express response object
    */
-  getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
-    const user = await userService.getCurrentUser(req.session.userId);
-    
-    // Sanitize user data (remove password)
-    const safeUser = userService.sanitizeUser(user);
-    
-    // If we're using auto-login, store user ID in session
-    if (!req.session.userId) {
-      req.session.userId = user.id;
-    }
-    
-    res.json(safeUser);
-  });
-  
-  /**
-   * Register a new user
-   */
-  registerUser = asyncHandler(async (req: Request, res: Response) => {
-    // Validate request body
-    const validatedData = insertUserSchema.parse(req.body);
-    
-    // Create user
-    const user = await userService.createUser(validatedData);
-    
-    // Set user in session
-    req.session.userId = user.id;
-    
-    // Return sanitized user data
-    const safeUser = userService.sanitizeUser(user);
-    res.status(201).json(safeUser);
-  });
-  
-  /**
-   * Login a user
-   */
-  loginUser = asyncHandler(async (req: Request, res: Response) => {
-    // Define login schema
-    const loginSchema = z.object({
-      username: z.string(),
-      password: z.string()
-    });
-    
-    // Validate request body
-    const { username, password } = loginSchema.parse(req.body);
-    
-    // Authenticate user
-    const user = await userService.authenticateUser(username, password);
-    
-    // Set user in session
-    req.session.userId = user.id;
-    
-    // Return sanitized user data
-    const safeUser = userService.sanitizeUser(user);
-    res.json(safeUser);
-  });
-  
-  /**
-   * Logout the current user
-   */
-  logoutUser = asyncHandler(async (req: Request, res: Response) => {
-    // Destroy the session
-    req.session.destroy((err) => {
-      if (err) {
-        throw err;
+  async requestPasswordReset(req: Request, res: Response): Promise<void> {
+    try {
+      // Validate request body
+      const schema = z.object({
+        username: z.string().min(1, "Username is required"),
+        email: z.string().email("Invalid email format"),
+      });
+
+      const result = schema.safeParse(req.body);
+      if (!result.success) {
+        res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: result.error.issues
+        });
+        return;
       }
-      res.status(200).json({ message: "Logged out successfully" });
-    });
-  });
-  
-  /**
-   * Update the current user's profile
-   */
-  updateProfile = asyncHandler(async (req: Request, res: Response) => {
-    // Ensure user is authenticated
-    if (!req.session.userId) {
-      throw new UnauthorizedError();
+
+      const { username, email } = result.data;
+      
+      // Get origin URL for the reset link
+      const originUrl = req.headers.origin || undefined;
+      
+      // Process password reset request
+      const resetResult = await this.userService.requestPasswordReset(
+        username,
+        email,
+        originUrl
+      );
+      
+      // Always return 200 even if user/email not found to prevent user enumeration
+      res.status(200).json({
+        success: resetResult.success,
+        message: resetResult.message
+      });
+    } catch (error) {
+      logger.error('Error in requestPasswordReset controller:', error);
+      res.status(500).json({
+        success: false,
+        message: 'An error occurred while processing your request.'
+      });
     }
-    
-    // Create a subset of the insertUserSchema for profile updates
-    const updateProfileSchema = insertUserSchema.pick({
-      firstName: true,
-      lastName: true,
-      email: true,
-      company: true,
-      avatarUrl: true
-    });
-    
-    // Validate the request body
-    const validatedData = updateProfileSchema.parse(req.body);
-    
-    // Update the user
-    const user = await userService.updateUser(req.session.userId, validatedData);
-    
-    // Return sanitized user data
-    const safeUser = userService.sanitizeUser(user);
-    res.json(safeUser);
-  });
+  }
+
+  /**
+   * Verify reset token validity
+   * @param req Express request object
+   * @param res Express response object
+   */
+  async verifyResetToken(req: Request, res: Response): Promise<void> {
+    try {
+      const { token } = req.params;
+      
+      if (!token) {
+        res.status(400).json({
+          success: false,
+          message: 'Reset token is required'
+        });
+        return;
+      }
+      
+      // Find user by reset token
+      const user = await this.userService.getUserByResetToken(token);
+      
+      // Check if user exists and token is valid
+      if (!user || !user.resetPasswordToken || !user.resetPasswordExpires) {
+        res.status(400).json({
+          success: false,
+          message: 'Invalid or expired reset token'
+        });
+        return;
+      }
+      
+      // Check if token is expired
+      if (new Date() > user.resetPasswordExpires) {
+        res.status(400).json({
+          success: false,
+          message: 'Reset token has expired'
+        });
+        return;
+      }
+      
+      res.status(200).json({
+        success: true,
+        message: 'Reset token is valid',
+        username: user.username
+      });
+    } catch (error) {
+      logger.error('Error in verifyResetToken controller:', error);
+      res.status(500).json({
+        success: false,
+        message: 'An error occurred while processing your request.'
+      });
+    }
+  }
+
+  /**
+   * Reset user password
+   * @param req Express request object
+   * @param res Express response object
+   */
+  async resetPassword(req: Request, res: Response): Promise<void> {
+    try {
+      // Validate request body
+      const schema = z.object({
+        token: z.string().min(1, "Reset token is required"),
+        password: z.string().min(8, "Password must be at least 8 characters")
+      });
+
+      const result = schema.safeParse(req.body);
+      if (!result.success) {
+        res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: result.error.issues
+        });
+        return;
+      }
+
+      const { token, password } = result.data;
+      
+      // Reset the password
+      const resetResult = await this.userService.resetPassword(token, password);
+      
+      // Return appropriate response
+      if (resetResult.success) {
+        res.status(200).json({
+          success: true,
+          message: resetResult.message
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: resetResult.message
+        });
+      }
+    } catch (error) {
+      logger.error('Error in resetPassword controller:', error);
+      res.status(500).json({
+        success: false,
+        message: 'An error occurred while processing your request.'
+      });
+    }
+  }
 }
