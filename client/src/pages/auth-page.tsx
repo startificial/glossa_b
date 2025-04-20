@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TabsContent, Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, AlertCircle } from "lucide-react";
+import glossaLogoPath from "@/assets/glossa-logo.png";
 
 // Main Auth Page Component
 export default function AuthPage() {
@@ -70,9 +71,9 @@ export default function AuthPage() {
       {/* Auth Forms Container */}
       <div className="flex flex-col items-center justify-center w-full md:w-1/2 p-8">
         <div className="w-full max-w-md">
-          <h1 className="text-3xl font-bold mb-6 text-center">
-          
-          </h1>
+          <div className="flex justify-center mb-8">
+            <img src={glossaLogoPath} alt="Glossa Logo" className="h-16" />
+          </div>
 
           <Tabs
             defaultValue="login"
@@ -122,33 +123,8 @@ export default function AuthPage() {
         </div>
       </div>
 
-      {/* Hero Section */}
-      <div className="hidden md:flex md:w-1/2 bg-primary p-8 text-primary-foreground flex-col justify-center">
-        <div className="max-w-md mx-auto">
-          <h2 className="text-3xl font-bold mb-6">
-            AI-Powered Requirements Management
-          </h2>
-          <p className="text-lg mb-4">
-            Streamline your project requirements with our intelligent tools for
-            requirement extraction, contradiction detection, and implementation
-            planning.
-          </p>
-          <ul className="space-y-2 mb-8">
-            <li className="flex items-center">
-              <span className="mr-2">✓</span> Automatic requirement extraction from documents
-            </li>
-            <li className="flex items-center">
-              <span className="mr-2">✓</span> Contradiction detection with AI
-            </li>
-            <li className="flex items-center">
-              <span className="mr-2">✓</span> Implementation task generation
-            </li>
-            <li className="flex items-center">
-              <span className="mr-2">✓</span> Document generation and workflow tools
-            </li>
-          </ul>
-        </div>
-      </div>
+      {/* Hero Section - Background Only */}
+      <div className="hidden md:flex md:w-1/2 bg-primary"></div>
     </div>
   );
 }
