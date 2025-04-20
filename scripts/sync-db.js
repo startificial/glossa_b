@@ -336,6 +336,12 @@ async function syncDatabase() {
     const existingUser = await sql`SELECT id FROM users WHERE username = 'demo'`;
     
     if (!existingUser || existingUser.length === 0) {
+      // Import bcrypt for password hashing
+      const bcrypt = await import('bcrypt');
+      
+      // Hash the password with bcrypt
+      const hashedPassword = await bcrypt.default.hash('password', 10);
+      
       await sql`
         INSERT INTO users (
           username, 
@@ -347,7 +353,7 @@ async function syncDatabase() {
           role
         ) VALUES (
           'demo', 
-          'password', 
+          ${hashedPassword}, 
           'John', 
           'Doe', 
           'john.doe@example.com', 
@@ -355,7 +361,7 @@ async function syncDatabase() {
           'admin'
         )
       `;
-      console.log('Demo user created successfully');
+      console.log('Demo user created successfully with hashed password');
     } else {
       console.log('Demo user already exists');
     }

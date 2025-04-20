@@ -71,7 +71,7 @@ export default function AuthPage() {
       <div className="flex flex-col items-center justify-center w-full md:w-1/2 p-8">
         <div className="w-full max-w-md">
           <h1 className="text-3xl font-bold mb-6 text-center">
-            Glossa Requirements Toolkit
+          
           </h1>
 
           <Tabs

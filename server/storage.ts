@@ -219,17 +219,34 @@ export class DatabaseStorage implements IStorage {
 
   async authenticateUser(usernameOrEmail: string, password: string): Promise<User | null> {
     try {
+      // First, look up the user by username or email (without checking password yet)
       const result = await db.select().from(users).where(
-        and(
-          or(
-            eq(users.username, usernameOrEmail),
-            eq(users.email, usernameOrEmail)
-          ),
-          eq(users.password, password)
+        or(
+          eq(users.username, usernameOrEmail),
+          eq(users.email, usernameOrEmail)
         )
       ).limit(1);
       
-      return result[0] || null;
+      const user = result[0];
+      
+      // If no user is found, return null
+      if (!user) {
+        return null;
+      }
+      
+      // Import the password utilities
+      const { comparePasswords } = await import('./utils/password-utils');
+      
+      // Verify the password
+      const passwordMatches = await comparePasswords(password, user.password);
+      
+      // If password doesn't match, return null
+      if (!passwordMatches) {
+        return null;
+      }
+      
+      // Password matches, return the user
+      return user;
     } catch (error) {
       console.error('Error authenticating user:', error);
       return null;
@@ -238,7 +255,18 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     try {
-      const [newUser] = await db.insert(users).values(user).returning();
+      // Import the password utilities
+      const { hashPassword } = await import('./utils/password-utils');
+      
+      // Hash the password before storing it
+      const hashedPassword = await hashPassword(user.password);
+      
+      // Create the user with the hashed password
+      const [newUser] = await db.insert(users).values({
+        ...user,
+        password: hashedPassword
+      }).returning();
+      
       return newUser;
     } catch (error) {
       console.error('Error creating user:', error);
@@ -248,8 +276,23 @@ export class DatabaseStorage implements IStorage {
 
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | null> {
     try {
+      let dataToUpdate = { ...userData, updatedAt: new Date() };
+      
+      // If password is being updated, hash it
+      if (userData.password) {
+        // Import the password utilities
+        const { hashPassword } = await import('./utils/password-utils');
+        
+        // Hash the new password
+        const hashedPassword = await hashPassword(userData.password);
+        
+        // Update the data object with the hashed password
+        dataToUpdate = { ...dataToUpdate, password: hashedPassword };
+      }
+      
+      // Update the user record
       const [updatedUser] = await db.update(users)
-        .set({ ...userData, updatedAt: new Date() })
+        .set(dataToUpdate)
         .where(eq(users.id, id))
         .returning();
       
@@ -292,8 +335,15 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async updatePasswordAndClearToken(userId: number, hashedPassword: string): Promise<boolean> {
+  async updatePasswordAndClearToken(userId: number, plainPassword: string): Promise<boolean> {
     try {
+      // Import the password utilities
+      const { hashPassword } = await import('./utils/password-utils');
+      
+      // Hash the new password
+      const hashedPassword = await hashPassword(plainPassword);
+      
+      // Update the user record
       await db.update(users)
         .set({
           password: hashedPassword,

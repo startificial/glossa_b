@@ -77,6 +77,8 @@ async function createTable(tableName) {
           "email" TEXT,
           "company" TEXT,
           "role" TEXT NOT NULL DEFAULT 'user',
+          "reset_password_token" TEXT,
+          "reset_password_expires" TIMESTAMP,
           "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
@@ -322,6 +324,8 @@ async function ensureTableColumns(tableName) {
       { name: 'username', type: 'text' },
       { name: 'password', type: 'text' },
       { name: 'role', type: 'text' },
+      { name: 'reset_password_token', type: 'text' },
+      { name: 'reset_password_expires', type: 'timestamp' },
       { name: 'created_at', type: 'timestamp' },
       { name: 'updated_at', type: 'timestamp' }
     ],

@@ -296,7 +296,13 @@ async function createDemoUserIfNotExists() {
     if (!existingUser || existingUser.length === 0) {
       log('Creating demo user...', 'database');
       
-      // Insert demo user
+      // Import bcrypt for password hashing
+      const bcrypt = await import('bcrypt');
+      
+      // Hash the password with bcrypt
+      const hashedPassword = await bcrypt.hash('password', 10);
+      
+      // Insert demo user with hashed password
       await sql`
         INSERT INTO users (
           username, 
@@ -308,7 +314,7 @@ async function createDemoUserIfNotExists() {
           role
         ) VALUES (
           'demo', 
-          'password', 
+          ${hashedPassword}, 
           'John', 
           'Doe', 
           'john.doe@example.com', 
