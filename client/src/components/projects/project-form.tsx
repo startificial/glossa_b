@@ -167,11 +167,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
   // Handler for closing the customer dialog
   const handleCloseCustomerDialog = () => {
     setCustomerDialogOpen(false);
-    // If a customer wasn't created (via handleCustomerCreated), make sure the form value isn't set to "add_new"
-    const currentValue = form.getValues('customerId');
-    if (currentValue === 'add_new') {
-      form.setValue('customerId', 'none');
-    }
+    // No need to check and reset the form value since we never set it to 'add_new'
   };
 
   // Log when the Dialog renders and its open state
@@ -269,9 +265,10 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
                     <FormLabel>Customer</FormLabel>
                     <Select
                       onValueChange={(value) => {
+                        // Only update the field value if it's not 'add_new'
                         if (value === 'add_new') {
-                          // Don't update the form value yet, just open the dialog
                           setCustomerDialogOpen(true);
+                          // Don't change the form value
                         } else {
                           field.onChange(value);
                         }
