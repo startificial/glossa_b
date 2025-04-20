@@ -1,0 +1,79 @@
+Okay, I've updated the prompt to replace "organization settings" / "organization-wide settings" with "application settings" throughout. I've also adjusted the data modeling section to reflect that "application settings" usually imply global settings for the application itself, potentially removing the need for an `organization_id` in some schema approaches.
+
+```prompt
+**Objective:**
+
+Generate the foundational code structure for an **application settings** page within a web application. This page will serve as the central hub for administrators to manage various **application-level** configurations. The primary goal is to establish a highly reusable, scalable, and extensible architecture that allows for the seamless addition of new setting categories and specific settings in the future, without requiring significant refactoring of the core structure.
+
+**Technology Stack:**
+
+* **Frontend:** React, TypeScript
+* **Backend:** Node.js (using Express.js or a similar standard framework), TypeScript
+* **Database:** Neon DB (Postgres)
+* **ORM:** Drizzle ORM
+
+**Core Requirements:**
+
+1.  **Page Layout & Navigation:**
+    * Implement a main settings page component (`ApplicationSettingsPage`).
+    * This page should feature a persistent layout, typically including:
+        * A **sidebar navigation** component (`AppSettingsSidebarNav`). This sidebar should list different *categories* of settings.
+        * A **main content area** where the specific settings UI for the currently selected category will be rendered.
+    * The navigation structure should be **data-driven**. Define a configuration array or object (e.g., `appSettingsSections`) that lists the available setting categories (e.g., `{ id: 'general', title: 'General', path: '/settings/general', component: GeneralAppSettings }`). This configuration should make it trivial to add new top-level setting categories later by simply adding entries to this configuration.
+    * Implement basic routing (using a library like `react-router-dom`) to handle navigation between these setting categories (e.g., under `/app-settings/*`), updating the main content area accordingly.
+
+2.  **Component Structure (React):**
+    * Design reusable container components for common settings page layouts (e.g., `SettingsSection` component that takes a title and renders children).
+    * Create generic, reusable UI components for common setting inputs (e.g., `SettingsTextInput`, `SettingsToggleSwitch`, `SettingsSelectDropdown`, `SettingsSaveButton`). These might just be basic styled wrappers around standard HTML elements initially, but should be designed for reuse across different future setting types.
+    * Emphasize component composition and clear prop definitions (using TypeScript interfaces).
+
+3.  **Backend API Structure (Node.js/Express):**
+    * Define RESTful API endpoint(s) for fetching and updating **application-level** settings.
+    * Suggest a structure that can accommodate various setting types. For instance, a single endpoint `GET /api/application/settings` might fetch all settings, or perhaps grouped by category (e.g., `GET /api/application/settings/:category`). Similarly, `PUT /api/application/settings` or `PUT /api/application/settings/:category` could handle updates.
+    * Initially, these endpoints can return mock data or fetch/update a simple placeholder structure.
+    * Focus on clear request/response schemas using TypeScript interfaces/types.
+    * Implement basic API middleware for authentication/authorization checks (assuming an authenticated administrator context is available, you can stub this).
+
+4.  **Data Modeling (Drizzle/Postgres) & Schema Management:**
+    * Define an initial Drizzle schema (`schema.ts`) for storing **application-level** settings. Consider a flexible approach suitable for global configurations. Options include:
+        * A single `application_settings` table with columns for specific, known settings (potentially designed to hold only one row).
+        * A key-value approach within a table `application_settings` (e.g., columns: `setting_key`, `setting_value`). This is often flexible for adding arbitrary settings.
+        * A dedicated table (e.g., `application_configuration`) with a single row and a JSONB column `settings` to store a nested settings object.
+    * **Recommend and implement one approach in the `schema.ts` file**, justifying *why* it promotes extensibility for diverse application setting types.
+    * **Schema Definition and Sync Updates:** If the chosen schema involves creating new tables or adding columns:
+        * **Update `schema.ts`:** Ensure this file contains the complete Drizzle definitions for the new table(s) and/or column(s). (This is the primary schema definition).
+        * **Provide Updates for `database.ts`:** Detail any necessary modifications for the `database.ts` file, ensuring it correctly imports/exports the updated schema components or handles any changes needed for the Drizzle client instantiation based on the new schema.
+        * **Provide Updates for `sync-database-schema.js`:** Detail the necessary modifications for the `sync-database-schema.js` file to ensure it correctly reflects the new table(s) and/or column(s) programmatically (e.g., updating its internal representation of the expected schema).
+        * **Provide Updates for `db-sync.sh`:** If a **new table** is added, detail the necessary modifications for the `db-sync.sh` script, specifically showing how to add the new table name to the list of required tables within that script.
+    * Implement basic database interaction functions (using Drizzle) within the backend service/repository layer based on the defined schema in `schema.ts`.
+
+5.  **Architectural Principles:**
+    * **Extensibility:** The core design *must* allow adding new setting categories (sidebar links) and corresponding setting panels (content area) with minimal friction and code duplication. The data-driven navigation is key here.
+    * **Reusability:** Components (UI, layout, logic) should be designed for reuse across different potential setting types.
+    * **Scalability:** The API and database structure should anticipate a growing number of settings without significant performance degradation (within reason for typical application settings).
+    * **Separation of Concerns:** Maintain clear boundaries between UI (React), API handling (Node/Express), business logic, and data persistence (Drizzle).
+    * **Type Safety:** Leverage TypeScript effectively on both frontend and backend for robust development.
+
+6.  **Initial State:**
+    * The initial implementation should render the `ApplicationSettingsPage` layout with the `AppSettingsSidebarNav`.
+    * Include at least one *placeholder* settings category (e.g., "General") in the navigation configuration.
+    * The content area for this initial category can display placeholder text (e.g., "General application settings content will appear here").
+    * The focus is on the *structure*, *architecture*, and *plumbing*, not on implementing specific functional settings yet.
+
+**Deliverables:**
+
+* React component files (`.tsx`) for the main `ApplicationSettingsPage`, `AppSettingsSidebarNav`, section layout, and example reusable setting input components.
+* Routing configuration for the application settings section.
+* Node.js/Express API route definitions (`.ts`) for fetching/updating application settings (e.g., under `/api/application/settings`).
+* The primary Drizzle schema definition file (`schema.ts`) reflecting the chosen approach for storing application settings.
+* Basic backend service/repository functions (`.ts`) using Drizzle to interact with the application settings schema.
+* **If schema changes are introduced:**
+    * Code snippets or descriptions detailing the required modifications to `database.ts`.
+    * Code snippets or descriptions detailing the required modifications to `sync-database-schema.js`.
+    * Code snippets or descriptions detailing the required modifications to `db-sync.sh` (specifically if new tables are added).
+* Clear comments explaining the architectural choices made, particularly regarding extensibility.
+
+**Example (Illustrative - Do NOT implement these specific settings):**
+
+While the structure should *support* adding things like "Email Configuration", "Feature Flags", "Integration Keys", or "Default User Roles" later, *do not* include any specific code or references related to these examples in the generated foundation. The goal is the *generic framework* itself.
+```
