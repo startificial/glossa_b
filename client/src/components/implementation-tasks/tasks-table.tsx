@@ -525,9 +525,24 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={task.system === "source" ? "outline" : "default"}>
-                              {task.system.charAt(0).toUpperCase() + task.system.slice(1)}
-                            </Badge>
+                            {task.system === "source" || task.system === "target" ? (
+                              <Badge variant={task.system === "source" ? "outline" : "default"}>
+                                {task.system.charAt(0).toUpperCase() + task.system.slice(1)}
+                              </Badge>
+                            ) : (
+                              <div className="relative group">
+                                <Badge 
+                                  variant="outline" 
+                                  className="max-w-[120px] truncate px-2.5 py-1 text-xs font-medium"
+                                  title={task.system} // HTML title for default browser tooltip
+                                >
+                                  {task.system}
+                                </Badge>
+                                <div className="absolute left-0 top-full mt-1 z-50 bg-popover text-popover-foreground rounded-md p-2 text-sm shadow-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity">
+                                  {task.system}
+                                </div>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell>{getStatusBadge(task.status)}</TableCell>
                           <TableCell>

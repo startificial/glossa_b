@@ -315,7 +315,20 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
           </Badge>
         );
       default:
-        return <Badge variant="outline">{system}</Badge>;
+        return (
+          <div className="relative group">
+            <Badge 
+              variant="outline" 
+              className="max-w-[120px] truncate px-2.5 py-1 text-xs font-medium"
+              title={system} // HTML title for default browser tooltip
+            >
+              {system}
+            </Badge>
+            <div className="absolute left-0 top-full mt-1 z-50 bg-popover text-popover-foreground rounded-md p-2 text-sm shadow-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity">
+              {system}
+            </div>
+          </div>
+        );
     }
   }
 
