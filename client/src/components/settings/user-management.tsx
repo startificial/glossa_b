@@ -34,7 +34,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, PlusCircle, UserPlus, X } from "lucide-react";
+import { 
+  Loader2, 
+  PlusCircle, 
+  UserPlus, 
+  X, 
+  KeyRound, 
+  MoreVertical 
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import {
   Form,
@@ -61,10 +74,22 @@ const createUserSchema = z.object({
   company: z.string().optional(),
 });
 
+// Form schema for resetting a user's password
+const resetPasswordSchema = z.object({
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(8, "Please confirm your password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
 type CreateUserFormData = z.infer<typeof createUserSchema>;
+type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 export function UserManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const { toast } = useToast();
 
   // Fetch users
@@ -96,8 +121,33 @@ export function UserManagement() {
       });
     },
   });
+  
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, password }: { userId: number; password: string }) => {
+      return await apiRequest('POST', `/api/admin/users/${userId}/reset-password`, {
+        newPassword: password
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Password reset",
+        description: "The user's password has been reset successfully",
+      });
+      setResetPasswordDialogOpen(false);
+      resetPasswordForm.reset();
+      setSelectedUser(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error resetting password",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+    },
+  });
 
-  // Form setup
+  // Create user form setup
   const form = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
@@ -110,9 +160,27 @@ export function UserManagement() {
       company: "",
     },
   });
+  
+  // Reset password form setup
+  const resetPasswordForm = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      newPassword: "",
+      confirmPassword: ""
+    },
+  });
 
   const onSubmit = (data: CreateUserFormData) => {
     createUserMutation.mutate(data);
+  };
+  
+  const onResetPassword = (data: ResetPasswordFormData) => {
+    if (!selectedUser) return;
+    
+    resetPasswordMutation.mutate({
+      userId: selectedUser.id,
+      password: data.newPassword
+    });
   };
 
   if (error) {
@@ -312,6 +380,7 @@ export function UserManagement() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Company</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -332,12 +401,97 @@ export function UserManagement() {
                     </span>
                   </TableCell>
                   <TableCell>{user.company || '-'}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreVertical className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setResetPasswordDialogOpen(true);
+                          }}
+                        >
+                          <KeyRound className="h-4 w-4 mr-2" />
+                          Reset Password
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
       </CardContent>
+      
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset User Password</DialogTitle>
+            <DialogDescription>
+              {selectedUser && (
+                <>Set a new password for user <strong>{selectedUser.username}</strong>.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...resetPasswordForm}>
+            <form onSubmit={resetPasswordForm.handleSubmit(onResetPassword)} className="space-y-4">
+              <FormField
+                control={resetPasswordForm.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="Enter new password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={resetPasswordForm.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="Confirm new password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setResetPasswordDialogOpen(false);
+                    resetPasswordForm.reset();
+                    setSelectedUser(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={resetPasswordMutation.isPending}
+                >
+                  {resetPasswordMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Reset Password
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

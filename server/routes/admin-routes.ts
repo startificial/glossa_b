@@ -97,4 +97,52 @@ export function registerAdminRoutes(app: Express): void {
       res.status(500).json({ message: 'Failed to create user' });
     }
   });
+  
+  /**
+   * @route POST /api/admin/users/:id/reset-password
+   * @desc Reset a user's password (admin only)
+   * @access Private (admin)
+   */
+  app.post('/api/admin/users/:id/reset-password', isAdmin, async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Schema for password validation
+      const passwordSchema = z.object({
+        newPassword: z.string().min(8, "Password must be at least 8 characters")
+      });
+      
+      // Validate request body
+      const validatedData = passwordSchema.parse(req.body);
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Hash the new password
+      const hashedPassword = await hashPassword(validatedData.newPassword);
+      
+      // Update the user's password
+      const updatedUser = await storage.updateUserPassword(userId, hashedPassword);
+      if (!updatedUser) {
+        return res.status(500).json({ message: 'Failed to update password' });
+      }
+      
+      // Return success response
+      res.status(200).json({ 
+        message: `Password has been successfully reset for user ${user.username}` 
+      });
+    } catch (error) {
+      console.error('Error resetting user password:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: 'Invalid password data', 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: 'Failed to reset password' });
+    }
+  });
 }
