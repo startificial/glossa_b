@@ -177,6 +177,7 @@ export function UserManagement() {
   const onResetPassword = (data: ResetPasswordFormData) => {
     if (!selectedUser) return;
     
+    // Stop event propagation to prevent parent form submission
     resetPasswordMutation.mutate({
       userId: selectedUser.id,
       password: data.newPassword
@@ -228,7 +229,11 @@ export function UserManagement() {
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Stop event from bubbling up to parent forms
+                form.handleSubmit(onSubmit)(e);
+              }} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="username"
@@ -441,7 +446,11 @@ export function UserManagement() {
             </DialogDescription>
           </DialogHeader>
           <Form {...resetPasswordForm}>
-            <form onSubmit={resetPasswordForm.handleSubmit(onResetPassword)} className="space-y-4">
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Stop event from bubbling up to parent forms
+                resetPasswordForm.handleSubmit(onResetPassword)(e);
+              }} className="space-y-4">
               <FormField
                 control={resetPasswordForm.control}
                 name="newPassword"
