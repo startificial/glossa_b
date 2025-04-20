@@ -204,8 +204,6 @@ app.use((req, res, next) => {
       const credentialsPath = await setupGoogleCredentials();
       if (credentialsPath) {
         log(`Google Cloud credentials initialized at: ${credentialsPath}`, 'credentials');
-        // Initialize VideoProcessor class with credentials
-        await VideoProcessor.setupCredentials();
       } else {
         log('Google Cloud credentials not found or invalid', 'credentials');
       }

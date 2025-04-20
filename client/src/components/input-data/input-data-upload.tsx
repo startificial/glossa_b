@@ -205,7 +205,7 @@ export function InputDataUpload({ projectId, onUploaded }: InputDataUploadProps)
               />
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Audio, video, PDF, TXT up to 50MB
+              Audio, video, PDF, TXT up to 150MB
             </p>
           </div>
         </div>

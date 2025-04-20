@@ -81,7 +81,7 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: 150 * 1024 * 1024, // 150MB limit
   }
 });
 
@@ -1401,8 +1401,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         size: req.file.size,
         projectId,
         status: "processing",
-        filePath: req.file.path, // Use correct field name to match schema
-        fileType: type, // Use correct field name to match schema
+        filePath: req.file.path, // This is now correctly mapped to file_path in the schema
+        fileType: type, // This is now correctly mapped to file_type in the schema
         metadata: { 
           path: req.file.path,
           contentType
