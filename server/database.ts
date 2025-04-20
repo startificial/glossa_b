@@ -225,6 +225,23 @@ export async function runMigrations() {
       )
     `;
     
+    // Workflows table
+    await sql`
+      CREATE TABLE IF NOT EXISTS "workflows" (
+        "id" SERIAL PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "project_id" INTEGER NOT NULL,
+        "version" INTEGER DEFAULT 1 NOT NULL,
+        "status" TEXT DEFAULT 'draft' NOT NULL,
+        "nodes" JSONB DEFAULT '[]' NOT NULL,
+        "edges" JSONB DEFAULT '[]' NOT NULL,
+        "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE CASCADE
+      )
+    `;
+    
     log('Database migrations completed successfully', 'database');
   } catch (error) {
     log(`Database migration error: ${error}`, 'database');
