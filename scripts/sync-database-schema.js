@@ -187,12 +187,12 @@ async function createTable(tableName) {
           "priority" TEXT DEFAULT 'medium',
           "system" TEXT NOT NULL,
           "estimated_hours" FLOAT,
-          "complexity" TEXT,
+          "complexity" TEXT DEFAULT 'medium',
           "assignee" TEXT,
-          "notes" TEXT,
-          "implementation_details" JSONB,
-          "review_comments" TEXT,
-          "dependencies" JSONB,
+          "task_type" TEXT DEFAULT 'implementation',
+          "sf_documentation_links" JSONB DEFAULT '[]',
+          "implementation_steps" JSONB DEFAULT '[]',
+          "overall_documentation_links" JSONB DEFAULT '[]',
           "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY ("requirement_id") REFERENCES "requirements" ("id") ON DELETE CASCADE
@@ -302,6 +302,13 @@ async function ensureTableColumns(tableName) {
       { name: 'status', type: 'text' },
       { name: 'priority', type: 'text' },
       { name: 'system', type: 'text' },
+      { name: 'estimated_hours', type: 'float' },
+      { name: 'complexity', type: 'text' },
+      { name: 'assignee', type: 'text' },
+      { name: 'task_type', type: 'text' },
+      { name: 'sf_documentation_links', type: 'jsonb' },
+      { name: 'implementation_steps', type: 'jsonb' },
+      { name: 'overall_documentation_links', type: 'jsonb' },
       { name: 'created_at', type: 'timestamp' },
       { name: 'updated_at', type: 'timestamp' }
     ],
@@ -357,6 +364,12 @@ async function addColumnToTable(tableName, columnName, columnType) {
     defaultValue = " DEFAULT 'medium'";
   } else if (columnName === 'status' && tableName === 'implementation_tasks') {
     defaultValue = " DEFAULT 'pending'";
+  } else if (columnName === 'complexity' && tableName === 'implementation_tasks') {
+    defaultValue = " DEFAULT 'medium'";
+  } else if (columnName === 'task_type' && tableName === 'implementation_tasks') {
+    defaultValue = " DEFAULT 'implementation'";
+  } else if (columnName === 'sf_documentation_links' || columnName === 'implementation_steps' || columnName === 'overall_documentation_links') {
+    defaultValue = " DEFAULT '[]'";
   } else if (columnName === 'status' && tableName === 'workflows') {
     defaultValue = " DEFAULT 'draft'";
   } else if (columnName === 'version' && tableName === 'workflows') {
