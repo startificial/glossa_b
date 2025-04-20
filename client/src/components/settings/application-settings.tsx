@@ -72,9 +72,6 @@ interface TemplateSettings {
 
 interface ApplicationSettingsData {
   general: GeneralSettings;
-  auth: AuthSettings;
-  notifications: NotificationSettings;
-  integrations: IntegrationSettings;
   templates: TemplateSettings;
   [key: string]: any; // Allow for future extension of settings categories
 }
@@ -88,30 +85,6 @@ const defaultSettings: ApplicationSettingsData = {
     maxFileUploadSize: 10485760, // 10MB
     defaultLanguage: 'en',
     timeZone: 'UTC'
-  },
-  auth: {
-    passwordPolicy: {
-      minLength: 8,
-      requireSpecialChars: true,
-      requireNumbers: true,
-      requireUppercase: true,
-      requireLowercase: true
-    },
-    mfaEnabled: false,
-    sessionTimeout: 60, // 60 minutes
-    allowSelfRegistration: false,
-    loginAttempts: 5
-  },
-  notifications: {
-    emailNotificationsEnabled: true,
-    systemNotificationsEnabled: true,
-    defaultReminderTime: 24 // 24 hours
-  },
-  integrations: {
-    aiProvider: 'google',
-    aiModel: 'gemini-pro',
-    aiApiRateLimit: 10,
-    enableThirdPartyIntegrations: true
   },
   templates: {
     implementationTaskTemplates: [
@@ -206,78 +179,10 @@ export function ApplicationSettings() {
   // Update local form state when settings are loaded
   useEffect(() => {
     if (settings) {
-      // Make sure templates property exists, if not, initialize it with defaults
-      const updatedSettings = {
-        ...settings,
-        templates: settings.templates || {
-          implementationTaskTemplates: [
-            {
-              name: 'Basic Implementation',
-              description: 'Standard implementation task for basic features',
-              estimatedHours: 4,
-              complexity: 'medium',
-              taskType: 'implementation',
-              implementationSteps: ['Analyze requirements', 'Design solution', 'Implement code', 'Test functionality']
-            },
-            {
-              name: 'Complex Integration',
-              description: 'Integration task requiring multiple systems',
-              estimatedHours: 8,
-              complexity: 'high',
-              taskType: 'integration',
-              implementationSteps: ['Analyze integration points', 'Design data flow', 'Implement adapters', 'Configure endpoints', 'Test end-to-end flow']
-            },
-            {
-              name: 'Bug Fix',
-              description: 'Task for fixing identified issues',
-              estimatedHours: 2,
-              complexity: 'low',
-              taskType: 'bug-fix',
-              implementationSteps: ['Reproduce issue', 'Identify root cause', 'Implement fix', 'Verify resolution']
-            }
-          ],
-          projectRoleTemplates: [
-            {
-              id: 'default-1',
-              name: 'Onshore Senior Developer',
-              roleType: 'Developer',
-              locationType: 'Onshore',
-              seniorityLevel: 'Senior',
-              description: 'Experienced developer working in client timezone',
-              costRate: '120',
-              costUnit: 'Hour',
-              currency: 'USD',
-              isActive: true
-            },
-            {
-              id: 'default-2',
-              name: 'Offshore Junior QA',
-              roleType: 'QA',
-              locationType: 'Offshore',
-              seniorityLevel: 'Junior',
-              description: 'Entry-level quality assurance specialist working remotely',
-              costRate: '40',
-              costUnit: 'Hour',
-              currency: 'USD',
-              isActive: true
-            },
-            {
-              id: 'default-3',
-              name: 'Onshore Business Analyst',
-              roleType: 'Business Analyst',
-              locationType: 'Onshore',
-              seniorityLevel: 'Mid-Level',
-              description: 'Requirements gathering and analysis specialist',
-              costRate: '95',
-              costUnit: 'Hour',
-              currency: 'USD',
-              isActive: true
-            }
-          ],
-          defaultTaskType: 'implementation',
-          defaultComplexity: 'medium',
-          enableTemplateLibrary: true
-        }
+      // Initialize with defaults if properties don't exist
+      const updatedSettings: ApplicationSettingsData = {
+        general: (settings as any).general || defaultSettings.general,
+        templates: (settings as any).templates || defaultSettings.templates
       };
       setFormData(updatedSettings);
     }
@@ -343,61 +248,9 @@ export function ApplicationSettings() {
   const handleReset = () => {
     if (settings) {
       // Make sure templates property exists when resetting too
-      const updatedSettings = {
-        ...settings,
-        templates: settings.templates || {
-          implementationTaskTemplates: [
-            {
-              name: 'Basic Implementation',
-              description: 'Standard implementation task for basic features',
-              estimatedHours: 4,
-              complexity: 'medium',
-              taskType: 'implementation',
-              implementationSteps: ['Analyze requirements', 'Design solution', 'Implement code', 'Test functionality']
-            }
-          ],
-          projectRoleTemplates: [
-            {
-              id: 'default-1',
-              name: 'Onshore Senior Developer',
-              roleType: 'Developer',
-              locationType: 'Onshore',
-              seniorityLevel: 'Senior',
-              description: 'Experienced developer working in client timezone',
-              costRate: '120',
-              costUnit: 'Hour',
-              currency: 'USD',
-              isActive: true
-            },
-            {
-              id: 'default-2',
-              name: 'Offshore Junior QA',
-              roleType: 'QA',
-              locationType: 'Offshore',
-              seniorityLevel: 'Junior',
-              description: 'Entry-level quality assurance specialist working remotely',
-              costRate: '40',
-              costUnit: 'Hour',
-              currency: 'USD',
-              isActive: true
-            },
-            {
-              id: 'default-3',
-              name: 'Onshore Business Analyst',
-              roleType: 'Business Analyst',
-              locationType: 'Onshore',
-              seniorityLevel: 'Mid-Level',
-              description: 'Requirements gathering and analysis specialist',
-              costRate: '95',
-              costUnit: 'Hour',
-              currency: 'USD',
-              isActive: true
-            }
-          ],
-          defaultTaskType: 'implementation',
-          defaultComplexity: 'medium',
-          enableTemplateLibrary: true
-        }
+      const updatedSettings: ApplicationSettingsData = {
+        general: settings.general || defaultSettings.general,
+        templates: settings.templates || defaultSettings.templates
       };
       setFormData(updatedSettings);
       toast({
@@ -456,9 +309,6 @@ export function ApplicationSettings() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="auth">Authentication</TabsTrigger>
-              <TabsTrigger value="notifications">Notifications</TabsTrigger>
-              <TabsTrigger value="integrations">Integrations</TabsTrigger>
               <TabsTrigger value="templates">Task Templates</TabsTrigger>
               <TabsTrigger value="roleTemplates">Role Templates</TabsTrigger>
               <TabsTrigger value="users">
@@ -553,203 +403,9 @@ export function ApplicationSettings() {
               </div>
             </TabsContent>
             
-            {/* Authentication Settings */}
-            <TabsContent value="auth" className="space-y-4">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium">Password Policy</h3>
-                  <Separator className="my-4" />
-                  
-                  <div className="grid gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="minLength">Minimum Password Length</Label>
-                      <Input 
-                        id="minLength" 
-                        type="number"
-                        min={6}
-                        value={formData.auth.passwordPolicy.minLength} 
-                        onChange={(e) => handleNestedInputChange('auth', 'passwordPolicy', 'minLength', parseInt(e.target.value))}
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Switch 
-                          id="requireSpecialChars"
-                          checked={formData.auth.passwordPolicy.requireSpecialChars}
-                          onCheckedChange={(checked) => handleNestedInputChange('auth', 'passwordPolicy', 'requireSpecialChars', checked)}
-                        />
-                        <Label htmlFor="requireSpecialChars">Require Special Characters</Label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Switch 
-                          id="requireNumbers"
-                          checked={formData.auth.passwordPolicy.requireNumbers}
-                          onCheckedChange={(checked) => handleNestedInputChange('auth', 'passwordPolicy', 'requireNumbers', checked)}
-                        />
-                        <Label htmlFor="requireNumbers">Require Numbers</Label>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Switch 
-                          id="requireUppercase"
-                          checked={formData.auth.passwordPolicy.requireUppercase}
-                          onCheckedChange={(checked) => handleNestedInputChange('auth', 'passwordPolicy', 'requireUppercase', checked)}
-                        />
-                        <Label htmlFor="requireUppercase">Require Uppercase Letters</Label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Switch 
-                          id="requireLowercase"
-                          checked={formData.auth.passwordPolicy.requireLowercase}
-                          onCheckedChange={(checked) => handleNestedInputChange('auth', 'passwordPolicy', 'requireLowercase', checked)}
-                        />
-                        <Label htmlFor="requireLowercase">Require Lowercase Letters</Label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium">Security Settings</h3>
-                  <Separator className="my-4" />
-                  
-                  <div className="grid gap-4">
-                    <div className="flex items-center space-x-2">
-                      <Switch 
-                        id="mfaEnabled"
-                        checked={formData.auth.mfaEnabled}
-                        onCheckedChange={(checked) => handleInputChange('auth', 'mfaEnabled', checked)}
-                      />
-                      <Label htmlFor="mfaEnabled">Enable Multi-Factor Authentication</Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Switch 
-                        id="allowSelfRegistration"
-                        checked={formData.auth.allowSelfRegistration}
-                        onCheckedChange={(checked) => handleInputChange('auth', 'allowSelfRegistration', checked)}
-                      />
-                      <Label htmlFor="allowSelfRegistration">Allow Self Registration</Label>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
-                        <Input 
-                          id="sessionTimeout" 
-                          type="number"
-                          min={15}
-                          value={formData.auth.sessionTimeout} 
-                          onChange={(e) => handleInputChange('auth', 'sessionTimeout', parseInt(e.target.value))}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="loginAttempts">Max Login Attempts</Label>
-                        <Input 
-                          id="loginAttempts" 
-                          type="number"
-                          min={1}
-                          value={formData.auth.loginAttempts} 
-                          onChange={(e) => handleInputChange('auth', 'loginAttempts', parseInt(e.target.value))}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
+
             
-            {/* Notification Settings */}
-            <TabsContent value="notifications" className="space-y-4">
-              <div className="grid gap-6">
-                <div className="flex items-center space-x-2">
-                  <Switch 
-                    id="emailNotificationsEnabled"
-                    checked={formData.notifications.emailNotificationsEnabled}
-                    onCheckedChange={(checked) => handleInputChange('notifications', 'emailNotificationsEnabled', checked)}
-                  />
-                  <Label htmlFor="emailNotificationsEnabled">Enable Email Notifications</Label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Switch 
-                    id="systemNotificationsEnabled"
-                    checked={formData.notifications.systemNotificationsEnabled}
-                    onCheckedChange={(checked) => handleInputChange('notifications', 'systemNotificationsEnabled', checked)}
-                  />
-                  <Label htmlFor="systemNotificationsEnabled">Enable System Notifications</Label>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="defaultReminderTime">Default Reminder Time (hours before deadline)</Label>
-                  <Input 
-                    id="defaultReminderTime" 
-                    type="number"
-                    min={1}
-                    value={formData.notifications.defaultReminderTime} 
-                    onChange={(e) => handleInputChange('notifications', 'defaultReminderTime', parseInt(e.target.value))}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-            
-            {/* Integration Settings */}
-            <TabsContent value="integrations" className="space-y-4">
-              <div className="grid gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="aiProvider">AI Provider</Label>
-                  <Select 
-                    value={formData.integrations.aiProvider} 
-                    onValueChange={(value) => handleInputChange('integrations', 'aiProvider', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select AI provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="google">Google (Gemini)</SelectItem>
-                      <SelectItem value="openai">OpenAI</SelectItem>
-                      <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                      <SelectItem value="huggingface">Hugging Face</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="aiModel">Default AI Model</Label>
-                  <Input 
-                    id="aiModel" 
-                    value={formData.integrations.aiModel} 
-                    onChange={(e) => handleInputChange('integrations', 'aiModel', e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="aiApiRateLimit">API Rate Limit (requests per minute)</Label>
-                  <Input 
-                    id="aiApiRateLimit" 
-                    type="number"
-                    min={1}
-                    value={formData.integrations.aiApiRateLimit} 
-                    onChange={(e) => handleInputChange('integrations', 'aiApiRateLimit', parseInt(e.target.value))}
-                  />
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Switch 
-                    id="enableThirdPartyIntegrations"
-                    checked={formData.integrations.enableThirdPartyIntegrations}
-                    onCheckedChange={(checked) => handleInputChange('integrations', 'enableThirdPartyIntegrations', checked)}
-                  />
-                  <Label htmlFor="enableThirdPartyIntegrations">Enable Third-Party Integrations</Label>
-                </div>
-              </div>
-            </TabsContent>
+
             
             {/* Implementation Task Templates */}
             <TabsContent value="templates" className="space-y-4">
