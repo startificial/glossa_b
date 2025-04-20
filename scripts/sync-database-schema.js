@@ -26,7 +26,8 @@ async function syncDatabaseSchema() {
     // Check if each required table exists and create if not
     const requiredTables = [
       'users', 'customers', 'projects', 'activities', 
-      'input_data', 'requirements', 'implementation_tasks', 'workflows'
+      'input_data', 'requirements', 'implementation_tasks', 'workflows',
+      'application_settings'
     ];
     
     for (const tableName of requiredTables) {
@@ -218,6 +219,17 @@ async function createTable(tableName) {
         )
       `);
       break;
+    
+    case 'application_settings':
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "application_settings" (
+          "id" SERIAL PRIMARY KEY,
+          "settings" JSONB NOT NULL DEFAULT '{}',
+          "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_by" INTEGER REFERENCES "users" ("id")
+        )
+      `);
+      break;
   }
   
   console.log(`✅ Table '${tableName}' created successfully.`);
@@ -226,6 +238,12 @@ async function createTable(tableName) {
 async function ensureTableColumns(tableName) {
   // Define the required columns for each table
   const requiredColumns = {
+    application_settings: [
+      { name: 'id', type: 'integer' },
+      { name: 'settings', type: 'jsonb' },
+      { name: 'updated_at', type: 'timestamp' },
+      { name: 'updated_by', type: 'integer' }
+    ],
     users: [
       { name: 'id', type: 'integer' },
       { name: 'username', type: 'text' },
