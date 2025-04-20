@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HourglassIcon, Loader2Icon, ClockIcon, BrainCircuitIcon, UserIcon, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useTaskTemplates } from "@/hooks/use-application-settings";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ interface TasksTableProps {
 export function TasksTable({ projectId, requirementId }: TasksTableProps) {
   const [selectedTab, setSelectedTab] = useState("all");
   const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [taskFormData, setTaskFormData] = useState({
     title: "",
     description: "",
@@ -51,6 +53,10 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
     sfDocumentationLinks: [],
     implementationSteps: [] as ImplementationStep[]
   });
+  
+  // Get task templates from the application settings
+  const { templates, defaultTaskType, defaultComplexity } = useTaskTemplates();
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -156,6 +162,44 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
       [name]: name === "estimatedHours" ? Number(value) : value,
     }));
   };
+  
+  // Handle template selection
+  const handleTemplateSelect = (templateName: string) => {
+    setSelectedTemplate(templateName);
+    
+    if (templateName === "") {
+      // Reset to default values if "None" is selected
+      setTaskFormData(prev => ({
+        ...prev,
+        title: "",
+        description: "",
+        complexity: defaultComplexity || "medium",
+        taskType: defaultTaskType || "implementation",
+        estimatedHours: 4,
+        implementationSteps: []
+      }));
+      return;
+    }
+    
+    // Find the selected template
+    const selectedTemplateData = templates.find(template => template.name === templateName);
+    
+    if (selectedTemplateData) {
+      // Apply template data to the form
+      setTaskFormData(prev => ({
+        ...prev,
+        title: selectedTemplateData.name,
+        description: selectedTemplateData.description,
+        complexity: selectedTemplateData.complexity,
+        taskType: selectedTemplateData.taskType,
+        estimatedHours: selectedTemplateData.estimatedHours,
+        implementationSteps: selectedTemplateData.implementationSteps.map(step => ({
+          description: step,
+          completed: false
+        }))
+      }));
+    }
+  };
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,6 +291,28 @@ export function TasksTable({ projectId, requirementId }: TasksTableProps) {
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleCreateTask} className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="templateSelect" className="text-right font-medium">
+                      Template
+                    </Label>
+                    <Select
+                      value={selectedTemplate}
+                      onValueChange={handleTemplateSelect}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select a template or start from scratch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None (Custom)</SelectItem>
+                        {templates.map((template) => (
+                          <SelectItem key={template.name} value={template.name}>
+                            {template.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="title" className="text-right">
                       Title

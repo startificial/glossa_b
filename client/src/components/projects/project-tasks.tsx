@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useToast } from '@/hooks/use-toast';
+import { useTaskTemplates } from '@/hooks/use-application-settings';
 import { ImplementationStepsTable } from '@/components/implementation-tasks/implementation-steps-table';
 import { 
   Clock, 
@@ -116,6 +117,11 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
   const [selectedTab, setSelectedTab] = useState("all");
   const [, setLocation] = useLocation();
   const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("none");
+  
+  // Get task templates from application settings
+  const { templates, defaultTaskType, defaultComplexity } = useTaskTemplates();
+  
   const [taskFormData, setTaskFormData] = useState({
     title: '',
     description: '',
@@ -173,6 +179,9 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
         implementationSteps: []
       });
       
+      // Reset template selection
+      setSelectedTemplate('none');
+      
       // Close dialog
       setNewTaskOpen(false);
       
@@ -201,6 +210,44 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
   
   const handleSelectChange = (name: string, value: string) => {
     setTaskFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  // Handle template selection
+  const handleTemplateSelect = (templateName: string) => {
+    setSelectedTemplate(templateName);
+    
+    if (templateName === "none") {
+      // Reset to default values if "None" is selected
+      setTaskFormData(prev => ({
+        ...prev,
+        title: "",
+        description: "",
+        complexity: defaultComplexity || "medium",
+        taskType: defaultTaskType || "implementation",
+        estimatedHours: "",
+        implementationSteps: []
+      }));
+      return;
+    }
+    
+    // Find the selected template
+    const selectedTemplateData = templates.find(template => template.name === templateName);
+    
+    if (selectedTemplateData) {
+      // Apply template data to the form
+      setTaskFormData(prev => ({
+        ...prev,
+        title: selectedTemplateData.name,
+        description: selectedTemplateData.description,
+        complexity: selectedTemplateData.complexity,
+        taskType: selectedTemplateData.taskType,
+        estimatedHours: selectedTemplateData.estimatedHours.toString(),
+        implementationSteps: selectedTemplateData.implementationSteps.map(step => ({
+          description: step,
+          completed: false
+        }))
+      }));
+    }
   };
   
   const handleCreateTask = (e: React.FormEvent) => {
@@ -356,6 +403,30 @@ export function ProjectTasks({ projectId }: ProjectTasksProps) {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateTask} className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="templateSelect" className="text-right font-medium">
+                  Template
+                </Label>
+                <div className="col-span-3">
+                  <Select
+                    value={selectedTemplate}
+                    onValueChange={handleTemplateSelect}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a template or start from scratch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None (Custom)</SelectItem>
+                      {templates.map((template) => (
+                        <SelectItem key={template.name} value={template.name}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="requirementId" className="text-right">
                   Requirement
