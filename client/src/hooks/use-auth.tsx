@@ -31,6 +31,17 @@ export const resetPasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password is too long"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 // Auth Context Types
 type AuthContextType = {
   user: User | null;
@@ -40,6 +51,7 @@ type AuthContextType = {
   logoutMutation: UseMutationResult<void, Error, void>;
   forgotPasswordMutation: UseMutationResult<{ message: string }, Error, z.infer<typeof forgotPasswordSchema>>;
   resetPasswordMutation: UseMutationResult<{ message: string }, Error, z.infer<typeof resetPasswordSchema>>;
+  changePasswordMutation: UseMutationResult<{ message: string }, Error, z.infer<typeof changePasswordSchema>>;
   verifyResetToken: (token: string) => Promise<{ valid: boolean; message: string }>;
 };
 
@@ -145,6 +157,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Change password mutation
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof changePasswordSchema>) => {
+      return await apiRequest("POST", "/api/change-password", {
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Password changed successfully",
+        description: data.message || "Your password has been updated.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Password change failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Verify reset token function
   const verifyResetToken = async (token: string): Promise<{ valid: boolean; message: string }> => {
     try {
@@ -164,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logoutMutation,
         forgotPasswordMutation,
         resetPasswordMutation,
+        changePasswordMutation,
         verifyResetToken,
       }}
     >

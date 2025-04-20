@@ -5,7 +5,7 @@ import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
 import session from 'express-session';
 import { storage } from '../storage';
-import { logger } from '../utils/logger';
+import { logger } from '../logger';
 import { User } from '@shared/schema';
 import { UserService } from '../services/user-service';
 import { sendPasswordResetEmail } from '../services/email-service';
@@ -18,14 +18,20 @@ const scryptAsync = promisify(scrypt);
 const userService = new UserService(storage);
 
 /**
- * Hash a password using scrypt with salt
+ * Hash a password using bcrypt to match the existing database format
  * @param password The plain text password to hash
- * @returns The hashed password with salt
+ * @returns The hashed password
  */
 async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16).toString('hex');
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString('hex')}.${salt}`;
+  try {
+    // Import and use the bcrypt directly
+    const bcrypt = await import('bcrypt');
+    const saltRounds = 10;
+    return await bcrypt.hash(password, saltRounds);
+  } catch (error) {
+    logger.error('Error in hashPassword:', error);
+    throw new Error('Failed to hash password');
+  }
 }
 
 /**
@@ -35,10 +41,27 @@ async function hashPassword(password: string): Promise<string> {
  * @returns True if the passwords match, false otherwise
  */
 async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
-  const [hashed, salt] = stored.split('.');
-  const hashedBuf = Buffer.from(hashed, 'hex');
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  try {
+    // Check if the stored password is in bcrypt format (starts with $2b$)
+    if (stored.startsWith('$2b$')) {
+      // Use bcrypt directly for comparison
+      const bcrypt = await import('bcrypt');
+      return await bcrypt.compare(supplied, stored);
+    } else {
+      // Use the original scrypt method for scrypt-formatted passwords
+      const [hashed, salt] = stored.split('.');
+      if (!salt) {
+        logger.error('Invalid password format in database (no salt found)');
+        return false;
+      }
+      const hashedBuf = Buffer.from(hashed, 'hex');
+      const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+      return timingSafeEqual(hashedBuf, suppliedBuf);
+    }
+  } catch (error) {
+    logger.error('Error in comparePasswords:', error);
+    return false;
+  }
 }
 
 /**
@@ -68,10 +91,22 @@ export function setupAuth(app: Express): void {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
+        console.log(`[DEBUG] Attempting login for username: ${username}`);
         const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
+        
+        if (!user) {
+          console.log(`[DEBUG] User ${username} not found`);
           return done(null, false);
         }
+        
+        console.log(`[DEBUG] User found, password format: ${user.password.substring(0, 10)}...`);
+        const passwordValid = await comparePasswords(password, user.password);
+        console.log(`[DEBUG] Password validation result: ${passwordValid}`);
+        
+        if (!passwordValid) {
+          return done(null, false);
+        }
+        
         return done(null, user);
       } catch (error) {
         logger.error('Authentication error:', error);
@@ -98,7 +133,7 @@ export function setupAuth(app: Express): void {
 
   // Login route
   app.post('/api/login', (req, res, next) => {
-    passport.authenticate('local', (err, user, info) => {
+    passport.authenticate('local', (err: any, user: User | false, info: any) => {
       if (err) {
         logger.error('Login error:', err);
         return res.status(500).json({ message: 'Internal server error' });
@@ -308,6 +343,61 @@ export function setupAuth(app: Express): void {
       res.status(200).json({ message: 'Password has been reset successfully' });
     } catch (error) {
       logger.error('Reset password error:', error);
+      res.status(500).json({ message: 'An error occurred while processing your request' });
+    }
+  });
+
+  // Change password route (for authenticated users)
+  app.post('/api/change-password', async (req, res) => {
+    try {
+      // Make sure the user is authenticated
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+      
+      const { currentPassword, newPassword } = req.body;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current password and new password are required' });
+      }
+      
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Verify current password
+      console.log(`[DEBUG] Change password: verifying current password for user ${user.username}`);
+      console.log(`[DEBUG] Change password: stored password format: ${user.password.substring(0, 10)}...`);
+      const isCurrentPasswordValid = await comparePasswords(currentPassword, user.password);
+      console.log(`[DEBUG] Change password: current password verification result: ${isCurrentPasswordValid}`);
+      
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+      
+      // Hash the new password using the same method as elsewhere in this file
+      // We explicitly use our local hashPassword function, not the one from password-utils
+      console.log(`[DEBUG] Change password: hashing new password`);
+      const hashedPassword = await hashPassword(newPassword);
+      console.log(`[DEBUG] Change password: new hashed password format: ${hashedPassword.substring(0, 10)}...`);
+      
+      console.log(`[DEBUG] Change password: updating password for user ID ${userId}`);
+      // Update the password
+      const updated = await storage.updatePasswordAndClearToken(userId, hashedPassword);
+      
+      console.log(`[DEBUG] Change password: update result: ${updated}`);
+      
+      if (!updated) {
+        return res.status(500).json({ message: 'Failed to update password' });
+      }
+      
+      console.log(`[DEBUG] Change password: successfully changed password`);
+      res.status(200).json({ message: 'Password changed successfully' });
+    } catch (error) {
+      logger.error('Change password error:', error);
       res.status(500).json({ message: 'An error occurred while processing your request' });
     }
   });

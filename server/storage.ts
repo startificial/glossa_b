@@ -335,13 +335,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async updatePasswordAndClearToken(userId: number, plainPassword: string): Promise<boolean> {
+  async updatePasswordAndClearToken(userId: number, hashedPassword: string): Promise<boolean> {
     try {
-      // Import the password utilities
-      const { hashPassword } = await import('./utils/password-utils');
-      
-      // Hash the new password
-      const hashedPassword = await hashPassword(plainPassword);
+      // Password is already hashed in the auth-routes.ts before being passed here
+      // So we don't need to hash it again
       
       // Update the user record
       await db.update(users)

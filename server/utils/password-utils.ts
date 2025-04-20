@@ -1,28 +1,37 @@
 /**
- * Password Utilities
+ * Password Utility Functions
  * 
- * This module provides functions for hashing and comparing passwords
- * using bcrypt for secure password storage and verification.
+ * Provides functions for hashing and comparing passwords using bcrypt.
  */
 import bcrypt from 'bcrypt';
-
-const SALT_ROUNDS = 10;
+import { logger } from '../logger';
 
 /**
- * Hash a password with bcrypt
+ * Hash a password using bcrypt
  * @param password The plain text password to hash
- * @returns A promise that resolves to the hashed password
+ * @returns The bcrypt hashed password
  */
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, SALT_ROUNDS);
+  const saltRounds = 10;
+  try {
+    return await bcrypt.hash(password, saltRounds);
+  } catch (error) {
+    logger.error('Error hashing password:', error);
+    throw new Error('Failed to hash password');
+  }
 }
 
 /**
- * Compare a plain text password with a hashed password
- * @param plainPassword The plain text password to check
- * @param hashedPassword The hashed password to compare against
- * @returns A promise that resolves to true if the passwords match, false otherwise
+ * Compare a supplied password with a stored hashed password
+ * @param supplied The plain text password to check
+ * @param stored The stored bcrypt hashed password
+ * @returns True if the passwords match, false otherwise
  */
-export async function comparePasswords(plainPassword: string, hashedPassword: string): Promise<boolean> {
-  return bcrypt.compare(plainPassword, hashedPassword);
+export async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
+  try {
+    return await bcrypt.compare(supplied, stored);
+  } catch (error) {
+    logger.error('Error comparing passwords:', error);
+    return false;
+  }
 }

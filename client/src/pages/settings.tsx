@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { UserProfile } from "@/components/settings/user-profile";
+import { ChangePassword } from "@/components/settings/change-password";
 import { ApplicationSettings } from "@/components/settings/application-settings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,6 +28,7 @@ export default function SettingsPage() {
         </TabsContent>
         
         <TabsContent value="account" className="space-y-6">
+          <ChangePassword />
           <Card>
             <CardHeader>
               <CardTitle>Account Settings</CardTitle>
@@ -34,7 +36,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Account settings will be available in a future update.
+                Additional account settings will be available in a future update.
               </p>
             </CardContent>
           </Card>
