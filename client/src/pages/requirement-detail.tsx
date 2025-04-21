@@ -31,9 +31,14 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   const [isEditing, setIsEditing] = useState(false);
   const [isGeneratingCriteria, setIsGeneratingCriteria] = useState(false);
   const [isAddingCriterion, setIsAddingCriterion] = useState(false);
+  const [isEditingCriterion, setIsEditingCriterion] = useState(false);
   const [selectedCriterion, setSelectedCriterion] = useState<AcceptanceCriterion | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newCriterion, setNewCriterion] = useState<{description: string, status: string}>({
+    description: '',
+    status: 'pending'
+  });
+  const [editCriterion, setEditCriterion] = useState<{description: string, status: string}>({
     description: '',
     status: 'pending'
   });
@@ -454,6 +459,132 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
       });
     }
   });
+  
+  // Update criterion mutation
+  const updateCriterionMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedCriterion) return;
+      
+      // Get current criteria
+      const currentCriteria = requirement.acceptanceCriteria || [];
+      
+      // Format the description in Gherkin format if it's not already
+      let formattedDescription = editCriterion.description;
+      
+      // Check if description already has Gherkin format (case-insensitive manually)
+      const hasGherkinFormat = /^\s*[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:.*[Gg][Ii][Vv][Ee][Nn].*[Ww][Hh][Ee][Nn].*[Tt][Hh][Ee][Nn]/.test(formattedDescription);
+      
+      if (!hasGherkinFormat) {
+        // Simple formatting to Gherkin if user entered plain text
+        formattedDescription = `Scenario: User scenario\nGiven ${formattedDescription}\nWhen a condition occurs\nThen expected outcome happens`;
+      }
+      
+      // Parse the Gherkin formatted description to create structured data
+      const lines = formattedDescription.split('\n');
+      let gherkinData: GherkinStructure | undefined;
+      
+      let scenario = '';
+      let given = '';
+      let when = '';
+      let andClauses: string[] = [];
+      let then = '';
+      let andThenClauses: string[] = [];
+      
+      // Parse each line to extract structured Gherkin components
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        
+        if (trimmedLine.match(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:/)) {
+          scenario = trimmedLine.replace(/^[Ss][Cc][Ee][Nn][Aa][Rr][Ii][Oo]:?\s*/, '').trim();
+        } else if (trimmedLine.match(/^[Gg][Ii][Vv][Ee][Nn]\s/)) {
+          given = trimmedLine.replace(/^[Gg][Ii][Vv][Ee][Nn]\s/, '').trim();
+        } else if (trimmedLine.match(/^[Ww][Hh][Ee][Nn]\s/)) {
+          when = trimmedLine.replace(/^[Ww][Hh][Ee][Nn]\s/, '').trim();
+        } else if (trimmedLine.match(/^[Aa][Nn][Dd]\s/) && then === '') {
+          // If 'Then' hasn't been seen yet, this is a 'When And'
+          andClauses.push(trimmedLine.replace(/^[Aa][Nn][Dd]\s/, '').trim());
+        } else if (trimmedLine.match(/^[Tt][Hh][Ee][Nn]\s/)) {
+          then = trimmedLine.replace(/^[Tt][Hh][Ee][Nn]\s/, '').trim();
+        } else if (trimmedLine.match(/^[Aa][Nn][Dd]\s/) && then !== '') {
+          // If 'Then' has been seen, this is a 'Then And'
+          andThenClauses.push(trimmedLine.replace(/^[Aa][Nn][Dd]\s/, '').trim());
+        }
+      }
+      
+      // Create structured Gherkin data if we have the core components
+      if (scenario && given && when && then) {
+        gherkinData = {
+          scenario,
+          given,
+          when,
+          and: andClauses,
+          then,
+          andThen: andThenClauses
+        };
+      }
+      
+      // Update the selected criterion with new data
+      const updatedCriterion = {
+        ...selectedCriterion,
+        description: formattedDescription,
+        status: editCriterion.status as 'pending' | 'approved' | 'rejected',
+        gherkin: gherkinData
+      };
+      
+      // Replace the old criterion with the updated one in the array
+      const updatedCriteria = currentCriteria.map(criterion => 
+        criterion.id === selectedCriterion.id ? updatedCriterion : criterion
+      );
+      
+      // Update the requirement with the updated acceptance criteria
+      return apiRequest(
+        `/api/projects/${projectId}/requirements/${requirementId}`,
+        {
+          method: "PUT",
+          data: { 
+            acceptanceCriteria: updatedCriteria
+          }
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/projects', projectId, 'requirements', requirementId] 
+      });
+      
+      toast({
+        title: "Criterion Updated",
+        description: "The acceptance criterion has been updated successfully.",
+      });
+      
+      // Reset form and close dialog
+      setEditCriterion({
+        description: '',
+        status: 'pending'
+      });
+      setIsEditingCriterion(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error Updating Criterion",
+        description: "There was a problem updating the acceptance criterion.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  const handleUpdateCriterion = () => {
+    if (editCriterion.description.trim() === '') {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a description for the criterion.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    updateCriterionMutation.mutate();
+  };
   
   const handleAddCriterion = () => {
     if (newCriterion.description.trim() === '') {
@@ -905,7 +1036,14 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                                       }}>
                                         <Eye className="h-4 w-4" />
                                       </Button>
-                                      <Button variant="ghost" size="icon">
+                                      <Button variant="ghost" size="icon" onClick={() => {
+                                        setSelectedCriterion(criterion);
+                                        setEditCriterion({
+                                          description: criterion.description,
+                                          status: criterion.status || 'pending'
+                                        });
+                                        setIsEditingCriterion(true);
+                                      }}>
                                         <Edit2 className="h-4 w-4" />
                                       </Button>
                                     </div>
@@ -973,6 +1111,68 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
                         <DialogFooter>
                           <Button variant="outline" onClick={() => setDialogOpen(false)}>
                             Close
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    
+                    {/* Edit Acceptance Criterion Dialog */}
+                    <Dialog open={isEditingCriterion} onOpenChange={setIsEditingCriterion}>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Edit Acceptance Criterion</DialogTitle>
+                          <DialogDescription>
+                            Update this acceptance criterion for the requirement.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-2">
+                          <div>
+                            <Label htmlFor="edit-description">Description</Label>
+                            <Textarea 
+                              id="edit-description"
+                              placeholder="Enter criterion description..."
+                              value={editCriterion.description}
+                              onChange={(e) => setEditCriterion({ ...editCriterion, description: e.target.value })}
+                              className="min-h-[120px]"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="edit-status">Status</Label>
+                            <Select 
+                              value={editCriterion.status} 
+                              onValueChange={(value) => setEditCriterion({ ...editCriterion, status: value })}
+                            >
+                              <SelectTrigger id="edit-status">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <DialogFooter className="flex gap-2 justify-end mt-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsEditingCriterion(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            type="submit" 
+                            onClick={handleUpdateCriterion}
+                            disabled={updateCriterionMutation.isPending}
+                          >
+                            {updateCriterionMutation.isPending ? (
+                              <>
+                                <div className="animate-spin w-4 h-4 border-2 border-current rounded-full border-t-transparent mr-2"></div>
+                                Saving...
+                              </>
+                            ) : (
+                              'Save Changes'
+                            )}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
