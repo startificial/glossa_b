@@ -184,6 +184,17 @@ export function ApplicationSettings() {
         general: (settings as any).general || defaultSettings.general,
         templates: (settings as any).templates || defaultSettings.templates
       };
+      
+      // Ensure implementationTaskTemplates always exists
+      if (!updatedSettings.templates.implementationTaskTemplates) {
+        updatedSettings.templates.implementationTaskTemplates = defaultSettings.templates.implementationTaskTemplates;
+      }
+      
+      // Ensure projectRoleTemplates always exists
+      if (!updatedSettings.templates.projectRoleTemplates) {
+        updatedSettings.templates.projectRoleTemplates = defaultSettings.templates.projectRoleTemplates;
+      }
+      
       setFormData(updatedSettings);
     }
   }, [settings]);
@@ -252,6 +263,17 @@ export function ApplicationSettings() {
         general: settings.general || defaultSettings.general,
         templates: settings.templates || defaultSettings.templates
       };
+      
+      // Ensure implementationTaskTemplates always exists
+      if (!updatedSettings.templates.implementationTaskTemplates) {
+        updatedSettings.templates.implementationTaskTemplates = defaultSettings.templates.implementationTaskTemplates;
+      }
+      
+      // Ensure projectRoleTemplates always exists
+      if (!updatedSettings.templates.projectRoleTemplates) {
+        updatedSettings.templates.projectRoleTemplates = defaultSettings.templates.projectRoleTemplates;
+      }
+      
       setFormData(updatedSettings);
       toast({
         title: 'Form reset',
@@ -458,7 +480,7 @@ export function ApplicationSettings() {
                     <div className="space-y-4 mt-6">
                       <h4 className="text-md font-medium">Defined Templates</h4>
                       
-                      {formData.templates.implementationTaskTemplates.map((template, index) => (
+                      {formData.templates.implementationTaskTemplates?.map((template, index) => (
                         <Card key={index} className="p-4">
                           <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">

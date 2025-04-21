@@ -1884,51 +1884,48 @@ export class DatabaseStorage implements IStorage {
       const settingsRecord = await this.getApplicationSettings();
       let settings = settingsRecord?.settings;
       
-      // Ensure templates section exists with default role templates
-      if (settings && !settings.templates) {
-        settings.templates = {
-          projectRoleTemplates: [
-            {
-              id: "default-1",
-              name: "Project Manager",
-              roleType: "Management",
-              locationType: "Onsite",
-              seniorityLevel: "Senior",
-              description: "Responsible for overall project coordination and delivery",
-              costRate: "120",
-              costUnit: "hour",
-              currency: "USD",
-              isActive: true
-            },
-            {
-              id: "default-2",
-              name: "Business Analyst",
-              roleType: "Business",
-              locationType: "Hybrid",
-              seniorityLevel: "Mid",
-              description: "Analyzes business needs and documents requirements",
-              costRate: "95",
-              costUnit: "hour",
-              currency: "USD",
-              isActive: true
-            },
-            {
-              id: "default-3",
-              name: "Developer",
-              roleType: "Technical",
-              locationType: "Remote",
-              seniorityLevel: "Mid",
-              description: "Implements technical solutions",
-              costRate: "85",
-              costUnit: "hour",
-              currency: "USD",
-              isActive: true
-            }
-          ]
-        };
+      // If no settings exist, return undefined to trigger default creation
+      if (!settings) {
+        return undefined;
+      }
+      
+      // Ensure templates section exists with default values
+      if (!settings.templates) {
+        const defaultSettings = this.getDefaultSettingsData();
+        settings.templates = defaultSettings.templates;
         
         // Update the settings in the database with default admin user ID
         await this.updateApplicationSettings(1, settings);
+      } else {
+        // Ensure implementationTaskTemplates exists in templates
+        if (!settings.templates.implementationTaskTemplates) {
+          const defaultSettings = this.getDefaultSettingsData();
+          settings.templates.implementationTaskTemplates = defaultSettings.templates.implementationTaskTemplates;
+          
+          // Update the settings in the database with default admin user ID
+          await this.updateApplicationSettings(1, settings);
+        }
+        
+        // Ensure projectRoleTemplates exists in templates
+        if (!settings.templates.projectRoleTemplates) {
+          const defaultSettings = this.getDefaultSettingsData();
+          settings.templates.projectRoleTemplates = defaultSettings.templates.projectRoleTemplates;
+          
+          // Update the settings in the database with default admin user ID
+          await this.updateApplicationSettings(1, settings);
+        }
+        
+        // Ensure other template properties exist
+        if (!settings.templates.defaultTaskType || !settings.templates.defaultComplexity) {
+          const defaultSettings = this.getDefaultSettingsData();
+          settings.templates.defaultTaskType = settings.templates.defaultTaskType || defaultSettings.templates.defaultTaskType;
+          settings.templates.defaultComplexity = settings.templates.defaultComplexity || defaultSettings.templates.defaultComplexity;
+          settings.templates.enableTemplateLibrary = settings.templates.enableTemplateLibrary !== undefined ? 
+            settings.templates.enableTemplateLibrary : defaultSettings.templates.enableTemplateLibrary;
+          
+          // Update the settings in the database with default admin user ID
+          await this.updateApplicationSettings(1, settings);
+        }
       }
       
       return settings;
@@ -2167,6 +2164,75 @@ export class DatabaseStorage implements IStorage {
         ipAllowlist: [],
         auditLogRetention: 90,
         allowConcurrentSessions: true
+      },
+      templates: {
+        implementationTaskTemplates: [
+          {
+            name: "Basic Implementation",
+            description: "Standard implementation task for basic features",
+            estimatedHours: 4,
+            complexity: "medium",
+            taskType: "implementation",
+            implementationSteps: ["Analyze requirements", "Design solution", "Implement code", "Test functionality"]
+          },
+          {
+            name: "Complex Integration",
+            description: "Integration task requiring multiple systems",
+            estimatedHours: 8,
+            complexity: "high",
+            taskType: "integration",
+            implementationSteps: ["Analyze integration points", "Design data flow", "Implement adapters", "Configure endpoints", "Test end-to-end flow"]
+          },
+          {
+            name: "Bug Fix",
+            description: "Task for fixing identified issues",
+            estimatedHours: 2,
+            complexity: "low",
+            taskType: "bug-fix",
+            implementationSteps: ["Reproduce issue", "Identify root cause", "Implement fix", "Verify resolution"]
+          }
+        ],
+        projectRoleTemplates: [
+          {
+            id: "default-1",
+            name: "Project Manager",
+            roleType: "Management",
+            locationType: "Onsite",
+            seniorityLevel: "Senior",
+            description: "Responsible for overall project coordination and delivery",
+            costRate: "120",
+            costUnit: "hour",
+            currency: "USD",
+            isActive: true
+          },
+          {
+            id: "default-2",
+            name: "Business Analyst",
+            roleType: "Business",
+            locationType: "Hybrid",
+            seniorityLevel: "Mid",
+            description: "Analyzes business needs and documents requirements",
+            costRate: "95",
+            costUnit: "hour",
+            currency: "USD",
+            isActive: true
+          },
+          {
+            id: "default-3",
+            name: "Developer",
+            roleType: "Technical",
+            locationType: "Remote",
+            seniorityLevel: "Mid",
+            description: "Implements technical solutions",
+            costRate: "85",
+            costUnit: "hour",
+            currency: "USD",
+            isActive: true
+          }
+        ],
+        defaultTaskType: "implementation",
+        defaultComplexity: "medium",
+        enableTemplateLibrary: true
       }
     };
   }
