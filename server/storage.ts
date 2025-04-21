@@ -802,7 +802,12 @@ export class DatabaseStorage implements IStorage {
       const allTemplates = appSettingsData.templates.projectRoleTemplates;
       console.log('All available templates:', allTemplates);
       
-      const selectedTemplates = allTemplates.filter(template => templateIds.includes(template.id));
+      // Match templates by ID, making sure to handle string/number type conversions
+      const selectedTemplates = allTemplates.filter(template => {
+        const templateIdStr = String(template.id);
+        return templateIds.some(id => String(id) === templateIdStr);
+      });
+      
       console.log('Selected templates:', selectedTemplates);
       
       if (selectedTemplates.length === 0) {
@@ -1877,7 +1882,56 @@ export class DatabaseStorage implements IStorage {
   async getApplicationSettingsData(): Promise<Record<string, any> | undefined> {
     try {
       const settingsRecord = await this.getApplicationSettings();
-      return settingsRecord?.settings;
+      let settings = settingsRecord?.settings;
+      
+      // Ensure templates section exists with default role templates
+      if (settings && !settings.templates) {
+        settings.templates = {
+          projectRoleTemplates: [
+            {
+              id: "default-1",
+              name: "Project Manager",
+              roleType: "Management",
+              locationType: "Onsite",
+              seniorityLevel: "Senior",
+              description: "Responsible for overall project coordination and delivery",
+              costRate: "120",
+              costUnit: "hour",
+              currency: "USD",
+              isActive: true
+            },
+            {
+              id: "default-2",
+              name: "Business Analyst",
+              roleType: "Business",
+              locationType: "Hybrid",
+              seniorityLevel: "Mid",
+              description: "Analyzes business needs and documents requirements",
+              costRate: "95",
+              costUnit: "hour",
+              currency: "USD",
+              isActive: true
+            },
+            {
+              id: "default-3",
+              name: "Developer",
+              roleType: "Technical",
+              locationType: "Remote",
+              seniorityLevel: "Mid",
+              description: "Implements technical solutions",
+              costRate: "85",
+              costUnit: "hour",
+              currency: "USD",
+              isActive: true
+            }
+          ]
+        };
+        
+        // Update the settings in the database with default admin user ID
+        await this.updateApplicationSettings(1, settings);
+      }
+      
+      return settings;
     } catch (error) {
       console.error('Error fetching application settings data:', error);
       return undefined;

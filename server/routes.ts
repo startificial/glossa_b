@@ -670,9 +670,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If role template IDs were provided, create project roles from those templates
       if (req.body.roleTemplateIds && Array.isArray(req.body.roleTemplateIds) && req.body.roleTemplateIds.length > 0) {
-        console.log(`Creating project roles from ${req.body.roleTemplateIds.length} templates`);
+        console.log(`Creating project roles from ${req.body.roleTemplateIds.length} templates:`, req.body.roleTemplateIds);
         try {
-          const createdRoles = await storage.createProjectRolesFromTemplates(project.id, req.body.roleTemplateIds);
+          // Make sure all template IDs are strings (for consistent comparison)
+          const templateIds = req.body.roleTemplateIds.map(id => String(id));
+          const createdRoles = await storage.createProjectRolesFromTemplates(project.id, templateIds);
           console.log(`Created ${createdRoles.length} project roles`);
         } catch (error) {
           console.error('Error creating project roles from templates:', error);

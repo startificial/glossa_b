@@ -74,7 +74,7 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
   // Fetch role templates for the form
   const { templates: roleTemplates, isLoading: isLoadingTemplates } = useProjectRoleTemplates();
   
-  // State to track selected role templates
+  // State to track selected role templates - initialize from form
   const [selectedRoleTemplates, setSelectedRoleTemplates] = useState<string[]>([]);
   
   const form = useForm<CreateProjectFormData>({
@@ -90,6 +90,16 @@ export function ProjectForm({ isOpen, onClose }: ProjectFormProps) {
       roleTemplateIds: [],
     },
   });
+  
+  // Keep selected role templates in sync with form values
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'roleTemplateIds') {
+        setSelectedRoleTemplates(value.roleTemplateIds as string[] || []);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
   
   // Handle when a new customer is created from the dialog
   const handleCustomerCreated = (newCustomer: Customer) => {
