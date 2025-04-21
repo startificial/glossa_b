@@ -34,6 +34,8 @@ const MemoryStore = createMemoryStore(session);
 const PgStore = connectPgSimple(session);
 
 const app = express();
+// Trust the proxy when in production for secure cookies to work
+app.set('trust proxy', process.env.NODE_ENV === 'production' ? 1 : 0);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -93,7 +95,9 @@ app.use(session({
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" // Allow cookies to be sent in cross-site requests
+    sameSite: "lax", // Allow cookies to be sent in cross-site requests
+    // Allow all subdomains in production
+    domain: process.env.NODE_ENV === "production" ? undefined : undefined, 
   }
 }));
 
