@@ -19,7 +19,8 @@ import {
   FileText,
   ExternalLink,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Trash2
 } from "lucide-react";
 import {
   Card,
@@ -34,6 +35,7 @@ import { Separator } from "../ui/separator";
 import { Badge } from "../ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { CustomerDialog } from "./customer-dialog";
+import { DeleteCustomerDialog } from "./delete-customer-dialog";
 import { ProjectForm } from "../projects/project-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Progress } from "../ui/progress";
@@ -65,6 +67,7 @@ interface EnhancedCustomerDetailProps {
 export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerDetailProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [projectFormOpen, setProjectFormOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   
   // Format dates
@@ -348,6 +351,17 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
                 <Edit2 className="mr-2 h-4 w-4" />
                 Edit Profile
               </Button>
+              
+              <Separator className="my-2" />
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline" 
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                <span className="text-destructive">Delete Customer</span>
+              </Button>
             </CardContent>
           </Card>
           
@@ -400,6 +414,13 @@ export function EnhancedCustomerDetail({ customer, projects }: EnhancedCustomerD
           queryClient.invalidateQueries({ queryKey: [`/api/customers/${customer.id}`] });
           queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         }}
+      />
+      
+      {/* Delete customer dialog */}
+      <DeleteCustomerDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        customer={customer}
       />
     </>
   );

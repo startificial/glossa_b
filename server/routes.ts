@@ -528,7 +528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      // Check if customer has associated projects
+      // Check if customer has associated projects (just for logging)
       const associatedProjects = await db.query.projects.findMany({
         where: eq(projects.customerId, customerId),
         columns: {
@@ -538,13 +538,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (associatedProjects.length > 0) {
-        return res.status(400).json({ 
-          message: "Cannot delete customer with associated projects. Please remove or reassign the projects first."
-        });
+        console.log(`Deleting customer ${customerId} with ${associatedProjects.length} associated projects. Projects will be preserved.`);
       }
 
+      // Delete the customer - the foreign key is set to ON DELETE SET NULL 
+      // so projects will remain but have their customerId set to NULL
       await db.delete(customers).where(eq(customers.id, customerId));
-      res.status(200).json({ message: "Customer deleted successfully" });
+      
+      res.status(200).json({ 
+        message: "Customer deleted successfully", 
+        preservedProjects: associatedProjects.length > 0 ? associatedProjects.length : 0
+      });
     } catch (error) {
       console.error("Error deleting customer:", error);
       res.status(500).json({ message: "Internal server error" });
