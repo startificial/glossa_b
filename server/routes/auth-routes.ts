@@ -1,7 +1,6 @@
 import { Express, Request, Response } from 'express';
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
-import session from 'express-session';
 import { storage } from '../storage';
 import { logger } from '../logger';
 import { User } from '@shared/schema';
@@ -17,24 +16,9 @@ const userService = new UserService(storage);
  * Set up authentication routes and middleware
  * @param app Express application instance
  */
-export function setupAuth(app: Express): void {
-  // Session configuration
-  const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || 'default-secret-change-in-production',
-    resave: false,
-    saveUninitialized: false,
-    store: storage.sessionStore,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    }
-  };
-
-  // Initialize session and passport
-  app.set('trust proxy', 1);
-  app.use(session(sessionSettings));
-  app.use(passport.initialize());
-  app.use(passport.session());
+export function registerAuthRoutes(app: Express): void {
+  // Session is configured in server/index.ts to avoid conflicts
+  console.log('[AUTH] Setting up Passport.js authentication strategies');
 
   // Configure Passport local strategy
   passport.use(
@@ -65,8 +49,9 @@ export function setupAuth(app: Express): void {
   );
 
   // Serialize user to the session
-  passport.serializeUser((user, done) => {
-    done(null, user.id);
+  passport.serializeUser((user: any, done) => {
+    // Add a type assertion to handle the id property
+    done(null, (user as any).id);
   });
 
   // Deserialize user from the session
@@ -196,7 +181,7 @@ export function setupAuth(app: Express): void {
       // This prevents user enumeration attacks
       const user = await userService.getUserByUsername(username);
       
-      if (!user || user.email !== email) {
+      if (!user || !user.email || user.email !== email) {
         // For security, we don't reveal that the user doesn't exist or email doesn't match
         logger.info(`Password reset requested for non-existent user or email mismatch: ${username}`);
         return res.status(200).json({ message: 'If your account exists, a password reset link has been sent to your email' });
@@ -206,19 +191,28 @@ export function setupAuth(app: Express): void {
       const resetToken = TokenGenerator.generateToken();
       const resetExpires = TokenGenerator.generateExpirationDate();
       
-      // Store token in database
-      await userService.setPasswordResetToken(user.id, resetToken, resetExpires);
+      // Store token in database - use type assertion to resolve TypeScript error
+      await userService.setPasswordResetToken((user as any).id, resetToken, resetExpires);
       
-      // Send password reset email
+      // Send password reset email with optional origin
+      const origin = req.headers.origin || "";
+      // Make sure email is not null before sending email
+      if (!user.email) {
+        logger.error(`Cannot send reset email to user ${user.username} - email is null`);
+        return res.status(200).json({
+          message: 'If your account exists, a password reset link has been sent to your email'
+        });
+      }
+      
       const mailSent = await sendPasswordResetEmail(
         user.email,
         user.username,
         resetToken,
-        req.headers.origin || undefined
+        origin
       );
       
       if (!mailSent) {
-        logger.error(`Failed to send password reset email to ${user.email}`);
+        logger.error(`Failed to send password reset email to ${user.email || 'unknown email'}`);
       }
       
       res.status(200).json({
@@ -381,8 +375,8 @@ export function setupAuth(app: Express): void {
         return res.status(400).json({ message: 'New password is required' });
       }
       
-      // Get user ID from the authenticated session
-      const userId = req.user.id;
+      // Get user ID from the authenticated session - using type assertion to handle user.id property
+      const userId = (req.user as any).id;
       console.log(`[DEBUG] Change password: Getting user with ID ${userId}`);
       const user = await storage.getUser(userId);
       

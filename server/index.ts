@@ -14,6 +14,7 @@ import { VideoProcessor } from "./video-processor";
 import { warmAllModels, scheduleModelWarming } from "./model-warming-service";
 import { initDocumentMiddleware } from "./document-middleware";
 import { registerPdfRoutes } from "./simple-pdf-generator";
+import passport from 'passport';
 
 // Always use PostgreSQL database if available
 // This ensures consistent data retrieval and proper handling of complex fields like acceptanceCriteria
@@ -22,10 +23,32 @@ if (process.env.DATABASE_URL) {
   console.log('PostgreSQL database URL detected, enforcing USE_POSTGRES=true');
 }
 
-// Add session type
+// Add session type and passport extensions
 declare module "express-session" {
   interface SessionData {
     userId: number;
+    passport?: {
+      user: number;
+    };
+  }
+}
+
+// Add user property to Express.Request
+declare global {
+  namespace Express {
+    interface User {
+      id: number;
+      username: string;
+      email: string | null;
+      role: string;
+      firstName: string | null;
+      lastName: string | null;
+      company: string | null;
+      avatarUrl: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      [key: string]: any;
+    }
   }
 }
 
@@ -137,11 +160,20 @@ console.log(`[SERVER] Session configuration:`, JSON.stringify({
   }
 }));
 
+// Initialize session and passport (ensure only one session initialization in the app)
 app.use(session(sessionConfig));
+
+// Set up passport middleware - make sure this happens before route registration
+console.log('[SERVER] Initializing Passport.js');
+const passportInstance = passport;
+app.use(passportInstance.initialize());
+app.use(passportInstance.session());
+console.log('[SERVER] Passport.js initialized');
 
 // Debug middleware to log session on every request
 app.use((req, res, next) => {
   console.log(`[SESSION-DEBUG] Session ID: ${req.sessionID}, Has userId: ${req.session && req.session.userId ? 'Yes' : 'No'}`);
+  console.log(`[SESSION-DEBUG] Is Authenticated: ${req.isAuthenticated?.() ? 'Yes' : 'No'}`);
   next();
 });
 
@@ -175,148 +207,62 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
+// Check if we should use quick start mode (skips resource-intensive initialization)
+const QUICK_START = true; // Set to true for fast startup
+
+// Start server quickly, skipping resource-intensive initialization
+async function startServer() {
   try {
-    // Initialize database if using PostgreSQL
-    if (process.env.DATABASE_URL && process.env.USE_POSTGRES === 'true') {
-      log('PostgreSQL database detected, initializing...', 'database');
-      
-      // First ensure the essential tables and columns exist
-      // This prevents "table does not exist" or "column does not exist" errors
-      try {
-        log('Ensuring essential database schema...', 'database');
-        const { neon } = await import('@neondatabase/serverless');
-        const sql = neon(process.env.DATABASE_URL);
-        
-        // Customers table
-        await sql`
-          CREATE TABLE IF NOT EXISTS "customers" (
-            "id" SERIAL PRIMARY KEY,
-            "name" TEXT NOT NULL,
-            "description" TEXT,
-            "industry" TEXT,
-            "background_info" TEXT,
-            "website" TEXT,
-            "contact_email" TEXT,
-            "contact_phone" TEXT,
-            "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-          )
-        `;
-        
-        // Projects table with all required columns
-        await sql`
-          CREATE TABLE IF NOT EXISTS "projects" (
-            "id" SERIAL PRIMARY KEY,
-            "name" TEXT NOT NULL,
-            "description" TEXT,
-            "type" TEXT NOT NULL DEFAULT 'migration',
-            "user_id" INTEGER NOT NULL,
-            "customer_id" INTEGER,
-            "customer" TEXT,
-            "source_system" TEXT,
-            "target_system" TEXT,
-            "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-          )
-        `;
-        
-        // Activities table with required "type" column
-        await sql`
-          CREATE TABLE IF NOT EXISTS "activities" (
-            "id" SERIAL PRIMARY KEY,
-            "project_id" INTEGER,
-            "user_id" INTEGER,
-            "type" TEXT NOT NULL DEFAULT 'system',
-            "description" TEXT NOT NULL DEFAULT 'System activity',
-            "related_entity_id" INTEGER,
-            "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-          )
-        `;
-        
-        log('Essential database schema verified', 'database');
-      } catch (schemaError) {
-        log(`Schema verification warning (non-fatal): ${schemaError}`, 'database');
-        // Continue with normal initialization - don't fail startup
-      }
-      
-      // Continue with normal initialization
-      await initializeDatabase();
-      await runMigrations();
-    } else {
-      log('Using in-memory storage', 'database');
+    // Skip most initialization steps and routes in quick start mode
+    if (QUICK_START) {
+      log('QUICK START MODE ENABLED - minimizing startup tasks', 'init');
     }
     
-    // Setup Google Cloud credentials
-    try {
-      const credentialsPath = await setupGoogleCredentials();
-      if (credentialsPath) {
-        log(`Google Cloud credentials initialized at: ${credentialsPath}`, 'credentials');
-      } else {
-        log('Google Cloud credentials not found or invalid', 'credentials');
-      }
-    } catch (credError) {
-      log(`Error setting up Google Cloud credentials: ${credError}`, 'error');
+    // Set up minimal required middleware
+    if (!QUICK_START) {
+      initDocumentMiddleware(app);
+      registerPdfRoutes(app);
     }
     
-    // Warm up HuggingFace models to prevent cold start issues
-    if (process.env.HUGGINGFACE_API_KEY) {
-      log('HuggingFace API key found, warming up models...', 'models');
-      try {
-        // Start model warming in the background (don't await)
-        warmAllModels().catch(err => {
-          log(`Error during initial model warming: ${err}`, 'error');
-        });
-        
-        // Schedule regular model warming every 60 minutes to keep models hot
-        scheduleModelWarming(60);
-        log('Model warming scheduled successfully', 'models');
-      } catch (modelError) {
-        log(`Error setting up model warming service: ${modelError}`, 'error');
-      }
-    } else {
-      log('HuggingFace API key not found, skipping model warming', 'models');
-    }
+    // Register application routes with quick start mode
+    const server = await registerRoutes(app, QUICK_START);
 
-    // Initialize document middleware
-    initDocumentMiddleware(app);
-    
-    // Register PDF generation routes
-    registerPdfRoutes(app);
-    
-    const server = await registerRoutes(app);
-
+    // Error handling middleware
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
-
       res.status(status).json({ message });
       throw err;
     });
 
-    // importantly only setup vite in development and after
-    // setting up all the other routes so the catch-all route
-    // doesn't interfere with the other routes
+    // Setup vite in development or static files in production
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
 
-    // ALWAYS serve the app on port 5000
-    // this serves both the API and the client.
-    // It is the only port that is not firewalled.
+    // Start the server
     const port = 5000;
     const serverInstance = server.listen({
       port,
       host: "0.0.0.0",
       reusePort: true,
     }, () => {
-      log(`serving on port ${port}`);
+      log(`Server is running on port ${port} (Quick Start: ${QUICK_START ? 'Yes' : 'No'})`);
       log(`Database: ${process.env.USE_POSTGRES === 'true' ? 'PostgreSQL' : 'In-Memory'}`);
+      
+      // After server starts, schedule resource-intensive initialization if needed
+      if (!QUICK_START) {
+        setTimeout(() => {
+          completeInitialization(serverInstance);
+        }, 2000);
+      } else {
+        log('Skipping background initialization due to Quick Start mode', 'init');
+      }
     });
     
-    // Set up proper cleanup when the process exits
+    // Set up cleanup handlers
     ['SIGINT', 'SIGTERM', 'SIGHUP'].forEach(signal => {
       process.on(signal, () => {
         log(`Received ${signal}, cleaning up resources...`, 'shutdown');
@@ -337,8 +283,70 @@ app.use((req, res, next) => {
         }, 3000);
       });
     });
+    
+    return serverInstance;
   } catch (error) {
-    log(`Server initialization error: ${error}`, 'error');
+    log(`Server startup error: ${error}`, 'error');
     process.exit(1);
   }
-})();
+}
+
+// Perform resource-intensive initialization after server has started
+async function completeInitialization(serverInstance: any) {
+  log('Starting complete initialization after server is running', 'init');
+  
+  // Initialize database if using PostgreSQL
+  if (process.env.DATABASE_URL && process.env.USE_POSTGRES === 'true') {
+    log('PostgreSQL database detected, initializing...', 'database');
+    
+    try {
+      // Initialize database
+      await initializeDatabase();
+      log('Database initialized', 'database');
+      
+      // Run migrations
+      await runMigrations();
+      log('Database migrations completed', 'database');
+    } catch (dbError) {
+      log(`Database initialization error: ${dbError}`, 'error');
+    }
+  } else {
+    log('Using in-memory storage', 'database');
+  }
+  
+  // Setup Google Cloud credentials
+  try {
+    const credentialsPath = await setupGoogleCredentials();
+    if (credentialsPath) {
+      log(`Google Cloud credentials initialized at: ${credentialsPath}`, 'credentials');
+    } else {
+      log('Google Cloud credentials not found or invalid', 'credentials');
+    }
+  } catch (credError) {
+    log(`Error setting up Google Cloud credentials: ${credError}`, 'error');
+  }
+  
+  // Warm up HuggingFace models
+  if (process.env.HUGGINGFACE_API_KEY) {
+    log('HuggingFace API key found, warming up models...', 'models');
+    try {
+      // Start model warming in the background (don't await)
+      warmAllModels().catch(err => {
+        log(`Error during initial model warming: ${err}`, 'error');
+      });
+      
+      // Schedule regular model warming every 60 minutes
+      scheduleModelWarming(60);
+      log('Model warming scheduled successfully', 'models');
+    } catch (modelError) {
+      log(`Error setting up model warming service: ${modelError}`, 'error');
+    }
+  } else {
+    log('HuggingFace API key not found, skipping model warming', 'models');
+  }
+  
+  log('Completed post-startup initialization', 'init');
+}
+
+// Start the server
+startServer();
