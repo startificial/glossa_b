@@ -46,6 +46,38 @@ const validateSettings = (data: any): { valid: boolean, errors?: string[] } => {
       timeZone: z.string()
     });
     
+    // Template settings schema (added to match client structure)
+    const taskTemplateSchema = z.object({
+      name: z.string(),
+      description: z.string(),
+      estimatedHours: z.number(),
+      complexity: z.enum(['low', 'medium', 'high']),
+      taskType: z.string(),
+      implementationSteps: z.array(z.string())
+    });
+    
+    const projectRoleTemplateSchema = z.object({
+      id: z.string(),
+      name: z.string(),
+      roleType: z.string(),
+      locationType: z.string(),
+      seniorityLevel: z.string(),
+      description: z.string(),
+      costRate: z.string(),
+      costUnit: z.string(),
+      currency: z.string(),
+      isActive: z.boolean()
+    });
+    
+    const templateSchema = z.object({
+      implementationTaskTemplates: z.array(taskTemplateSchema),
+      projectRoleTemplates: z.array(projectRoleTemplateSchema),
+      defaultTaskType: z.string(),
+      defaultComplexity: z.enum(['low', 'medium', 'high']),
+      enableTemplateLibrary: z.boolean()
+    });
+    
+    // Optional schemas for backward compatibility
     const passwordPolicySchema = z.object({
       minLength: z.number().int().min(6),
       requireSpecialChars: z.boolean(),
@@ -75,11 +107,26 @@ const validateSettings = (data: any): { valid: boolean, errors?: string[] } => {
       enableThirdPartyIntegrations: z.boolean()
     });
     
-    // Validate each section
+    // Validate required sections
     generalSchema.parse(data.general);
-    authSchema.parse(data.auth);
-    notificationSchema.parse(data.notifications);
-    integrationSchema.parse(data.integrations);
+    
+    // Validate templates section which is used by the client
+    if (data.templates) {
+      templateSchema.parse(data.templates);
+    }
+    
+    // Validate optional sections only if they exist
+    if (data.auth) {
+      authSchema.parse(data.auth);
+    }
+    
+    if (data.notifications) {
+      notificationSchema.parse(data.notifications);
+    }
+    
+    if (data.integrations) {
+      integrationSchema.parse(data.integrations);
+    }
     
     return { valid: true };
   } catch (error) {
