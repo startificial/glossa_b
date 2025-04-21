@@ -35,7 +35,18 @@ const PgStore = connectPgSimple(session);
 
 const app = express();
 // Trust the proxy when in production for secure cookies to work
-app.set('trust proxy', process.env.NODE_ENV === 'production' ? 1 : 0);
+// This is crucial for Replit deployments which use a proxy
+app.set('trust proxy', 1);
+console.log(`[SERVER] Trust proxy setting: ${app.get('trust proxy')}`);
+
+// For debugging HTTP headers in production
+app.use((req, res, next) => {
+  const forwarded = req.headers['x-forwarded-for'];
+  const protocol = req.headers['x-forwarded-proto'];
+  console.log(`[REQUEST] ${req.method} ${req.url} | Forwarded: ${forwarded || 'none'} | Protocol: ${protocol || 'none'}`);
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -86,20 +97,53 @@ const sessionStore = usePostgres
       checkPeriod: 86400000 // prune expired entries every 24h
     });
 
-// Set up session middleware
-app.use(session({
+// Set up session middleware with proper configuration for Replit environment
+const isProduction = process.env.NODE_ENV === "production";
+console.log(`[SERVER] Environment: ${isProduction ? 'production' : 'development'}`);
+
+// Define cookie options based on environment
+const isSecureEnvironment = process.env.NODE_ENV === 'production';
+console.log(`[SERVER] Using secure cookies: ${isSecureEnvironment ? 'Yes' : 'No'}`);
+
+// Define cookie options with explicit type for TypeScript
+const cookieOptions: session.CookieOptions = {
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+  secure: isSecureEnvironment, // Enable secure in production
+  httpOnly: true, 
+  path: '/',
+  sameSite: isSecureEnvironment ? 'none' : 'lax' // Use 'none' in production for cross-site cookies
+};
+
+const sessionConfig = {
   secret: process.env.SESSION_SECRET || "glossa-session-secret",
-  resave: false,
-  saveUninitialized: false,
+  resave: true, // Enable to ensure the session is saved back to the store
+  saveUninitialized: true, // Save even uninitialized sessions (anonymously visited)
   store: sessionStore,
+  proxy: true, // Essential for cookie handling in proxied environments like Replit
+  cookie: cookieOptions
+};
+
+// Log session configuration (without secret)
+console.log(`[SERVER] Session configuration:`, JSON.stringify({
+  ...sessionConfig,
+  secret: '[REDACTED]',
+  store: sessionStore ? 'Configured' : 'None',
   cookie: {
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax", // Allow cookies to be sent in cross-site requests
-    // Allow all subdomains in production
-    domain: process.env.NODE_ENV === "production" ? undefined : undefined, 
+    maxAge: cookieOptions.maxAge,
+    secure: cookieOptions.secure,
+    sameSite: cookieOptions.sameSite,
+    httpOnly: cookieOptions.httpOnly,
+    path: cookieOptions.path,
   }
 }));
+
+app.use(session(sessionConfig));
+
+// Debug middleware to log session on every request
+app.use((req, res, next) => {
+  console.log(`[SESSION-DEBUG] Session ID: ${req.sessionID}, Has userId: ${req.session && req.session.userId ? 'Yes' : 'No'}`);
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
