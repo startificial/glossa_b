@@ -471,6 +471,7 @@ export class DatabaseStorage implements IStorage {
         invitedBy: verifyResult[0].invited_by,
         resetPasswordToken: verifyResult[0].reset_password_token,
         resetPasswordExpires: verifyResult[0].reset_password_expires,
+        isDemo: verifyResult[0].is_demo || false,
         createdAt: new Date(verifyResult[0].created_at),
         updatedAt: new Date(verifyResult[0].updated_at)
       };

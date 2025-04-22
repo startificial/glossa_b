@@ -21,13 +21,33 @@ export const APP_CONSTANTS = {
  * 
  * Note: For frontend, ensure all values are public-safe.
  * For sensitive values, use environment variables in the backend only.
+ * 
+ * This handles both frontend (import.meta.env) and backend (process.env) environments
  */
 export const ENV_CONFIG = {
-  IS_DEVELOPMENT: import.meta.env.DEV,
-  IS_PRODUCTION: import.meta.env.PROD,
-  BASE_URL: import.meta.env.BASE_URL || '/',
-  API_URL: import.meta.env.VITE_API_URL || '/api',
-  APP_MODE: import.meta.env.VITE_APP_MODE || 'standard',
+  IS_DEVELOPMENT: typeof process !== 'undefined' 
+    ? process.env.NODE_ENV === 'development'
+    : typeof import.meta !== 'undefined' && import.meta.env
+      ? import.meta.env.DEV
+      : true,
+  IS_PRODUCTION: typeof process !== 'undefined'
+    ? process.env.NODE_ENV === 'production'
+    : typeof import.meta !== 'undefined' && import.meta.env
+      ? import.meta.env.PROD
+      : false,
+  BASE_URL: typeof import.meta !== 'undefined' && import.meta.env
+    ? import.meta.env.BASE_URL || '/'
+    : '/',
+  API_URL: typeof process !== 'undefined'
+    ? process.env.API_URL || '/api'
+    : typeof import.meta !== 'undefined' && import.meta.env
+      ? import.meta.env.VITE_API_URL || '/api'
+      : '/api',
+  APP_MODE: typeof process !== 'undefined'
+    ? process.env.APP_MODE || 'standard'
+    : typeof import.meta !== 'undefined' && import.meta.env
+      ? import.meta.env.VITE_APP_MODE || 'standard'
+      : 'standard',
 };
 
 /**
@@ -128,4 +148,22 @@ export const ERROR_CODES = {
   DATABASE_ERROR: 'DATABASE_ERROR',
   API_ERROR: 'API_ERROR',
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+};
+
+/**
+ * Demo user configuration
+ * 
+ * Centralized configuration for demo user settings.
+ * This helps eliminate hardcoded values throughout the codebase.
+ */
+export const DEMO_USER_CONFIG = {
+  ENABLED: true,
+  USERNAME: 'demo',
+  DEFAULT_PASSWORD: 'password',
+  FIRST_NAME: 'Demo',
+  LAST_NAME: 'User',
+  EMAIL: 'demo@example.com',
+  COMPANY: 'Demo Company Inc.',
+  ROLE: 'admin',
+  AUTO_LOGIN: ENV_CONFIG.IS_DEVELOPMENT, // Only auto-login in development
 };

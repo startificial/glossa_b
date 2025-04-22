@@ -291,8 +291,17 @@ export async function initializeDatabase() {
 // Create a demo user if one doesn't already exist
 async function createDemoUserIfNotExists() {
   try {
-    // Check if a user with username 'demo' already exists
-    const existingUser = await sql`SELECT id FROM users WHERE username = 'demo'`;
+    // Import configuration for demo user
+    const { DEMO_USER_CONFIG } = await import('@shared/config');
+    
+    // Skip if demo user is disabled in configuration
+    if (!DEMO_USER_CONFIG.ENABLED) {
+      log('Demo user creation is disabled in configuration', 'database');
+      return;
+    }
+    
+    // Check if a user with the configured username already exists
+    const existingUser = await sql`SELECT id FROM users WHERE username = ${DEMO_USER_CONFIG.USERNAME}`;
     
     if (!existingUser || existingUser.length === 0) {
       log('Creating demo user...', 'database');
@@ -301,7 +310,7 @@ async function createDemoUserIfNotExists() {
       const bcrypt = await import('bcrypt');
       
       // Hash the password with bcrypt
-      const hashedPassword = await bcrypt.hash('password', 10);
+      const hashedPassword = await bcrypt.hash(DEMO_USER_CONFIG.DEFAULT_PASSWORD, 10);
       
       // Insert demo user with hashed password
       await sql`
@@ -312,15 +321,17 @@ async function createDemoUserIfNotExists() {
           last_name, 
           email, 
           company, 
-          role
+          role,
+          is_demo
         ) VALUES (
-          'demo', 
+          ${DEMO_USER_CONFIG.USERNAME}, 
           ${hashedPassword}, 
-          'John', 
-          'Doe', 
-          'john.doe@example.com', 
-          'Demo Company Inc.', 
-          'admin'
+          ${DEMO_USER_CONFIG.FIRST_NAME}, 
+          ${DEMO_USER_CONFIG.LAST_NAME}, 
+          ${DEMO_USER_CONFIG.EMAIL}, 
+          ${DEMO_USER_CONFIG.COMPANY}, 
+          ${DEMO_USER_CONFIG.ROLE},
+          true
         )
       `;
       

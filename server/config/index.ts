@@ -98,9 +98,10 @@ export const authConfig = {
   jwtExpiresIn: getOptionalEnv('JWT_EXPIRES_IN', '24h'),
   bcryptRounds: getIntEnv('BCRYPT_ROUNDS', 10),
   
-  // Demo account (for development only)
-  demoUsername: getOptionalEnv('DEMO_USERNAME', 'demo'),
-  demoPassword: getOptionalEnv('DEMO_PASSWORD', 'demo'),
+  // Demo account configuration is now managed in shared/config.ts
+  // These environment variables are kept for backward compatibility
+  demoUsername: getOptionalEnv('DEMO_USERNAME', ''),
+  demoPassword: getOptionalEnv('DEMO_PASSWORD', ''),
 };
 
 /**

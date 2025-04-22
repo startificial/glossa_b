@@ -9,6 +9,18 @@ import { sql } from '../server/db';
 import fs from 'fs';
 import path from 'path';
 
+// Demo user configuration - should match shared/config.ts DEMO_USER_CONFIG
+const DEMO_USER_CONFIG = {
+  USERNAME: 'demo',
+  DEFAULT_PASSWORD: 'password',
+  FIRST_NAME: 'Demo',
+  LAST_NAME: 'User',
+  EMAIL: 'demo@example.com',
+  COMPANY: 'Demo Company Inc.',
+  ROLE: 'admin',
+  IS_DEMO: true
+};
+
 async function syncDatabase() {
   console.log('Starting database schema synchronization...');
   
@@ -58,6 +70,9 @@ async function syncDatabase() {
         "avatar_url" TEXT,
         "role" TEXT NOT NULL DEFAULT 'user',
         "invited_by" INTEGER,
+        "is_demo" BOOLEAN DEFAULT false,
+        "reset_password_token" TEXT,
+        "reset_password_expires" TIMESTAMP,
         "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
@@ -333,14 +348,14 @@ async function syncDatabase() {
     
     // Create a demo user if one doesn't already exist
     console.log('Creating demo user if not exists...');
-    const existingUser = await sql`SELECT id FROM users WHERE username = 'demo'`;
+    const existingUser = await sql`SELECT id FROM users WHERE username = ${DEMO_USER_CONFIG.USERNAME}`;
     
     if (!existingUser || existingUser.length === 0) {
       // Import bcrypt for password hashing
       const bcrypt = await import('bcrypt');
       
       // Hash the password with bcrypt
-      const hashedPassword = await bcrypt.default.hash('password', 10);
+      const hashedPassword = await bcrypt.default.hash(DEMO_USER_CONFIG.DEFAULT_PASSWORD, 10);
       
       await sql`
         INSERT INTO users (
@@ -350,15 +365,17 @@ async function syncDatabase() {
           last_name, 
           email, 
           company, 
-          role
+          role,
+          is_demo
         ) VALUES (
-          'demo', 
+          ${DEMO_USER_CONFIG.USERNAME}, 
           ${hashedPassword}, 
-          'John', 
-          'Doe', 
-          'john.doe@example.com', 
-          'Demo Company Inc.', 
-          'admin'
+          ${DEMO_USER_CONFIG.FIRST_NAME}, 
+          ${DEMO_USER_CONFIG.LAST_NAME}, 
+          ${DEMO_USER_CONFIG.EMAIL}, 
+          ${DEMO_USER_CONFIG.COMPANY}, 
+          ${DEMO_USER_CONFIG.ROLE},
+          ${DEMO_USER_CONFIG.IS_DEMO}
         )
       `;
       console.log('Demo user created successfully with hashed password');

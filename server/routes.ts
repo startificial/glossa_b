@@ -358,18 +358,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json(userWithoutPassword);
     }
     
-    // For demo, auto-login as demo user if not authenticated
-    const demoUser = await storage.getUserByUsername("demo");
-    if (!demoUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Set user in session
-    req.session.userId = demoUser.id;
+    // Import DEMO_USER_CONFIG for centralized configuration
+    const { DEMO_USER_CONFIG, ENV_CONFIG } = await import('@shared/config');
     
-    // Don't return the password
-    const { password, ...userWithoutPassword } = demoUser;
-    res.json(userWithoutPassword);
+    // Only auto-login as demo user if enabled in config and in development mode
+    if (DEMO_USER_CONFIG.ENABLED && DEMO_USER_CONFIG.AUTO_LOGIN) {
+      // Find demo user by configured username
+      const demoUser = await storage.getUserByUsername(DEMO_USER_CONFIG.USERNAME);
+      if (!demoUser) {
+        return res.status(404).json({ message: "Demo user not found" });
+      }
+      
+      // Check if this is actually a demo user
+      if (!demoUser.isDemo) {
+        console.warn(`User with username ${DEMO_USER_CONFIG.USERNAME} exists but is not marked as a demo user`);
+      }
+
+      // Set user in session
+      req.session.userId = demoUser.id;
+      
+      // Don't return the password
+      const { password, ...userWithoutPassword } = demoUser;
+      return res.json(userWithoutPassword);
+    }
+    
+    // No auto-login if feature is disabled
+    return res.status(401).json({ message: "Not authenticated" });
   });
   
   // Update user profile endpoint

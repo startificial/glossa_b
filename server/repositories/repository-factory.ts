@@ -36,12 +36,12 @@ class RepositoryFactory {
    * Get the user repository
    * @returns UserRepository instance
    */
-  getUserRepository(): UserRepository {
+  async getUserRepository(): Promise<UserRepository> {
     if (!this._userRepository) {
       // For now, create a mock implementation
       // When PostgresUserRepository is implemented, use:
       // this._userRepository = new PostgresUserRepository(db);
-      this._userRepository = this.createMockUserRepository();
+      this._userRepository = await this.createMockUserRepository();
     }
     
     return this._userRepository;
@@ -96,12 +96,45 @@ class RepositoryFactory {
    * Create a mock user repository for development
    * @returns Mock UserRepository
    */
-  private createMockUserRepository(): UserRepository {
+  private async createMockUserRepository(): Promise<UserRepository> {
+    // Import DEMO_USER_CONFIG for mock data
+    const { DEMO_USER_CONFIG } = await import('@shared/config');
+    
     return {
       findAll: async () => [],
-      findById: async (id) => ({ id: id, username: 'demo', password: 'password', email: 'demo@example.com' } as any),
-      findByUsername: async (username) => ({ id: 1, username, password: 'password', email: 'demo@example.com' } as any),
-      findByEmail: async (email) => ({ id: 1, username: 'demo', password: 'password', email } as any),
+      findById: async (id) => ({ 
+        id: id, 
+        username: DEMO_USER_CONFIG.USERNAME, 
+        password: DEMO_USER_CONFIG.DEFAULT_PASSWORD, 
+        email: DEMO_USER_CONFIG.EMAIL,
+        firstName: DEMO_USER_CONFIG.FIRST_NAME,
+        lastName: DEMO_USER_CONFIG.LAST_NAME,
+        company: DEMO_USER_CONFIG.COMPANY,
+        role: DEMO_USER_CONFIG.ROLE,
+        isDemo: true
+      } as any),
+      findByUsername: async (username) => ({ 
+        id: 1, 
+        username, 
+        password: DEMO_USER_CONFIG.DEFAULT_PASSWORD, 
+        email: DEMO_USER_CONFIG.EMAIL,
+        firstName: DEMO_USER_CONFIG.FIRST_NAME,
+        lastName: DEMO_USER_CONFIG.LAST_NAME,
+        company: DEMO_USER_CONFIG.COMPANY,
+        role: DEMO_USER_CONFIG.ROLE,
+        isDemo: true
+      } as any),
+      findByEmail: async (email) => ({ 
+        id: 1, 
+        username: DEMO_USER_CONFIG.USERNAME, 
+        password: DEMO_USER_CONFIG.DEFAULT_PASSWORD, 
+        email,
+        firstName: DEMO_USER_CONFIG.FIRST_NAME,
+        lastName: DEMO_USER_CONFIG.LAST_NAME,
+        company: DEMO_USER_CONFIG.COMPANY,
+        role: DEMO_USER_CONFIG.ROLE,
+        isDemo: true
+      } as any),
       create: async (entity) => ({ id: 1, ...entity }),
       update: async (id, entity) => ({ id, ...entity }),
       delete: async () => true

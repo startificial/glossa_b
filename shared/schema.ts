@@ -42,6 +42,7 @@ export const users = pgTable("users", {
   company: text("company"),
   avatarUrl: text("avatar_url"),
   role: text("role").default("user").notNull(), // Valid values: 'user', 'admin'
+  isDemo: boolean("is_demo").default(false), // Flag to identify demo accounts
   invitedBy: integer("invited_by"), // Self-reference to track who invited this user
   resetPasswordToken: text("reset_password_token"), // Token for password reset
   resetPasswordExpires: timestamp("reset_password_expires"), // Expiration for reset token
@@ -62,6 +63,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   company: true,
   avatarUrl: true,
   role: true,
+  isDemo: true,
   invitedBy: true,
 });
 

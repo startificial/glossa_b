@@ -8,16 +8,19 @@ import { repositoryFactory } from '../repositories';
 
 // Example: Using the User Repository
 async function userRepositoryExample() {
-  // Get the user repository from the factory
-  const userRepository = repositoryFactory.getUserRepository();
+  // Get the user repository from the factory (handles async)
+  const userRepository = await repositoryFactory.getUserRepository();
   
   try {
     // Find a user by ID
     const user = await userRepository.findById(1);
     console.log('User found:', user);
     
-    // Find a user by username
-    const userByUsername = await userRepository.findByUsername('demo');
+    // Import centralized demo user configuration
+    const { DEMO_USER_CONFIG } = await import('@shared/config');
+    
+    // Find a user by username using configured value
+    const userByUsername = await userRepository.findByUsername(DEMO_USER_CONFIG.USERNAME);
     console.log('User by username:', userByUsername);
     
     // Find all users
@@ -76,15 +79,18 @@ async function requirementRepositoryExample() {
 
 // Example: Combined repository usage
 async function combinedRepositoryExample() {
-  const userRepository = repositoryFactory.getUserRepository();
+  const userRepository = await repositoryFactory.getUserRepository();
   const projectRepository = repositoryFactory.getProjectRepository();
   const requirementRepository = repositoryFactory.getRequirementRepository();
   
   try {
-    // Get a user
-    const user = await userRepository.findByUsername('demo');
+    // Import centralized demo user configuration
+    const { DEMO_USER_CONFIG } = await import('@shared/config');
+    
+    // Get a user using configured username
+    const user = await userRepository.findByUsername(DEMO_USER_CONFIG.USERNAME);
     if (!user) {
-      console.log('User not found');
+      console.log(`User ${DEMO_USER_CONFIG.USERNAME} not found`);
       return;
     }
     

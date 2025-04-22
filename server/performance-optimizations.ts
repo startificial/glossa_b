@@ -88,14 +88,17 @@ async function primeApplicationCache(): Promise<void> {
   try {
     console.log('[Performance] Priming application cache...');
     
+    // Import configuration for demo user
+    const { DEMO_USER_CONFIG } = await import('@shared/config');
+    
     // Get the demo user (always needed)
     const demoUserResult = await db.execute(sql`
-      SELECT * FROM users WHERE username = 'demo' LIMIT 1;
+      SELECT * FROM users WHERE username = ${DEMO_USER_CONFIG.USERNAME} LIMIT 1;
     `);
     
     if (demoUserResult.rows.length > 0) {
       // Cache the demo user
-      cacheService.set('user:username:demo', demoUserResult.rows[0], 30 * 60 * 1000); // 30 minutes
+      cacheService.set(`user:username:${DEMO_USER_CONFIG.USERNAME}`, demoUserResult.rows[0], 30 * 60 * 1000); // 30 minutes
       cacheService.set(`user:${demoUserResult.rows[0].id}`, demoUserResult.rows[0], 30 * 60 * 1000);
     }
     
