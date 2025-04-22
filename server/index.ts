@@ -15,6 +15,7 @@ import { warmAllModels, scheduleModelWarming } from "./model-warming-service";
 import { initDocumentMiddleware } from "./document-middleware";
 import { registerPdfRoutes } from "./simple-pdf-generator";
 import passport from 'passport';
+import { setupAuth } from "./auth";
 
 // Always use PostgreSQL database if available
 // This ensures consistent data retrieval and proper handling of complex fields like acceptanceCriteria
@@ -168,7 +169,11 @@ console.log('[SERVER] Initializing Passport.js');
 const passportInstance = passport;
 app.use(passportInstance.initialize());
 app.use(passportInstance.session());
-console.log('[SERVER] Passport.js initialized');
+
+// Initialize our authentication routes and strategies
+setupAuth(app);
+
+console.log('[SERVER] Passport.js and authentication initialized');
 
 // Debug middleware to log session on every request
 app.use((req, res, next) => {
@@ -224,8 +229,8 @@ async function startServer() {
       registerPdfRoutes(app);
     }
     
-    // Register application routes with quick start mode
-    const server = await registerRoutes(app, QUICK_START);
+    // Register application routes
+    const server = await registerRoutes(app);
 
     // Error handling middleware
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

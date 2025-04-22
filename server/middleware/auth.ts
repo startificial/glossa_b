@@ -17,15 +17,16 @@ export function requireAuthentication(req: Request, res: Response, next: NextFun
   // Enhanced debugging for authentication issues
   console.log(`[AUTH-DEBUG] Session ID: ${req.sessionID || 'none'}`);
   console.log(`[AUTH-DEBUG] Session data:`, JSON.stringify(req.session || {}));
-  console.log(`[AUTH-DEBUG] Is authenticated: ${req.session && req.session.userId ? 'true' : 'false'}`);
+  console.log(`[AUTH-DEBUG] Is passport authenticated: ${req.isAuthenticated ? req.isAuthenticated() : 'false'}`);
+  console.log(`[AUTH-DEBUG] Is session authenticated: ${req.session && req.session.userId ? 'true' : 'false'}`);
   console.log(`[AUTH-DEBUG] Headers:`, JSON.stringify({
     'cookie': req.headers.cookie || 'none',
     'x-forwarded-for': req.headers['x-forwarded-for'] || 'none',
     'x-forwarded-proto': req.headers['x-forwarded-proto'] || 'none'
   }));
   
-  // Check if there's a user ID in the session
-  if (!req.session || !req.session.userId) {
+  // Check if there's a user ID in the session OR if the user is authenticated via passport
+  if ((!req.session || !req.session.userId) && !(req.isAuthenticated && req.isAuthenticated())) {
     throw new UnauthorizedError('Authentication required');
   }
   
@@ -33,9 +34,18 @@ export function requireAuthentication(req: Request, res: Response, next: NextFun
 }
 
 /**
- * Legacy middleware name for backward compatibility
+ * Express middleware to check authentication without throwing errors
+ * Responds with 401 Unauthorized status instead
  */
-export const isAuthenticated = requireAuthentication;
+export function isAuthenticated(req: Request, res: Response, next: NextFunction): void {
+  // Use either session or passport authentication
+  if ((!req.session || !req.session.userId) && !(req.isAuthenticated && req.isAuthenticated())) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  
+  next();
+}
 
 /**
  * Middleware to check if a user is an admin
@@ -85,7 +95,9 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
  * @param next Express next function
  */
 export function logAuthentication(req: Request, res: Response, next: NextFunction): void {
-  console.log(`[AUTH] Request to ${req.method} ${req.path} | Auth status: ${req.session.userId ? 'Authenticated' : 'Not authenticated'}`);
+  const isSessionAuth = req.session && req.session.userId ? true : false;
+  const isPassportAuth = req.isAuthenticated && req.isAuthenticated() ? true : false;
+  console.log(`[AUTH] Request to ${req.method} ${req.path} | Auth status: ${isSessionAuth || isPassportAuth ? 'Authenticated' : 'Not authenticated'}`);
   
   next();
 }
