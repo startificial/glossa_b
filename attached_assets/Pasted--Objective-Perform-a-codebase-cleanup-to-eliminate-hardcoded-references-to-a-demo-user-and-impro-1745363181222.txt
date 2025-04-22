@@ -1,0 +1,24 @@
+**Objective:** Perform a codebase cleanup to eliminate hardcoded references to a demo user and improve the overall architecture related to user handling.
+
+**Context:**
+The codebase currently contains hardcoded references to a specific demo user (potentially identified by strings like 'demoUser', specific IDs like `123`, or hardcoded email addresses like 'demo@example.com'). This creates maintenance issues, potential security risks, and hinders flexibility (e.g., changing the demo user or running tests).
+
+**Task:**
+1.  **Identify:** Locate all hardcoded references to the demo user throughout the codebase (`[mention specific known identifiers if any, e.g., 'demo_user', 'test_account', user ID 1]`). This includes:
+    * Direct string comparisons.
+    * Hardcoded user IDs or emails in queries or logic.
+    * Conditional logic explicitly checking for the demo user.
+    * Default values using demo user details.
+2.  **Analyze:** Understand the *purpose* of each identified hardcoded reference (e.g., default login, form population, bypassing specific features, testing setup).
+3.  **Refactor:** Replace these hardcoded elements with a well-architected, flexible, and maintainable solution. Consider approaches such as:
+    * **Configuration Files/Environment Variables:** Define demo user details or flags externally (e.g., in `.env`, `settings.py`, `appsettings.json`).
+    * **User Roles/Flags:** Introduce a specific role (e.g., `ROLE_DEMO`) or a boolean flag (`is_demo_account`) on the user model.
+    * **Dependency Injection/Service Locator:** Abstract user retrieval or checking behind an interface where the demo user logic can be configured.
+    * **Dedicated Test/Seeding Logic:** Replace hardcoded demo users in test setups with proper test fixtures or database seeding mechanisms.
+4.  **Ensure Quality:** The refactored code should adhere to SOLID principles (if applicable), be readable, testable, and properly formatted according to project standards.
+
+**Specific Considerations:**
+* Consider the implications for existing tests – they may need updating.
+* Ensure the chosen solution is appropriate for the specific context where the demo user was used.
+
+**Deliverable:** Propose and/or implement the refactored code, clearly explaining the chosen approach for each replacement. Highlight any necessary changes to configuration or testing infrastructure.

@@ -2588,8 +2588,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Found project: ${project.name}`);
 
-      // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      // Use the authenticated user from the session
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(req.session.userId);
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -2696,8 +2700,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Found project for implementation tasks:', project.name);
 
-      // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      // Use the authenticated user from the session
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(req.session.userId);
+      
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2791,8 +2800,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Search routes
   app.get("/api/search/quick", async (req: Request, res: Response) => {
     try {
-      // For demo purposes, we'll use the demo user ID if no session is present
-      const userId = req.session.userId || 1;
+      // Check if user is authenticated
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const userId = req.session.userId;
       
       const query = req.query.q as string || "";
       const limit = parseInt(req.query.limit as string || "5");
@@ -2816,8 +2829,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/search/advanced", async (req: Request, res: Response) => {
     try {
-      // For demo purposes, we'll use the demo user ID if no session is present
-      const userId = req.session.userId || 1;
+      // Check if user is authenticated
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const userId = req.session.userId;
       
       const query = req.query.q as string || "";
       const page = parseInt(req.query.page as string || "1");
