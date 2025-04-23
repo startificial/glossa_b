@@ -63,13 +63,21 @@ const app = express();
 app.set('trust proxy', 1);
 console.log(`[SERVER] Trust proxy setting: ${app.get('trust proxy')}`);
 
-// For debugging HTTP headers in production
-app.use((req, res, next) => {
-  const forwarded = req.headers['x-forwarded-for'];
-  const protocol = req.headers['x-forwarded-proto'];
-  console.log(`[REQUEST] ${req.method} ${req.url} | Forwarded: ${forwarded || 'none'} | Protocol: ${protocol || 'none'}`);
-  next();
-});
+// For debugging HTTP headers in production (only when DEBUG_LOGS=true)
+const enableDebugLogs = process.env.DEBUG_LOGS === 'true';
+console.log(`[SERVER] Debug logs ${enableDebugLogs ? 'enabled' : 'disabled'}`);
+
+if (enableDebugLogs) {
+  app.use((req, res, next) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    const protocol = req.headers['x-forwarded-proto'];
+    console.log(`[REQUEST] ${req.method} ${req.url} | Forwarded: ${forwarded || 'none'} | Protocol: ${protocol || 'none'}`);
+    next();
+  });
+} else {
+  // Skip request logging middleware when debug logs are disabled
+  app.use((req, res, next) => next());
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -95,13 +103,19 @@ if (!fs.existsSync(documentsDir)) {
 }
 // Use express.static with mime type overrides for PDF
 app.use('/downloads/documents', (req, res, next) => {
-  console.log('Received request for static document:', req.url);
+  if (enableDebugLogs) {
+    console.log('Received request for static document:', req.url);
+  }
   next();
 }, express.static(documentsDir, {
   setHeaders: (res, filePath) => {
-    console.log('Serving static file:', filePath);
+    if (enableDebugLogs) {
+      console.log('Serving static file:', filePath);
+    }
     if (filePath.endsWith('.pdf')) {
-      console.log('Setting PDF headers for file:', filePath);
+      if (enableDebugLogs) {
+        console.log('Setting PDF headers for file:', filePath);
+      }
       res.setHeader('Content-Type', 'application/pdf');
       // Add content disposition for downloads
       const fileName = path.basename(filePath);
@@ -175,12 +189,17 @@ setupAuth(app);
 
 console.log('[SERVER] Passport.js and authentication initialized');
 
-// Debug middleware to log session on every request
-app.use((req, res, next) => {
-  console.log(`[SESSION-DEBUG] Session ID: ${req.sessionID}, Has userId: ${req.session && req.session.userId ? 'Yes' : 'No'}`);
-  console.log(`[SESSION-DEBUG] Is Authenticated: ${req.isAuthenticated?.() ? 'Yes' : 'No'}`);
-  next();
-});
+// Debug middleware to log session on every request (only when DEBUG_LOGS=true)
+if (enableDebugLogs) {
+  app.use((req, res, next) => {
+    console.log(`[SESSION-DEBUG] Session ID: ${req.sessionID}, Has userId: ${req.session && req.session.userId ? 'Yes' : 'No'}`);
+    console.log(`[SESSION-DEBUG] Is Authenticated: ${req.isAuthenticated?.() ? 'Yes' : 'No'}`);
+    next();
+  });
+} else {
+  // Skip session logging middleware when debug logs are disabled
+  app.use((req, res, next) => next());
+}
 
 app.use((req, res, next) => {
   const start = Date.now();
