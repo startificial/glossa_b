@@ -2870,15 +2870,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Found project for implementation tasks:', project.name);
 
-<<<<<<< HEAD
-      // Use the authenticated user from the session
-      if (!req.session.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
-      const user = await storage.getUser(req.session.userId);
-      
-=======
       // Get user from session or fall back to admin user
       let user;
       if (req.session && req.session.userId) {
@@ -2886,7 +2877,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If no session user found, try admin user as fallback
->>>>>>> 2f130a2c2e08bd88634073944b20f4f0ee4c6d68
       if (!user) {
         user = await storage.getUserByUsername("glossa_admin");
       }
