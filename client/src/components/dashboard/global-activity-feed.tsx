@@ -63,10 +63,18 @@ export function GlobalActivityFeed() {
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
                     <Avatar className="h-8 w-8">
+                      {/* Debug output for this specific user */}
+                      {console.log('User initials debug:', 
+                        index,
+                        activity.user?.id,
+                        activity.user?.username, 
+                        activity.user?.firstName, 
+                        activity.user?.lastName)}
+                      
                       {activity.user?.avatarUrl ? (
                         <AvatarImage 
                           src={activity.user.avatarUrl} 
-                          alt={`${activity.user.firstName} ${activity.user.lastName}`} 
+                          alt={`${activity.user.firstName || ''} ${activity.user.lastName || ''}`} 
                         />
                       ) : (
                         <AvatarFallback>
