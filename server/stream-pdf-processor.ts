@@ -71,15 +71,16 @@ export async function streamProcessPdfText(
     
     // For longer texts, split into chunks and process each chunk
     // Calculate optimal chunk size and overlap based on text length
+    // Use smaller chunks to prevent memory issues
     const calculateChunkParams = (textLength: number) => {
       if (textLength < 10000) {
-        return { chunkSize: 5000, overlap: 500, maxChunks: 2 };
+        return { chunkSize: 4000, overlap: 400, maxChunks: 2 };
       } else if (textLength < 30000) {
-        return { chunkSize: 8000, overlap: 800, maxChunks: 3 };
+        return { chunkSize: 6000, overlap: 600, maxChunks: 3 };
       } else if (textLength < 100000) {
-        return { chunkSize: 10000, overlap: 1000, maxChunks: 5 };
+        return { chunkSize: 8000, overlap: 800, maxChunks: 4 };
       } else {
-        return { chunkSize: 15000, overlap: 1500, maxChunks: 8 };
+        return { chunkSize: 10000, overlap: 1000, maxChunks: 6 };
       }
     };
     
@@ -125,8 +126,8 @@ export async function streamProcessPdfText(
     if (inputDataId) {
       console.log('Adding text references to requirements...');
       
-      // Process requirements in batches to avoid memory issues
-      const batchSize = 5;
+      // Process requirements in smaller batches to avoid memory issues
+      const batchSize = 3; // Reduced from 5 to prevent memory issues
       const batches = [];
       
       for (let i = 0; i < uniqueRequirements.length; i += batchSize) {

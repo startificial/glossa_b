@@ -580,9 +580,9 @@ export async function processPdfFile(
     const freeSystemMemoryMB = Math.round(os.freemem() / 1024 / 1024);
     console.log(`System memory: ${freeSystemMemoryMB}MB free of ${totalSystemMemoryMB}MB total`);
     
-    // Adjust batch size based on available memory and content size
+    // Adjust batch size based on available memory and content size - use more conservative values to prevent OOM
     const BATCH_SIZE = freeSystemMemoryMB < 2048 ? 1 : 
-                      freeSystemMemoryMB < 4096 ? 2 : 3; // Process fewer sections at a time if memory is limited
+                      freeSystemMemoryMB < 4096 ? 1 : 2; // Use smaller batch sizes to prevent memory issues
     
     for (let batchStart = 0; batchStart < sections.length; batchStart += BATCH_SIZE) {
       const batchEnd = Math.min(batchStart + BATCH_SIZE, sections.length);
