@@ -49,6 +49,24 @@ import VideoProcessor from "./video-processor";
 import { generateAcceptanceCriteria, generateImplementationTasks } from "./claude";
 import { z } from "zod";
 
+/**
+ * Helper function to get the current user from session
+ * Falls back to admin user if no session user is found
+ */
+async function getCurrentUser(req: Request, storage: any) {
+  let user;
+  if (req.session && req.session.userId) {
+    user = await storage.getUser(req.session.userId);
+  } 
+  
+  // If no user from session, try admin as fallback
+  if (!user) {
+    user = await storage.getUserByUsername("glossa_admin");
+  }
+  
+  return user;
+}
+
 // Authentication middleware
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.session && req.session.userId) {
@@ -1403,10 +1421,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      // Get user from session or fall back to admin user
+      let user;
+      if (req.session && req.session.userId) {
+        user = await storage.getUser(req.session.userId);
+      }
+      
+      // If no session user found, try admin user as fallback
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        user = await storage.getUserByUsername("glossa_admin");
+      }
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found - please log in" });
       }
 
       if (!req.file) {
@@ -1881,6 +1908,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading input data:", error);
       res.status(400).json({ message: "Error uploading file", error });
+    }
+  });
+  
+  // Input data processing endpoint
+  app.post("/api/input-data/:inputDataId/process", async (req: Request, res: Response) => {
+    try {
+      const inputDataId = parseInt(req.params.inputDataId);
+      if (isNaN(inputDataId)) {
+        return res.status(400).json({ message: "Invalid input data ID" });
+      }
+
+      // Get the input data
+      const inputData = await storage.getInputData(inputDataId);
+      if (!inputData) {
+        return res.status(404).json({ message: "Input data not found" });
+      }
+
+      // Get the project
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, inputData.projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // For demo, always use the demo user
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Mark input data as processing
+      await storage.updateInputData(inputDataId, { status: "processing" });
+
+      // Process input data asynchronously
+      (async () => {
+        try {
+          // Get processing parameters
+          const numAnalyses = 3; // Default number of perspectives for analysis
+          const reqPerAnalysis = 3; // Default number of requirements per perspective
+          const minRequirements = 5; // Minimum number of requirements to generate
+          
+          let requirements = [];
+          try {
+            // Determine file type and content type
+            const type = inputData.type;
+            const contentType = inputData.contentType || "general";
+            
+            // Process the file based on its type
+            // Note: This is a simplified version - the actual implementation would need
+            // to read the file from filePath and process it with appropriate AI services
+            
+            // Add log for tracking
+            console.log(`Processing input data ID ${inputDataId} of type ${type}`);
+            
+            // Generate requirements based on the input data
+            requirements = await generateRequirementsForFile(
+              type,
+              inputData.name,
+              project.name,
+              inputData.filePath,
+              contentType,
+              numAnalyses,
+              reqPerAnalysis
+            );
+            
+          } catch (processingError) {
+            console.error("Error processing input data:", processingError);
+            // Mark as failed and exit
+            await storage.updateInputData(inputDataId, { status: "failed" });
+            return;
+          }
+          
+          // Generate code IDs for requirements
+          let nextReqCounter = 1;
+          
+          // Create requirements in database
+          for (const requirement of requirements) {
+            // Generate code ID (e.g., REQ-001, REQ-002)
+            const codeId = `REQ-${String(nextReqCounter++).padStart(3, '0')}`;
+            
+            // Extract title and description
+            let title = requirement.title || "Untitled Requirement";
+            let description = requirement.description || "";
+            
+            // If the requirement has a 'text' field but no 'description', use the text field content
+            if (!description && requirement.text) {
+              description = requirement.text;
+              console.log(`Converting legacy format requirement (text) to new format (description) for ${codeId}`);
+            }
+            
+            await storage.createRequirement({
+              title: title,
+              description: description,
+              category: requirement.category || 'functional',
+              priority: requirement.priority || 'medium',
+              projectId: inputData.projectId,
+              inputDataId: inputDataId,
+              codeId,
+              source: inputData.name,
+              videoScenes: requirement.videoScenes || [],
+              textReferences: requirement.textReferences || [],
+              audioTimestamps: requirement.audioTimestamps || []
+            });
+          }
+          
+          // Update input data status to completed
+          await storage.updateInputData(inputDataId, { status: "completed" });
+          
+          // Add activity
+          await storage.createActivity({
+            type: "generated_requirements",
+            description: `${user.username} generated requirements from ${inputData.name}`,
+            userId: user.id,
+            projectId: inputData.projectId,
+            relatedEntityId: inputDataId
+          });
+        } catch (error) {
+          console.error("Error processing file:", error);
+          await storage.updateInputData(inputDataId, { status: "failed" });
+        }
+      })();
+
+      // Return success immediately while processing continues in background
+      res.status(202).json({ message: "Processing started" });
+    } catch (error) {
+      console.error("Error processing input data:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -2602,7 +2758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Found project: ${project.name}`);
 
-      // Use the authenticated user from the session
+// Use the authenticated user from the session
       if (!req.session.userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -2610,7 +2766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(req.session.userId);
       
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        return res.status(404).json({ message: "User not found - please log in" });
       }
 
       // Check if API key is available
@@ -2714,6 +2870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Found project for implementation tasks:', project.name);
 
+<<<<<<< HEAD
       // Use the authenticated user from the session
       if (!req.session.userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -2721,8 +2878,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const user = await storage.getUser(req.session.userId);
       
+=======
+      // Get user from session or fall back to admin user
+      let user;
+      if (req.session && req.session.userId) {
+        user = await storage.getUser(req.session.userId);
+      }
+      
+      // If no session user found, try admin user as fallback
+>>>>>>> 2f130a2c2e08bd88634073944b20f4f0ee4c6d68
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        user = await storage.getUserByUsername("glossa_admin");
+      }
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found - please log in" });
       }
 
       // Check if source and target systems are defined
@@ -3357,6 +3527,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
+      }
+      
+      // Check for authenticated user
+      let user = null;
+      if (req.isAuthenticated() && req.user) {
+        user = req.user;
+      } else {
+        // For demo, fallback to demo or admin user if not authenticated
+        user = await storage.getUserByUsername("demo");
+        if (!user) {
+          user = await storage.getUserByUsername("glossa_admin");
+        }
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
       }
       
       // Get project requirements
