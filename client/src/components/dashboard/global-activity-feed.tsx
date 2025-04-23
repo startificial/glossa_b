@@ -28,6 +28,25 @@ interface ActivityWithProjectAndUser extends Activity {
 export function GlobalActivityFeed() {
   const { data: activities, isLoading } = useQuery<ActivityWithProjectAndUser[]>({
     queryKey: ['/api/activities'],
+    
+    // Transform the data to fix the display of user names and initials
+    select: (data) => {
+      return data.map(activity => {
+        // Make a copy so we don't modify the cached data
+        const activityCopy = { ...activity };
+        
+        // Ensure the activity description shows the real user name
+        if (activityCopy.user && activityCopy.description.startsWith('demo')) {
+          const realName = activityCopy.user.firstName && activityCopy.user.lastName
+            ? `${activityCopy.user.firstName} ${activityCopy.user.lastName}`
+            : activityCopy.user.username;
+          
+          activityCopy.description = activityCopy.description.replace('demo', realName);
+        }
+        
+        return activityCopy;
+      });
+    }
   });
 
   return (
@@ -63,13 +82,17 @@ export function GlobalActivityFeed() {
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
                     <Avatar className="h-8 w-8">
-                      {/* Debug output for this specific user */}
-                      {console.log('User initials debug:', 
-                        index,
-                        activity.user?.id,
-                        activity.user?.username, 
-                        activity.user?.firstName, 
-                        activity.user?.lastName)}
+                      {/* Debug output for this specific user, wrapped in fragment to avoid React node error */}
+                      {process.env.NODE_ENV !== 'production' && (
+                        <>
+                          {console.log('User initials debug:', 
+                            index,
+                            activity.user?.id,
+                            activity.user?.username, 
+                            activity.user?.firstName, 
+                            activity.user?.lastName)}
+                        </>
+                      )}
                       
                       {activity.user?.avatarUrl ? (
                         <AvatarImage 
@@ -79,10 +102,31 @@ export function GlobalActivityFeed() {
                       ) : (
                         <AvatarFallback>
                           {activity.user && activity.user.firstName && activity.user.lastName ? 
-                            `${activity.user.firstName.charAt(0)}${activity.user.lastName.charAt(0)}` : 
-                            (activity.user && activity.user.username ? 
-                              activity.user.username.substring(0, 2).toUpperCase() : 
-                              activity.description.substring(0, 2).toUpperCase())}
+                            /* If we have both first and last name, use their initials */
+                            `${activity.user.firstName.charAt(0)}${activity.user.lastName.charAt(0)}` :
+                            
+                            activity.user && activity.user.username ? 
+                              /* If we only have username, extract initials from it */
+                              (activity.user.username.split(/[._-\s]/).length > 1 ? 
+                                /* If username has separators, use first letter of each part */
+                                activity.user.username.split(/[._-\s]/)
+                                  .slice(0, 2)
+                                  .map(part => part.charAt(0).toUpperCase())
+                                  .join('') :
+                                /* Otherwise just use first two characters of username */
+                                activity.user.username.substring(0, 2).toUpperCase()) :
+                              
+                              /* Last resort: extract from activity description if available */
+                              activity.description ? 
+                                (activity.description.match(/^(\w+)\s+/) ? 
+                                  /* If description starts with a username pattern, use that */
+                                  (activity.description.match(/^(\w+)\s+/) || ['', 'UN'])[1].substring(0, 2).toUpperCase() :
+                                  /* Otherwise use first two characters of description */
+                                  activity.description.substring(0, 2).toUpperCase()) :
+                                
+                                /* Absolute last resort, if we have nothing else */
+                                'UN' /* Unknown */
+                          }
                         </AvatarFallback>
                       )}
                     </Avatar>

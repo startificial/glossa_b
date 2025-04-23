@@ -2440,7 +2440,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add project name and user data to each activity
       const activitiesWithData = activities.map(activity => {
         const project = projectsMap.get(activity.projectId);
-        const user = usersMap.get(activity.userId);
+        let user = usersMap.get(activity.userId);
+        
+        // Handle missing user data by extracting from activity description
+        if (!user || !user.firstName || !user.lastName || !user.username) {
+          // Try to extract username from the activity description (format: "username did something")
+          const usernameMatch = activity.description.match(/^(\w+)\s+/);
+          const extractedUsername = usernameMatch ? usernameMatch[1] : null;
+          
+          if (extractedUsername) {
+            // Generate a name from the extracted username
+            const nameParts = extractedUsername.split(/[._-]/).map(part => 
+              part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+            );
+            
+            // Create a basic profile using data we can extract from the username
+            user = {
+              id: activity.userId,
+              username: extractedUsername, 
+              firstName: nameParts[0] || extractedUsername,
+              lastName: nameParts.length > 1 ? nameParts[1] : "",
+              email: null,
+              company: null,
+              avatarUrl: null,
+              role: "user",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+          }
+        }
+        
         return {
           ...activity,
           projectName: project ? project.name : 'Unknown Project',
