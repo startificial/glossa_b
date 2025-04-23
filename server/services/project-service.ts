@@ -31,11 +31,12 @@ export class ProjectService {
   
   /**
    * Get projects by user ID
-   * @param userId User ID to filter by
-   * @returns Array of projects belonging to the user
+   * @param userId User ID to filter by (not used for filtering anymore, keeping for backward compatibility)
+   * @returns Array of all projects (organization-wide visibility)
    */
   async getProjectsByUser(userId: number): Promise<Project[]> {
-    return this.projectRepository.findByUserId(userId);
+    // Return all projects instead of filtering by user ID
+    return this.projectRepository.findAll();
   }
   
   /**
