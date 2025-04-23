@@ -4,8 +4,7 @@
  * Factory for creating repository instances.
  * Centralizes repository creation and handles configuration.
  */
-// Mock database import for now - will be replaced with actual database connection
-const db = {};
+import { db } from '../db';
 
 import {
   UserRepository,
@@ -14,11 +13,10 @@ import {
   TaskRepository
 } from './base-repository';
 
-// Import implementations when they exist
-// import { PostgresUserRepository } from './implementations/postgres-user-repository';
-// import { PostgresProjectRepository } from './implementations/postgres-project-repository';
-// import { PostgresRequirementRepository } from './implementations/postgres-requirement-repository';
-// import { PostgresTaskRepository } from './implementations/postgres-task-repository';
+// Import actual implementations
+import { PostgresUserRepository } from './implementations/postgres-user-repository';
+import { PostgresProjectRepository } from './implementations/postgres-project-repository';
+import { PostgresRequirementRepository } from './implementations/postgres-requirement-repository';
 
 /**
  * Repository Factory
@@ -53,10 +51,8 @@ class RepositoryFactory {
    */
   getProjectRepository(): ProjectRepository {
     if (!this._projectRepository) {
-      // For now, create a mock implementation
-      // When PostgresProjectRepository is implemented, use:
-      // this._projectRepository = new PostgresProjectRepository(db);
-      this._projectRepository = this.createMockProjectRepository();
+      // Use the PostgreSQL implementation
+      this._projectRepository = new PostgresProjectRepository();
     }
     
     return this._projectRepository;

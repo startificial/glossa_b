@@ -603,9 +603,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Query projects from the database using the authenticated user's ID
+      // Query all projects from the database - organization-wide visibility
       const projectsList = await db.query.projects.findMany({
-        where: eq(projects.userId, userId),
         orderBy: [desc(projects.updatedAt)]
       });
       
@@ -638,10 +637,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // Verify project belongs to the authenticated user
-      if (project.userId !== userId) {
-        return res.status(403).json({ message: "You don't have permission to view this project" });
-      }
+      // Organization-wide access - all authenticated users can access all projects
+      // No need to verify if project belongs to the current user
 
       // If the project has a customer ID, fetch the customer details
       if (project.customerId) {
@@ -759,10 +756,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // Verify project belongs to the authenticated user
-      if (project.userId !== userId) {
-        return res.status(403).json({ message: "You don't have permission to update this project" });
-      }
+      // Organization-wide access - all authenticated users can update all projects
+      // No need to verify if project belongs to the current user
 
       // If customerId is provided, verify it exists
       if (req.body.customerId) {
@@ -830,10 +825,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
 
-      // Verify project belongs to the authenticated user
-      if (project.userId !== userId) {
-        return res.status(403).json({ message: "You don't have permission to delete this project" });
-      }
+      // Organization-wide access - all authenticated users can delete all projects
+      // No need to verify if project belongs to the current user
 
       // Delete from database (this will cascade delete related records since we defined CASCADE on FOREIGN KEYS)
       await db.delete(projects).where(eq(projects.id, projectId));
@@ -2416,9 +2409,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const activities = await storage.getAllActivities(limit);
       
-      // Fetch project names to include with activities
+      // Fetch all projects for organization-wide visibility
       const projectsMap = new Map();
-      const projects = Array.from((await storage.getProjects(1)));
+      // Query all projects directly from the database
+      const projects = await db.query.projects.findMany();
       projects.forEach(project => {
         projectsMap.set(project.id, project);
       });

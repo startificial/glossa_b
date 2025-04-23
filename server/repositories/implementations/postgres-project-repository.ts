@@ -97,6 +97,13 @@ export class PostgresProjectRepository implements IProjectRepository {
       return [];
     }
   }
+
+  /**
+   * Find projects by user ID (alias for findByUser to match ProjectRepository interface)
+   */
+  async findByUserId(userId: number): Promise<Project[]> {
+    return this.findByUser(userId);
+  }
   
   /**
    * Find projects by customer ID

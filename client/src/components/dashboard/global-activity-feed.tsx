@@ -70,9 +70,11 @@ export function GlobalActivityFeed() {
                         />
                       ) : (
                         <AvatarFallback>
-                          {activity.user ? 
+                          {activity.user && activity.user.firstName && activity.user.lastName ? 
                             `${activity.user.firstName.charAt(0)}${activity.user.lastName.charAt(0)}` : 
-                            activity.description.substring(0, 2).toUpperCase()}
+                            (activity.user && activity.user.username ? 
+                              activity.user.username.substring(0, 2).toUpperCase() : 
+                              activity.description.substring(0, 2).toUpperCase())}
                         </AvatarFallback>
                       )}
                     </Avatar>

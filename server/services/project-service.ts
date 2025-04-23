@@ -109,10 +109,8 @@ export class ProjectService {
    * @returns True if the user has access to the project
    */
   async checkUserAccess(projectId: number, userId: number): Promise<boolean> {
-    const project = await this.getProjectById(projectId);
-    
-    // Currently, only the project owner has access
-    return project.userId === userId;
+    // Organization-wide access: All authenticated users have access to all projects
+    return true;
   }
   
   /**
