@@ -1,0 +1,31 @@
+[SESSION-DEBUG] Session ID: SiFjCSFPBchoJH46tvk8mdWCwxjYBZd_, Has userId: No
+[SESSION-DEBUG] Is Authenticated: No
+[SESSION-DEBUG] Session ID: SiFjCSFPBchoJH46tvk8mdWCwxjYBZd_, Has userId: No
+[SESSION-DEBUG] Is Authenticated: No
+[REQUEST] GET /@fs/home/runner/workspace/node_modules/reactflow/dist/style.css | Forwarded: 98.51.155.61, 10.83.3.212 | Protocol: https
+[SESSION-DEBUG] Session ID: SiFjCSFPBchoJH46tvk8mdWCwxjYBZd_, Has userId: No
+[SESSION-DEBUG] Is Authenticated: No
+[REQUEST] GET /src/components/workflows/workflow-nodes.tsx | Forwarded: 98.51.155.61, 10.83.8.109 | Protocol: https
+[SESSION-DEBUG] Session ID: SiFjCSFPBchoJH46tvk8mdWCwxjYBZd_, Has userId: No
+[SESSION-DEBUG] Is Authenticated: No
+[REQUEST] GET /src/components/workflows/workflow-adapters.ts | Forwarded: 98.51.155.61, 10.83.3.212 | Protocol: https
+[SESSION-DEBUG] Session ID: SiFjCSFPBchoJH46tvk8mdWCwxjYBZd_, Has userId: No
+[SESSION-DEBUG] Is Authenticated: No
+[REQUEST] GET /src/components/ui/sheet.tsx | Forwarded: 98.51.155.61, 10.83.8.109 | Protocol: https
+[REQUEST] GET /src/components/ui/scroll-area.tsx | Forwarded: 98.51.155.61, 10.83.8.109 | Protocol: https
+[SESSION-DEBUG] Session ID: SiFjCSFPBchoJH46tvk8mdWCwxjYBZd_, Has userId: No
+[SESSION-DEBUG] Is Authenticated: No
+[SESSION-DEBUG] Session ID: SiFjCSFPBchoJH46tvk8mdWCwxjYBZd_, Has userId: No
+[SESSION-DEBUG] Is Authenticated: No
+[REQUEST] GET /api/user | Forwarded: 98.51.155.61, 10.83.8.109 | Protocol: https
+[REQUEST] GET /src/assets/glossa-logo.png | Forwarded: 98.51.155.61, 10.83.8.109 | Protocol: https
+[AUTH] User info request. Is authenticated: false, Session user ID: none
+[AUTH] User not authenticated for /api/user
+[SESSION-DEBUG] Session ID: SiFjCSFPBchoJH46tvk8mdWCwxjYBZd_, Has userId: No
+[SESSION-DEBUG] Is Authenticated: No
+[REQUEST] GET /@fs/home/runner/workspace/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-700-normal.woff2 | Forwarded: 98.51.155.61, 10.83.8.109 | Protocol: https
+[SESSION-DEBUG] Session ID: SiFjCSFPBchoJH46tvk8mdWCwxjYBZd_, Has userId: No
+[SESSION-DEBUG] Is Authenticated: No
+[REQUEST] GET /src/assets/glossa-logo.png | Forwarded: 98.51.155.61, 10.83.8.109 | Protocol: https
+[SESSION-DEBUG] Session ID: SiFjCSFPBchoJH46tvk8mdWCwxjYBZd_, Has userId: No
+[SESSION-DEBUG] Is Authenticated: No
