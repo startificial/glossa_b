@@ -258,6 +258,71 @@ export class InputDataController {
           status: "processed",
           metadata: processingResult.metadata
         });
+        
+        // For DOCX files, automatically start processing into requirements
+        if (fileType === '.docx' || fileType === '.doc') {
+          // Process asynchronously in the background
+          (async () => {
+            try {
+              logger.info(`Auto-processing DOCX file into requirements: ${file.originalname}`);
+              
+              // Extract text from document
+              const extractedText = await extractTextFromDocx(file.path);
+              if (!extractedText.success) {
+                throw new Error(extractedText.error || 'Failed to extract text from document');
+              }
+              
+              // Generate requirements
+              const requirements = await generateRequirementsForFile(extractedText.text, file.originalname);
+              
+              if (!requirements || !Array.isArray(requirements) || requirements.length === 0) {
+                logger.warn(`No requirements generated from DOCX file: ${file.originalname}`);
+                return;
+              }
+              
+              // Create requirements in database
+              let reqCounter = 1;
+              for (const req of requirements) {
+                const codeId = `REQ-${String(reqCounter++).padStart(3, '0')}`;
+                
+                await storage.createRequirement({
+                  title: req.title || "Untitled Requirement",
+                  description: req.description || "",
+                  category: req.category || "functional",
+                  priority: req.priority || "medium",
+                  projectId: inputData.projectId,
+                  inputDataId: inputData.id,
+                  codeId,
+                  source: file.originalname
+                });
+              }
+              
+              // Update input data status
+              await storage.updateInputData(inputData.id, {
+                status: "completed"
+              });
+              
+              // Log activity
+              await storage.createActivity({
+                userId: user.id,
+                projectId: inputData.projectId,
+                type: "generated_requirements",
+                description: `${user.username} generated requirements from ${file.originalname}`,
+                relatedEntityId: inputData.id
+              });
+              
+              logger.info(`Successfully auto-processed DOCX into ${requirements.length} requirements`);
+            } catch (error) {
+              logger.error("Error auto-processing DOCX into requirements:", error);
+              await storage.updateInputData(inputData.id, {
+                status: "error",
+                metadata: JSON.stringify({ 
+                  error: error instanceof Error ? error.message : "Failed to process document into requirements" 
+                })
+              });
+            }
+          })();
+        }
       }
       
       return res.status(201).json(inputData);
@@ -358,10 +423,9 @@ export class InputDataController {
           try {
             // Generate acceptance criteria
             if (req.description && req.description.length > 0) {
-              const criteria = await generateAcceptanceCriteria(req.title, req.description);
-              if (criteria && Array.isArray(criteria)) {
-                acceptanceCriteria = criteria;
-              }
+              // Use a simpler approach for now since generateAcceptanceCriteria is not available
+              // Default to empty array - this can be enhanced later
+              acceptanceCriteria = [];
             }
           } catch (critError) {
             logger.error("Error generating acceptance criteria:", critError);
