@@ -16,6 +16,21 @@ import { initDocumentMiddleware } from "./document-middleware";
 import { registerPdfRoutes } from "./simple-pdf-generator";
 import passport from 'passport';
 import { setupAuth } from "./auth";
+import { ENV_CONFIG } from '../shared/config/system-defaults';
+
+/**
+ * Helper function to ensure a directory exists
+ * @param dirPath The directory path to create if it doesn't exist
+ * @param description Optional description for logging
+ * @returns The directory path
+ */
+function ensureDirectoryExists(dirPath: string, description: string = 'directory'): string {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+    console.log(`Created ${description}: ${dirPath}`);
+  }
+  return dirPath;
+}
 
 // Always use PostgreSQL database if available
 // This ensures consistent data retrieval and proper handling of complex fields like acceptanceCriteria
@@ -63,8 +78,9 @@ const app = express();
 app.set('trust proxy', 1);
 console.log(`[SERVER] Trust proxy setting: ${app.get('trust proxy')}`);
 
-// For debugging HTTP headers in production (only when DEBUG_LOGS=true)
-const enableDebugLogs = process.env.DEBUG_LOGS === 'true';
+// For debugging HTTP headers in production 
+// Use centralized config from system-defaults.ts
+const enableDebugLogs = ENV_CONFIG.DEBUG_LOGS;
 console.log(`[SERVER] Debug logs ${enableDebugLogs ? 'enabled' : 'disabled'}`);
 
 if (enableDebugLogs) {
@@ -75,32 +91,22 @@ if (enableDebugLogs) {
     next();
   });
 } else {
-  // Skip request logging middleware when debug logs are disabled
-  app.use((req, res, next) => next());
+  // No middleware needed when debug logs are disabled
 }
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Create and serve the video scenes directory
-const videoScenesDir = path.join(os.tmpdir(), 'video-scenes');
-if (!fs.existsSync(videoScenesDir)) {
-  fs.mkdirSync(videoScenesDir, { recursive: true });
-}
+const videoScenesDir = ensureDirectoryExists(path.join(os.tmpdir(), 'video-scenes'), 'video scenes directory');
 app.use('/media/video-scenes', express.static(videoScenesDir));
 
 // Create and serve the audio timestamps directory
-const audioTimestampsDir = path.join(os.tmpdir(), 'audio-timestamps');
-if (!fs.existsSync(audioTimestampsDir)) {
-  fs.mkdirSync(audioTimestampsDir, { recursive: true });
-}
+const audioTimestampsDir = ensureDirectoryExists(path.join(os.tmpdir(), 'audio-timestamps'), 'audio timestamps directory');
 app.use('/media/audio-timestamps', express.static(audioTimestampsDir));
 
 // Create and serve the documents directory with proper content types
-const documentsDir = path.join(process.cwd(), 'uploads', 'documents');
-if (!fs.existsSync(documentsDir)) {
-  fs.mkdirSync(documentsDir, { recursive: true });
-}
+const documentsDir = ensureDirectoryExists(path.join(process.cwd(), 'uploads', 'documents'), 'documents directory');
 // Use express.static with mime type overrides for PDF
 app.use('/downloads/documents', (req, res, next) => {
   if (enableDebugLogs) {
@@ -196,10 +202,7 @@ if (enableDebugLogs) {
     console.log(`[SESSION-DEBUG] Is Authenticated: ${req.isAuthenticated?.() ? 'Yes' : 'No'}`);
     next();
   });
-} else {
-  // Skip session logging middleware when debug logs are disabled
-  app.use((req, res, next) => next());
-}
+} // No middleware needed when debug logs are disabled
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -231,8 +234,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// Use system configuration for quick start mode
+
 // Check if we should use quick start mode (skips resource-intensive initialization)
-const QUICK_START = true; // Set to true for fast startup
+const QUICK_START = ENV_CONFIG.QUICK_START; // Use centralized configuration
 
 // Start server quickly, skipping resource-intensive initialization
 async function startServer() {
