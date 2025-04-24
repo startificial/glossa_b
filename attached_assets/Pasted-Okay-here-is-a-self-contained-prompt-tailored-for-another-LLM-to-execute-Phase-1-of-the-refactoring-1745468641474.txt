@@ -1,0 +1,65 @@
+Okay, here is a self-contained prompt tailored for another LLM to execute Phase 1 of the refactoring plan. The user should replace the bracketed placeholders (`[...]`) with their actual code content.
+
+---
+
+**Prompt for LLM (Phase 1 Refactoring):**
+
+**Role:** You are an expert Senior Software Engineer specializing in full-stack TypeScript development, clean architecture, data layer design, and performance optimization, with specific expertise in Node.js, PostgreSQL, and Drizzle ORM.
+
+**Overall Project Context:**
+The project is a web application built with:
+* **Frontend:** React (TypeScript) - located in a `client` directory.
+* **Backend:** Node.js (TypeScript) - located in a `server` directory.
+* **Database:** Neon DB (Serverless PostgreSQL).
+* **ORM:** Drizzle ORM.
+* **Overall Goal:** Refactor the entire codebase for improved clean code practices, logical separation of concerns, and performance optimization.
+
+**Current Task: Phase 1 - Backend Foundation & Data Layer (Drizzle)**
+This prompt focuses *specifically* on the first phase: reviewing and refactoring the Drizzle ORM setup, database schema definitions, and initial database interaction patterns found within the `server` directory.
+
+**Phase 1 Goals:**
+1.  **Clean Drizzle Configuration:** Ensure `drizzle.config.ts` is clear and correct.
+2.  **Well-Defined Schemas:** Refactor Drizzle schema files (`*.ts` defining tables) for clarity, strong typing using TypeScript, appropriate relationships, and adherence to clean code principles (naming conventions).
+3.  **Improved Data Access Patterns:** Analyze the provided example of current data access. Suggest and implement initial refactoring towards isolating data access logic (e.g., preparing for a repository pattern) and applying clean code principles (small functions, clear naming, type safety) to the database interaction code itself.
+4.  **Identify Potential Issues:** Point out any potential performance concerns or bad practices observed in the schemas or query patterns.
+
+**Input Code Snippets:**
+
+You will be given the following code snippets from the project:
+
+1.  **Drizzle Configuration (`drizzle.config.ts`):**
+    ```typescript
+    // [Paste the full content of drizzle.config.ts here]
+    ```
+
+2.  **Drizzle Schema Examples (from `server` directory, e.g., `server/src/db/schema/users.ts`):**
+    *Example 1:*
+    ```typescript
+    // [Paste the full content of the first representative schema file here, e.g., users.ts]
+    ```
+    *Example 2:*
+    ```typescript
+    // [Paste the full content of the second representative schema file here, e.g., projects.ts]
+    ```
+
+3.  **Current Data Fetching Example (from an API route handler or similar in the `server` directory):**
+    ```typescript
+    // [Paste the code snippet showing how data is currently fetched using Drizzle, e.g., a function handling an API request]
+    ```
+
+**Required Output:**
+
+Based *only* on the provided input snippets:
+
+1.  **Refactored Code:** Provide the refactored versions of the schema files and the data fetching example snippet.
+2.  **Configuration Review:** Comment on the provided `drizzle.config.ts`, suggesting improvements if any.
+3.  **Explanations:** Clearly explain the changes made in the refactored code, linking them to the goals (clean code, type safety, naming, preparing for separation, potential performance).
+4.  **Structural Suggestions (Data Layer):** If appropriate based on the examples, suggest how the data access logic could be better structured within the `server` directory (e.g., "Consider creating a `server/src/repositories` directory...").
+5.  **Questions:** If any input is unclear or more context *specifically related to the data layer* is needed, ask clarifying questions.
+
+**Constraint:**
+* Maintain the existing core functionality represented in the snippets.
+* Adhere strictly to TypeScript, Node.js, and Drizzle ORM idioms.
+
+Please analyze the provided snippets and generate the refactored code and explanations for this phase.
+---
