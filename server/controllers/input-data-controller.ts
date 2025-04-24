@@ -145,6 +145,12 @@ export class InputDataController {
                 domain: "document",
                 docType: "text document",
                 keywords: [],
+                hasRequirements: false
+              },
+              hasOcrText: false,
+              pageCount: 1,
+              isScanOrImage: false
+            }
             
           } else {
             // For smaller files, still read into memory but with a size limit for safety
