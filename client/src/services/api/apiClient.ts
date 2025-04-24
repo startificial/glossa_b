@@ -62,16 +62,28 @@ export async function apiRequest<ResponseType = any, RequestDataType = any>(
   };
   
   try {
-    const res = await fetch(url, {
+    // Add timestamp to URL to prevent caching issues in some browsers
+    const timestampedUrl = url.includes('?') 
+      ? `${url}&_t=${Date.now()}` 
+      : `${url}?_t=${Date.now()}`;
+      
+    const res = await fetch(timestampedUrl, {
       method,
       headers: requestHeaders,
       body: data ? JSON.stringify(data) : undefined,
-      credentials: 'include',
+      credentials: 'include', // Always include credentials (cookies)
+      cache: 'no-cache', // Prevent caching
+      mode: 'same-origin', // Enforce same-origin requests
     });
     
     // Debug log
     if (process.env.NODE_ENV === 'development') {
       console.log(`API Response status: ${res.status} ${res.statusText}`);
+    }
+    
+    // For authentication issues, log more details
+    if (res.status === 401) {
+      console.error('Authentication error on API request:', { url, method });
     }
     
     // Handle non-ok responses
