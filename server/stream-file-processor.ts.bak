@@ -45,6 +45,18 @@ const safetySettings = [
 ];
 
 /**
+ * Process a file using efficient streaming techniques to avoid memory exhaustion
+ * @param filePath Path to the uploaded file
+ * @param fileName Original file name
+ * @param projectName Name of the project
+ * @param contentType Type of content (workflow, documentation, etc.)
+ * @param fileType Type of file (document, pdf, image, etc.)
+ * @param numAnalyses Number of analysis perspectives
+ * @param reqPerAnalysis Number of requirements per analysis
+ * @param inputDataId Optional ID for the input data record
+ * @returns Array of generated requirements
+ */
+/**
  * Process a DOCX document and analyze its content
  * @param filePath Path to the DOCX file
  * @returns Object containing extracted text and analysis results
@@ -330,18 +342,6 @@ export async function getFileContent(filePath: string, fileType: string): Promis
   }
 }
 
-/**
- * Process a file using streaming techniques to avoid memory issues
- * @param filePath Path to the file being processed
- * @param fileName Original name of the file
- * @param projectName Name of the project
- * @param contentType Type of content (workflow, documentation, etc.)
- * @param fileType File extension (.txt, .docx, etc.)
- * @param numAnalyses Number of analysis perspectives to use
- * @param reqPerAnalysis Requirements to generate per analysis
- * @param inputDataId Optional ID for the input data record
- * @returns Array of requirements generated from the file content
- */
 export async function streamProcessFile(
   filePath: string,
   fileName: string,
@@ -354,7 +354,6 @@ export async function streamProcessFile(
 ): Promise<any[]> {
   // Create a temporary processing directory with a random ID
   const tempDir = path.join(path.dirname(filePath), `proc_${generateUniqueId(8)}`);
-  
   try {
     // Create temporary directory for processing chunks
     await mkdir(tempDir, { recursive: true });
@@ -364,24 +363,25 @@ export async function streamProcessFile(
     const fileSize = stats.size;
     const fileSizeInMB = fileSize / (1024 * 1024);
     
-    logger.info(`Stream processing file: ${fileName} (${fileSizeInMB.toFixed(2)} MB)`);
-    logger.info(`Using ${numAnalyses} analysis perspectives with ${reqPerAnalysis} requirements each`);
+    console.log(`Stream processing file: ${fileName} (${fileSizeInMB.toFixed(2)} MB)`);
+    console.log(`Using ${numAnalyses} analysis perspectives with ${reqPerAnalysis} requirements each`);
     
     // Extract domain information
     const domainsList = ['CRM', 'ERP', 'service cloud', 'sales cloud', 'marketing cloud', 'commerce cloud', 'call center', 
       'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
     
     // Check if any domain keywords are in the filename or project name
+    // Add null/undefined checks
     const matchedKeywords = domainsList.filter(domain => 
-      (fileName && typeof fileName === 'string' && fileName.toLowerCase().includes(domain.toLowerCase())) || 
-      (projectName && typeof projectName === 'string' && projectName.toLowerCase().includes(domain.toLowerCase()))
+      (fileName && typeof fileName === 'string' && domain && typeof domain === 'string' && fileName.toLowerCase().includes(domain.toLowerCase())) || 
+      (projectName && typeof projectName === 'string' && domain && typeof domain === 'string' && projectName.toLowerCase().includes(domain.toLowerCase()))
     );
     
     const inferredDomain = matchedKeywords.length > 0 
       ? matchedKeywords.join(', ') 
       : "service management"; // Default to service management if no specific domain is detected
     
-    // Define perspectives based on file type
+    // Define perspectives based on file type - similar to generateRequirementsForFile
     const perspectives = [
       {
         name: "Functional Requirements",
@@ -451,6 +451,7 @@ export async function streamProcessFile(
       }
     } else {
       // For other file types (binary, etc.), we might need specialized handling
+      // but for now, we'll just proceed with the default stream processing
       logger.info(`Processing file with type ${fileType} using default method`);
     }
     
@@ -459,33 +460,34 @@ export async function streamProcessFile(
       throw new Error(`Failed to extract content from file: ${fileExtractError}`);
     }
     
-    // Process file in chunks if needed
+    // Stream the file to a temporary location in chunks if needed
+    // This process is more important for larger files
     const chunkSize = 5 * 1024 * 1024; // 5MB chunks for efficient processing
     const numChunks = Math.ceil(fileSize / chunkSize);
     let textChunks: string[] = [];
     
-    // For smaller files, use the entire file as one chunk
+    // For smaller files, we can use the entire file as one chunk
     if (numChunks <= 1 || fileSize < 1024 * 1024) { // Under 1MB
-      logger.info(`Small file detected (${fileSizeInMB.toFixed(2)} MB). Processing as a single chunk.`);
+      console.log(`Small file detected (${fileSizeInMB.toFixed(2)} MB). Processing as a single chunk.`);
       
       // If we already have file content, use it directly
       if (fileContent) {
         textChunks = [fileContent];
       }
     } else {
-      logger.info(`Processing large file in ${numChunks} chunks of ~5MB each`);
+      console.log(`Processing large file in ${numChunks} chunks of ~5MB each`);
       
       // For txt files, implement a memory-efficient chunking approach
       if ((fileType.toLowerCase() === '.txt' || fileType.toLowerCase() === '.md') && fileSizeInMB > 5) {
         // Use streaming approach for large text files
         textChunks = await processLargeTextFileInChunks(filePath, Math.min(5, numChunks));
-        logger.info(`Split large text file into ${textChunks.length} chunks for processing`);
+        console.log(`Split large text file into ${textChunks.length} chunks for processing`);
       } 
       // For other file types, just use the content we already loaded if available
       else if (fileContent) {
         // Split into reasonable chunks based on content patterns
         textChunks = splitTextIntoChunks(fileContent, 2000000); // ~2MB text chunks
-        logger.info(`Split content into ${textChunks.length} chunks for processing`);
+        console.log(`Split content into ${textChunks.length} chunks for processing`);
       }
     }
 
@@ -495,7 +497,7 @@ export async function streamProcessFile(
     // Process from each perspective
     for (let i = 0; i < selectedPerspectives.length; i++) {
       const perspective = selectedPerspectives[i];
-      logger.info(`Processing analysis perspective ${i+1}/${selectedPerspectives.length}: ${perspective.name}`);
+      console.log(`Processing analysis perspective ${i+1}/${selectedPerspectives.length}: ${perspective.name}`);
       
       // Get the Gemini model
       const model = genAI.getGenerativeModel({
@@ -568,7 +570,7 @@ export async function streamProcessFile(
           // For each text chunk, process it separately
           for (let j = 0; j < textChunks.length; j++) {
             const chunk = textChunks[j];
-            logger.info(`Processing chunk ${j+1}/${textChunks.length} for perspective ${perspective.name}`);
+            console.log(`Processing chunk ${j+1}/${textChunks.length} for perspective ${perspective.name}`);
             
             // Modify the prompt to include chunk content
             const chunkPrompt = prompt + `\n\nFile content (chunk ${j+1} of ${textChunks.length}):\n${chunk}\n`;
@@ -595,10 +597,11 @@ export async function streamProcessFile(
                 }));
                 
                 allRequirements = [...allRequirements, ...chunkRequirements];
-                logger.info(`Added ${chunkRequirements.length} requirements from chunk ${j+1} of perspective ${perspective.name}`);
+                console.log(`Added ${chunkRequirements.length} requirements from chunk ${j+1} of perspective ${perspective.name}`);
               }
             } catch (chunkParseError) {
-              logger.error(`Error parsing Gemini response for chunk ${j+1} of perspective ${perspective.name}:`, chunkParseError);
+              console.error(`Error parsing Gemini response for chunk ${j+1} of perspective ${perspective.name}:`, chunkParseError);
+              console.error("Raw response:", text);
               // Continue with other chunks even if one fails
             }
           }
@@ -620,13 +623,13 @@ export async function streamProcessFile(
               // Transform the response to match the expected format
               const requirements = parsedResponse.map((item: any) => ({
                 title: item.title || `${perspective.name} Requirement`,
-                description: item.description || item.text, // Use description or fall back to text field
+                description: item.description || item.text, // Use description or fall back to text field for backward compatibility
                 category: item.category,
                 priority: item.priority
               }));
               
               allRequirements = [...allRequirements, ...requirements];
-              logger.info(`Added ${requirements.length} requirements from perspective ${perspective.name}`);
+              console.log(`Added ${requirements.length} requirements from perspective ${perspective.name}`);
             } else {
               // If no JSON array was found, try parsing the whole response
               const parsedResponse = JSON.parse(text);
@@ -634,21 +637,21 @@ export async function streamProcessFile(
               // Transform the response to match the expected format
               const requirements = parsedResponse.map((item: any) => ({
                 title: item.title || `${perspective.name} Requirement`,
-                description: item.description || item.text, // Use description or fall back to text field
+                description: item.description || item.text, // Use description or fall back to text field for backward compatibility
                 category: item.category,
                 priority: item.priority
               }));
               
               allRequirements = [...allRequirements, ...requirements];
-              logger.info(`Added ${requirements.length} requirements from perspective ${perspective.name}`);
+              console.log(`Added ${requirements.length} requirements from perspective ${perspective.name}`);
             }
           } catch (parseError) {
-            logger.error(`Error parsing Gemini response for perspective ${perspective.name}:`, parseError);
+            console.error(`Error parsing Gemini response for perspective ${perspective.name}:`, parseError);
+            console.error("Raw response:", text);
             // Continue with other perspectives even if one fails
           }
-        }
       } catch (perspectiveError) {
-        logger.error(`Error processing perspective ${perspective.name}:`, perspectiveError);
+        console.error(`Error processing perspective ${perspective.name}:`, perspectiveError);
         // Continue with other perspectives even if one fails
       }
       
@@ -668,11 +671,14 @@ export async function streamProcessFile(
       });
     });
     
-    logger.info(`Extracted ${uniqueRequirements.length} unique requirements from ${selectedPerspectives.length} analysis perspectives`);
+    console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${selectedPerspectives.length} analysis perspectives`);
+    
+    // If we have an inputDataId, we could potentially process references here
+    // Similar to how it's done in processTextFile or streamProcessPdfText
     
     return uniqueRequirements;
   } catch (error) {
-    logger.error("Error in stream file processor:", error);
+    console.error("Error in stream file processor:", error);
     throw error;
   } finally {
     // Clean up temporary directory
@@ -687,7 +693,7 @@ export async function streamProcessFile(
         fs.rmdirSync(tempDir);
       }
     } catch (cleanupError) {
-      logger.error("Error cleaning up temporary directory:", cleanupError);
+      console.error("Error cleaning up temporary directory:", cleanupError);
     }
   }
 }
@@ -749,7 +755,7 @@ async function processLargeTextFileInChunks(filePath: string, maxChunks: number 
           if (i > 0) {
             // For all chunks except first, trim beginning to a sentence start
             const sentenceStart = cleanedChunk.match(/[.!?]\s+[A-Z]/);
-            if (sentenceStart && sentenceStart.index !== undefined && sentenceStart.index < 1000) {
+            if (sentenceStart && sentenceStart.index && sentenceStart.index < 1000) {
               cleanedChunk = cleanedChunk.substring(sentenceStart.index + 2);
             }
           }
@@ -758,7 +764,7 @@ async function processLargeTextFileInChunks(filePath: string, maxChunks: number 
             // For all chunks except last, trim end to a sentence end
             const reversedChunk = cleanedChunk.split('').reverse().join('');
             const sentenceEnd = reversedChunk.match(/[A-Z]\s+[.!?]/);
-            if (sentenceEnd && sentenceEnd.index !== undefined && sentenceEnd.index < 1000) {
+            if (sentenceEnd && sentenceEnd.index && sentenceEnd.index < 1000) {
               cleanedChunk = cleanedChunk.substring(0, cleanedChunk.length - (sentenceEnd.index + 2));
             }
           }
