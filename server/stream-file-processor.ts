@@ -13,7 +13,7 @@ const stat = promisify(fs.stat);
 const readFile = promisify(fs.readFile);
 
 // Initialize Google Generative AI with appropriate model
-const API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+const API_KEY = process.env.GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 // Default generation config (similar to what's in gemini.ts)
@@ -44,6 +44,18 @@ const safetySettings = [
   },
 ];
 
+/**
+ * Process a file using efficient streaming techniques to avoid memory exhaustion
+ * @param filePath Path to the uploaded file
+ * @param fileName Original file name
+ * @param projectName Name of the project
+ * @param contentType Type of content (workflow, documentation, etc.)
+ * @param fileType Type of file (document, pdf, image, etc.)
+ * @param numAnalyses Number of analysis perspectives
+ * @param reqPerAnalysis Number of requirements per analysis
+ * @param inputDataId Optional ID for the input data record
+ * @returns Array of generated requirements
+ */
 /**
  * Process a DOCX document and analyze its content
  * @param filePath Path to the DOCX file
@@ -190,16 +202,10 @@ export async function extractTextFromDocx(filePath: string): Promise<{text: stri
 
 /**
  * Extract text content from a text file
- * Uses a memory-efficient streaming approach for large files
- * 
  * @param filePath Path to the text file
- * @param streamMode Boolean to indicate if streaming mode should be used (for very large files)
  * @returns Object containing the extracted text and processing info
  */
-export async function extractTextFromTxt(
-  filePath: string, 
-  streamMode: boolean = false
-): Promise<{text: string, success: boolean, error?: string, preview?: string}> {
+export async function extractTextFromTxt(filePath: string): Promise<{text: string, success: boolean, error?: string}> {
   try {
     logger.info(`Reading text from file: ${filePath}`);
     
@@ -213,24 +219,7 @@ export async function extractTextFromTxt(
       };
     }
     
-    // Get file stats to determine size
-    const stats = fs.statSync(filePath);
-    const fileSizeMB = stats.size / (1024 * 1024);
-    
-    // For large files, only read a preview in initial mode or use streaming
-    if (fileSizeMB > 5 && streamMode) {
-      logger.info(`Large text file detected (${fileSizeMB.toFixed(2)} MB). Using streaming mode.`);
-      
-      // For streaming mode, we don't load the full text, just return success
-      // The actual content will be processed in chunks later
-      return {
-        text: '', // Not loading the actual text in streaming mode
-        success: true,
-        preview: await getTextFilePreview(filePath, 5000) // Get a small preview
-      };
-    }
-    
-    // For smaller files or when explicitly requesting full content, read the entire file
+    // Read the file content
     const text = await readFile(filePath, 'utf8');
     
     if (!text || text.trim().length === 0) {
@@ -254,41 +243,6 @@ export async function extractTextFromTxt(
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error during text file reading'
     };
-  }
-}
-
-/**
- * Get a preview of a text file without loading the entire file
- * 
- * @param filePath Path to the text file
- * @param maxChars Maximum number of characters to read
- * @returns Preview text from the beginning of the file
- */
-async function getTextFilePreview(filePath: string, maxChars: number = 5000): Promise<string> {
-  try {
-    // Create a read stream for the file
-    const stream = fs.createReadStream(filePath, {
-      encoding: 'utf8',
-      start: 0,
-      end: maxChars - 1 // Read only the first maxChars characters
-    });
-    
-    let preview = '';
-    
-    // Process the stream in chunks
-    for await (const chunk of stream) {
-      preview += chunk;
-      
-      // If we've read enough, stop
-      if (preview.length >= maxChars) {
-        break;
-      }
-    }
-    
-    return preview;
-  } catch (error) {
-    logger.error(`Error getting text file preview: ${error}`);
-    return 'Error getting preview';
   }
 }
 
@@ -330,18 +284,6 @@ export async function getFileContent(filePath: string, fileType: string): Promis
   }
 }
 
-/**
- * Process a file using streaming techniques to avoid memory issues
- * @param filePath Path to the file being processed
- * @param fileName Original name of the file
- * @param projectName Name of the project
- * @param contentType Type of content (workflow, documentation, etc.)
- * @param fileType File extension (.txt, .docx, etc.)
- * @param numAnalyses Number of analysis perspectives to use
- * @param reqPerAnalysis Requirements to generate per analysis
- * @param inputDataId Optional ID for the input data record
- * @returns Array of requirements generated from the file content
- */
 export async function streamProcessFile(
   filePath: string,
   fileName: string,
@@ -354,7 +296,6 @@ export async function streamProcessFile(
 ): Promise<any[]> {
   // Create a temporary processing directory with a random ID
   const tempDir = path.join(path.dirname(filePath), `proc_${generateUniqueId(8)}`);
-  
   try {
     // Create temporary directory for processing chunks
     await mkdir(tempDir, { recursive: true });
@@ -364,24 +305,25 @@ export async function streamProcessFile(
     const fileSize = stats.size;
     const fileSizeInMB = fileSize / (1024 * 1024);
     
-    logger.info(`Stream processing file: ${fileName} (${fileSizeInMB.toFixed(2)} MB)`);
-    logger.info(`Using ${numAnalyses} analysis perspectives with ${reqPerAnalysis} requirements each`);
+    console.log(`Stream processing file: ${fileName} (${fileSizeInMB.toFixed(2)} MB)`);
+    console.log(`Using ${numAnalyses} analysis perspectives with ${reqPerAnalysis} requirements each`);
     
     // Extract domain information
     const domainsList = ['CRM', 'ERP', 'service cloud', 'sales cloud', 'marketing cloud', 'commerce cloud', 'call center', 
       'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
     
     // Check if any domain keywords are in the filename or project name
+    // Add null/undefined checks
     const matchedKeywords = domainsList.filter(domain => 
-      (fileName && typeof fileName === 'string' && fileName.toLowerCase().includes(domain.toLowerCase())) || 
-      (projectName && typeof projectName === 'string' && projectName.toLowerCase().includes(domain.toLowerCase()))
+      (fileName && typeof fileName === 'string' && domain && typeof domain === 'string' && fileName.toLowerCase().includes(domain.toLowerCase())) || 
+      (projectName && typeof projectName === 'string' && domain && typeof domain === 'string' && projectName.toLowerCase().includes(domain.toLowerCase()))
     );
     
     const inferredDomain = matchedKeywords.length > 0 
       ? matchedKeywords.join(', ') 
       : "service management"; // Default to service management if no specific domain is detected
     
-    // Define perspectives based on file type
+    // Define perspectives based on file type - similar to generateRequirementsForFile
     const perspectives = [
       {
         name: "Functional Requirements",
@@ -427,30 +369,18 @@ export async function streamProcessFile(
       }
     } else if (fileType.toLowerCase() === '.txt' || fileType.toLowerCase() === '.md') {
       logger.info(`Processing text file: ${filePath}`);
-      
-      // Check file size to determine approach
-      const fileSizeMB = fileSize / (1024 * 1024);
-      const isLargeFile = fileSizeMB > 5;
-      
-      // For large files, use streamMode to avoid loading the entire file
-      const txtResult = await extractTextFromTxt(filePath, isLargeFile);
-      
+      const txtResult = await extractTextFromTxt(filePath);
       if (!txtResult.success) {
         logger.error(`Failed to extract text from text file: ${txtResult.error}`);
         fileExtractSuccess = false;
         fileExtractError = txtResult.error || 'Unknown error reading text file';
-      } else if (isLargeFile) {
-        // For large files in streaming mode, we don't load the content here
-        // We'll process it in chunks later
-        fileContent = txtResult.preview || 'Large text file - processing in chunks';
-        logger.info(`Large text file detected (${fileSizeMB.toFixed(2)} MB). Will process in streaming mode.`);
       } else {
-        // For smaller files, use the content directly
         fileContent = txtResult.text;
         logger.info(`Successfully read ${fileContent.length} characters from text file`);
       }
     } else {
       // For other file types (binary, etc.), we might need specialized handling
+      // but for now, we'll just proceed with the default stream processing
       logger.info(`Processing file with type ${fileType} using default method`);
     }
     
@@ -459,34 +389,20 @@ export async function streamProcessFile(
       throw new Error(`Failed to extract content from file: ${fileExtractError}`);
     }
     
-    // Process file in chunks if needed
+    // Stream the file to a temporary location in chunks if needed
+    // This process is more important for larger files
     const chunkSize = 5 * 1024 * 1024; // 5MB chunks for efficient processing
     const numChunks = Math.ceil(fileSize / chunkSize);
-    let textChunks: string[] = [];
     
-    // For smaller files, use the entire file as one chunk
+    // For smaller files, we can use the entire file as one chunk
     if (numChunks <= 1 || fileSize < 1024 * 1024) { // Under 1MB
-      logger.info(`Small file detected (${fileSizeInMB.toFixed(2)} MB). Processing as a single chunk.`);
-      
-      // If we already have file content, use it directly
-      if (fileContent) {
-        textChunks = [fileContent];
-      }
+      console.log(`Small file detected (${fileSizeInMB.toFixed(2)} MB). Processing as a single chunk.`);
+      // No need to split the file into chunks
     } else {
-      logger.info(`Processing large file in ${numChunks} chunks of ~5MB each`);
-      
-      // For txt files, implement a memory-efficient chunking approach
-      if ((fileType.toLowerCase() === '.txt' || fileType.toLowerCase() === '.md') && fileSizeInMB > 5) {
-        // Use streaming approach for large text files
-        textChunks = await processLargeTextFileInChunks(filePath, Math.min(5, numChunks));
-        logger.info(`Split large text file into ${textChunks.length} chunks for processing`);
-      } 
-      // For other file types, just use the content we already loaded if available
-      else if (fileContent) {
-        // Split into reasonable chunks based on content patterns
-        textChunks = splitTextIntoChunks(fileContent, 2000000); // ~2MB text chunks
-        logger.info(`Split content into ${textChunks.length} chunks for processing`);
-      }
+      console.log(`Processing large file in ${numChunks} chunks of ~5MB each`);
+      // For large files, we would implement a chunking mechanism here
+      // but since we're mainly handling non-video files that are not huge,
+      // this implementation is simplified for now
     }
 
     // Initialize an array to store all requirements
@@ -495,7 +411,7 @@ export async function streamProcessFile(
     // Process from each perspective
     for (let i = 0; i < selectedPerspectives.length; i++) {
       const perspective = selectedPerspectives[i];
-      logger.info(`Processing analysis perspective ${i+1}/${selectedPerspectives.length}: ${perspective.name}`);
+      console.log(`Processing analysis perspective ${i+1}/${selectedPerspectives.length}: ${perspective.name}`);
       
       // Get the Gemini model
       const model = genAI.getGenerativeModel({
@@ -563,92 +479,51 @@ export async function streamProcessFile(
         const promptPath = path.join(tempDir, `prompt_${i}.txt`);
         fs.writeFileSync(promptPath, prompt, 'utf8');
         
-        // Process each chunk (if we have chunks) for this perspective
-        if (textChunks.length > 0) {
-          // For each text chunk, process it separately
-          for (let j = 0; j < textChunks.length; j++) {
-            const chunk = textChunks[j];
-            logger.info(`Processing chunk ${j+1}/${textChunks.length} for perspective ${perspective.name}`);
+        // Generate content
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        
+        // Parse the JSON response
+        try {
+          // Extract just the JSON part from the response
+          const jsonMatch = text.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            const jsonText = jsonMatch[0];
+            const parsedResponse = JSON.parse(jsonText);
             
-            // Modify the prompt to include chunk content
-            const chunkPrompt = prompt + `\n\nFile content (chunk ${j+1} of ${textChunks.length}):\n${chunk}\n`;
+            // Transform the response to match the expected format
+            const requirements = parsedResponse.map((item: any) => ({
+              title: item.title || `${perspective.name} Requirement`,
+              description: item.description || item.text, // Use description or fall back to text field for backward compatibility
+              category: item.category,
+              priority: item.priority
+            }));
             
-            // Generate content for this chunk
-            const chunkResult = await model.generateContent(chunkPrompt);
-            const chunkResponse = await chunkResult.response;
-            const text = chunkResponse.text();
+            allRequirements = [...allRequirements, ...requirements];
+            console.log(`Added ${requirements.length} requirements from perspective ${perspective.name}`);
+          } else {
+            // If no JSON array was found, try parsing the whole response
+            const parsedResponse = JSON.parse(text);
             
-            // Process text, extract requirements, and add to allRequirements
-            try {
-              // Parse JSON from response
-              const jsonMatch = text.match(/\[[\s\S]*\]/);
-              if (jsonMatch) {
-                const jsonText = jsonMatch[0];
-                const parsedResponse = JSON.parse(jsonText);
-                
-                // Transform the response to match the expected format
-                const chunkRequirements = parsedResponse.map((item: any) => ({
-                  title: item.title || `${perspective.name} Requirement (Chunk ${j+1})`,
-                  description: item.description || item.text,
-                  category: item.category,
-                  priority: item.priority
-                }));
-                
-                allRequirements = [...allRequirements, ...chunkRequirements];
-                logger.info(`Added ${chunkRequirements.length} requirements from chunk ${j+1} of perspective ${perspective.name}`);
-              }
-            } catch (chunkParseError) {
-              logger.error(`Error parsing Gemini response for chunk ${j+1} of perspective ${perspective.name}:`, chunkParseError);
-              // Continue with other chunks even if one fails
-            }
+            // Transform the response to match the expected format
+            const requirements = parsedResponse.map((item: any) => ({
+              title: item.title || `${perspective.name} Requirement`,
+              description: item.description || item.text, // Use description or fall back to text field for backward compatibility
+              category: item.category,
+              priority: item.priority
+            }));
+            
+            allRequirements = [...allRequirements, ...requirements];
+            console.log(`Added ${requirements.length} requirements from perspective ${perspective.name}`);
           }
-        } else {
-          // If no chunks were created (possibly due to extraction issues),
-          // just process with the original prompt
-          const result = await model.generateContent(prompt);
-          const response = await result.response;
-          const text = response.text();
-          
-          // Parse the JSON response
-          try {
-            // Extract just the JSON part from the response
-            const jsonMatch = text.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-              const jsonText = jsonMatch[0];
-              const parsedResponse = JSON.parse(jsonText);
-              
-              // Transform the response to match the expected format
-              const requirements = parsedResponse.map((item: any) => ({
-                title: item.title || `${perspective.name} Requirement`,
-                description: item.description || item.text, // Use description or fall back to text field
-                category: item.category,
-                priority: item.priority
-              }));
-              
-              allRequirements = [...allRequirements, ...requirements];
-              logger.info(`Added ${requirements.length} requirements from perspective ${perspective.name}`);
-            } else {
-              // If no JSON array was found, try parsing the whole response
-              const parsedResponse = JSON.parse(text);
-              
-              // Transform the response to match the expected format
-              const requirements = parsedResponse.map((item: any) => ({
-                title: item.title || `${perspective.name} Requirement`,
-                description: item.description || item.text, // Use description or fall back to text field
-                category: item.category,
-                priority: item.priority
-              }));
-              
-              allRequirements = [...allRequirements, ...requirements];
-              logger.info(`Added ${requirements.length} requirements from perspective ${perspective.name}`);
-            }
-          } catch (parseError) {
-            logger.error(`Error parsing Gemini response for perspective ${perspective.name}:`, parseError);
-            // Continue with other perspectives even if one fails
-          }
+        } catch (parseError) {
+          console.error(`Error parsing Gemini response for perspective ${perspective.name}:`, parseError);
+          console.error("Raw response:", text);
+          // Continue with other perspectives even if one fails
         }
       } catch (perspectiveError) {
-        logger.error(`Error processing perspective ${perspective.name}:`, perspectiveError);
+        console.error(`Error processing perspective ${perspective.name}:`, perspectiveError);
         // Continue with other perspectives even if one fails
       }
       
@@ -668,11 +543,14 @@ export async function streamProcessFile(
       });
     });
     
-    logger.info(`Extracted ${uniqueRequirements.length} unique requirements from ${selectedPerspectives.length} analysis perspectives`);
+    console.log(`Extracted ${uniqueRequirements.length} unique requirements from ${selectedPerspectives.length} analysis perspectives`);
+    
+    // If we have an inputDataId, we could potentially process references here
+    // Similar to how it's done in processTextFile or streamProcessPdfText
     
     return uniqueRequirements;
   } catch (error) {
-    logger.error("Error in stream file processor:", error);
+    console.error("Error in stream file processor:", error);
     throw error;
   } finally {
     // Clean up temporary directory
@@ -687,7 +565,7 @@ export async function streamProcessFile(
         fs.rmdirSync(tempDir);
       }
     } catch (cleanupError) {
-      logger.error("Error cleaning up temporary directory:", cleanupError);
+      console.error("Error cleaning up temporary directory:", cleanupError);
     }
   }
 }
@@ -702,179 +580,6 @@ async function streamFileToDisk(sourcePath: string, destPath: string): Promise<v
     createReadStream(sourcePath),
     createWriteStream(destPath)
   );
-}
-
-/**
- * Process a large text file by reading it in chunks
- * This is memory-efficient for very large files
- * 
- * @param filePath Path to the text file
- * @param maxChunks Maximum number of chunks to extract
- * @returns Array of text chunks
- */
-async function processLargeTextFileInChunks(filePath: string, maxChunks: number = 5): Promise<string[]> {
-  try {
-    logger.info(`Processing large text file in chunks: ${filePath}`);
-    
-    // Get file stats
-    const stats = fs.statSync(filePath);
-    
-    // Calculate chunk size to evenly divide the file
-    const chunkSizeBytes = Math.ceil(stats.size / maxChunks);
-    
-    // Prepare buffer and result array
-    const buffer = Buffer.alloc(chunkSizeBytes);
-    const fd = fs.openSync(filePath, 'r');
-    const chunks: string[] = [];
-    
-    try {
-      // Read evenly spaced chunks from the file
-      for (let i = 0; i < maxChunks; i++) {
-        // Calculate position to read from
-        const position = i * chunkSizeBytes;
-        
-        // Skip if we're past the end of file
-        if (position >= stats.size) break;
-        
-        // Read a chunk
-        const bytesRead = fs.readSync(fd, buffer, 0, chunkSizeBytes, position);
-        
-        if (bytesRead > 0) {
-          const chunkContent = buffer.slice(0, bytesRead).toString('utf8');
-          
-          // Clean up chunk boundaries to avoid cutting in the middle of words
-          let cleanedChunk = chunkContent;
-          
-          // Find sentence boundaries for cleaner chunks
-          if (i > 0) {
-            // For all chunks except first, trim beginning to a sentence start
-            const sentenceStart = cleanedChunk.match(/[.!?]\s+[A-Z]/);
-            if (sentenceStart && sentenceStart.index !== undefined && sentenceStart.index < 1000) {
-              cleanedChunk = cleanedChunk.substring(sentenceStart.index + 2);
-            }
-          }
-          
-          if (i < maxChunks - 1 && position + bytesRead < stats.size) {
-            // For all chunks except last, trim end to a sentence end
-            const reversedChunk = cleanedChunk.split('').reverse().join('');
-            const sentenceEnd = reversedChunk.match(/[A-Z]\s+[.!?]/);
-            if (sentenceEnd && sentenceEnd.index !== undefined && sentenceEnd.index < 1000) {
-              cleanedChunk = cleanedChunk.substring(0, cleanedChunk.length - (sentenceEnd.index + 2));
-            }
-          }
-          
-          chunks.push(cleanedChunk);
-        }
-      }
-    } finally {
-      fs.closeSync(fd);
-    }
-    
-    logger.info(`Successfully split text file into ${chunks.length} chunks`);
-    return chunks;
-  } catch (error) {
-    logger.error(`Error processing large text file in chunks: ${error}`);
-    throw error;
-  }
-}
-
-/**
- * Split text content into semantic chunks
- * 
- * @param text The text content to split
- * @param targetChunkSize Target size for each chunk in characters
- * @returns Array of text chunks
- */
-function splitTextIntoChunks(text: string, targetChunkSize: number = 2000000): string[] {
-  // If text is smaller than target size, return it as a single chunk
-  if (text.length <= targetChunkSize) {
-    return [text];
-  }
-  
-  const chunks: string[] = [];
-  
-  // First try to split by double newlines (paragraphs)
-  const paragraphs = text.split(/\n\s*\n/);
-  
-  let currentChunk = '';
-  
-  for (const paragraph of paragraphs) {
-    // If adding this paragraph would exceed target size, start a new chunk
-    if (currentChunk.length + paragraph.length > targetChunkSize && currentChunk.length > 0) {
-      chunks.push(currentChunk);
-      currentChunk = paragraph;
-    } else {
-      currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
-    }
-  }
-  
-  // Don't forget the last chunk
-  if (currentChunk) {
-    chunks.push(currentChunk);
-  }
-  
-  // If we couldn't split into enough chunks using paragraphs,
-  // we'll split the largest chunks further
-  if (chunks.length === 1 && text.length > targetChunkSize * 2) {
-    // Try to split by sentences
-    return splitLargeChunkBySentences(text, targetChunkSize);
-  }
-  
-  return chunks;
-}
-
-/**
- * Split a very large chunk by sentences when paragraph splitting isn't sufficient
- * 
- * @param text The text content to split
- * @param targetChunkSize Target size for each chunk in characters
- * @returns Array of text chunks
- */
-function splitLargeChunkBySentences(text: string, targetChunkSize: number): string[] {
-  // Use a regex pattern to find sentence boundaries
-  const sentencePattern = /[.!?]\s+[A-Z]/g;
-  const chunks: string[] = [];
-  
-  let lastEnd = 0;
-  let currentChunkStart = 0;
-  
-  // Find all sentence boundaries
-  let match;
-  while ((match = sentencePattern.exec(text)) !== null) {
-    const sentenceEnd = match.index + 1; // Include the punctuation but not the space or next capital
-    
-    // If we've accumulated enough text for a chunk, add it
-    if (sentenceEnd - currentChunkStart > targetChunkSize) {
-      // If we have a valid last end point, use it
-      if (lastEnd > currentChunkStart) {
-        chunks.push(text.substring(currentChunkStart, lastEnd + 1));
-        currentChunkStart = lastEnd + 2; // Skip the space after punctuation
-      } else {
-        // If no good break point, just cut at target size
-        chunks.push(text.substring(currentChunkStart, currentChunkStart + targetChunkSize));
-        currentChunkStart += targetChunkSize;
-      }
-    }
-    
-    lastEnd = sentenceEnd;
-  }
-  
-  // Add the remaining text
-  if (currentChunkStart < text.length) {
-    chunks.push(text.substring(currentChunkStart));
-  }
-  
-  // If we still couldn't split effectively, just divide evenly
-  if (chunks.length === 0) {
-    const numChunks = Math.ceil(text.length / targetChunkSize);
-    for (let i = 0; i < numChunks; i++) {
-      const start = i * targetChunkSize;
-      const end = Math.min(start + targetChunkSize, text.length);
-      chunks.push(text.substring(start, end));
-    }
-  }
-  
-  return chunks;
 }
 
 /**
