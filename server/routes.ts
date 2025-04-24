@@ -1769,16 +1769,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               requirements = await processVideoFileWithScenes();
             } else {
-              // For other non-text files, generate requirements with multiple perspectives
-              requirements = await generateRequirementsForFile(
-                type, 
-                req.file!.originalname, 
-                project.name,
-                undefined, // No file path
-                contentType, // Pass content type
-                numAnalyses, // Number of different analysis perspectives
-                reqPerAnalysis // Number of requirements per perspective
-              );
+              // For other non-text files, use our memory-efficient stream processor
+              console.log(`Processing non-video file: ${req.file!.originalname} with streaming processor`);
+              
+              try {
+                // Import the stream processor
+                const { streamProcessFile } = await import('./stream-file-processor.js');
+                
+                // Use our dedicated stream processor for the file
+                requirements = await streamProcessFile(
+                  req.file!.path,
+                  req.file!.originalname,
+                  project.name,
+                  contentType, // Pass content type
+                  type, // File type
+                  numAnalyses, // Number of different analysis perspectives
+                  reqPerAnalysis, // Number of requirements per perspective
+                  inputDataRecord.id // Pass input data ID for any references
+                );
+                
+                console.log(`Stream processor complete: ${requirements.length} requirements extracted`);
+              } catch (streamError) {
+                console.error("Error in stream file processor, falling back to regular method:", streamError);
+                
+                // Fall back to the original method as a backup
+                requirements = await generateRequirementsForFile(
+                  type, 
+                  req.file!.originalname, 
+                  project.name,
+                  undefined, // No file path
+                  contentType, // Pass content type
+                  numAnalyses, // Number of different analysis perspectives
+                  reqPerAnalysis // Number of requirements per perspective
+                );
+              }
             }
           } catch (geminiError) {
             console.error("Error with Gemini processing:", geminiError);
@@ -1959,15 +1983,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`Processing input data ID ${inputDataId} of type ${type}`);
             
             // Generate requirements based on the input data
-            requirements = await generateRequirementsForFile(
-              type,
-              inputData.name,
-              project.name,
-              inputData.filePath,
-              contentType,
-              numAnalyses,
-              reqPerAnalysis
-            );
+            if (type === 'video') {
+              // For video files, use the specialized video processor
+              console.log(`Processing video file: ${inputData.name} with specialized ${contentType} analysis`);
+              
+              // Use function expression to avoid strict mode issues
+              const processVideoFile = async () => {
+                // Import here to avoid circular dependency
+                const geminiModule = await import('./gemini.js');
+                return geminiModule.processVideoFile(
+                  inputData.filePath,
+                  inputData.name,
+                  project.name,
+                  contentType,
+                  numAnalyses,
+                  reqPerAnalysis,
+                  inputData.id // Pass the input data ID for scene detection
+                );
+              };
+              
+              requirements = await processVideoFile();
+            } else {
+              // For non-video files, use our efficient stream processor
+              console.log(`Processing non-video input data using streaming processor: ${inputData.name}`);
+              
+              try {
+                // Import the stream processor
+                const { streamProcessFile } = await import('./stream-file-processor.js');
+                
+                // Use our dedicated stream processor for the file
+                requirements = await streamProcessFile(
+                  inputData.filePath,
+                  inputData.name,
+                  project.name,
+                  contentType, // Pass content type
+                  type, // File type
+                  numAnalyses, // Number of different analysis perspectives
+                  reqPerAnalysis, // Number of requirements per perspective
+                  inputData.id // Pass input data ID for any references
+                );
+                
+                console.log(`Stream processor complete: ${requirements.length} requirements extracted`);
+              } catch (streamError) {
+                console.error("Error in stream file processor, falling back to regular method:", streamError);
+                
+                // Fall back to the original method as a backup
+                requirements = await generateRequirementsForFile(
+                  type,
+                  inputData.name,
+                  project.name,
+                  inputData.filePath,
+                  contentType,
+                  numAnalyses,
+                  reqPerAnalysis
+                );
+              }
+            }
             
           } catch (processingError) {
             console.error("Error processing input data:", processingError);
