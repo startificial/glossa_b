@@ -121,23 +121,42 @@ export class InputDataController {
       let textContent = '';
       
       if (fileType === '.txt' || fileType === '.md') {
-        // Process text files
-        textContent = fs.readFileSync(file.path, 'utf8');
-        const result = await processTextFile(textContent);
-        
-        processingResult = {
-          text: textContent,
-          metadata: JSON.stringify(result.metadata || {}),
-          context: result.context || {
-            domain: "unknown",
-            docType: "text document",
-            keywords: [],
-            hasRequirements: false
-          },
-          hasOcrText: false,
-          pageCount: 1,
-          isScanOrImage: false
-        };
+        // Process text files - read content but don't do AI processing here
+        // (we'll do that asynchronously later)
+        try {
+          textContent = fs.readFileSync(file.path, 'utf8');
+          
+          processingResult = {
+            text: textContent,
+            metadata: JSON.stringify({ fileSize: textContent.length }),
+            context: {
+              domain: "document",
+              docType: "text document",
+              keywords: [],
+              hasRequirements: false
+            },
+            hasOcrText: false,
+            pageCount: 1,
+            isScanOrImage: false
+          };
+          
+          logger.info(`Successfully loaded text file content: ${file.originalname} with ${textContent.length} characters`);
+        } catch (error) {
+          logger.error("Error reading text file:", error);
+          processingResult = {
+            text: "",
+            metadata: JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error reading text file" }),
+            context: {
+              domain: "unknown",
+              docType: "text document",
+              keywords: [],
+              hasRequirements: false
+            },
+            hasOcrText: false,
+            pageCount: 1,
+            isScanOrImage: false
+          };
+        }
       } else if (fileType === '.pdf') {
         // Process PDF files
         const pdfInfo = await validatePdf(file.path);
@@ -259,12 +278,21 @@ export class InputDataController {
           metadata: processingResult.metadata
         });
         
-        // For DOCX files, automatically start processing into requirements
-        if (fileType === '.docx' || fileType === '.doc') {
+        // For text files, mark as "processed" immediately to prevent UI from hanging
+        if (fileType === '.txt' || fileType === '.md') {
+          // Set status to "processed" now, even though we'll continue processing in background
+          await storage.updateInputData(inputData.id, {
+            status: "processed"
+          });
+        }
+        
+        // For DOCX or TXT files, automatically start processing into requirements
+        if (fileType === '.docx' || fileType === '.doc' || fileType === '.txt' || fileType === '.md') {
           // Process asynchronously in the background
           (async () => {
             try {
-              logger.info(`Auto-processing DOCX file into requirements: ${file.originalname}`);
+              const fileTypeLabel = (fileType === '.txt' || fileType === '.md') ? 'text' : 'DOCX';
+              logger.info(`Auto-processing ${fileTypeLabel} file into requirements: ${file.originalname}`);
               
               // Update status to processing
               await storage.updateInputData(inputData.id, {
@@ -274,10 +302,21 @@ export class InputDataController {
                 })
               });
               
-              // Extract text from document
-              const extractedText = await extractTextFromDocx(file.path);
-              if (!extractedText.success) {
-                throw new Error(extractedText.error || 'Failed to extract text from document');
+              // Extract text based on file type
+              let extractedText: { text: string; success?: boolean } = { text: '', success: true };
+              
+              if (fileType === '.docx' || fileType === '.doc') {
+                extractedText = await extractTextFromDocx(file.path);
+                if (!extractedText.success) {
+                  throw new Error(extractedText.error || 'Failed to extract text from document');
+                }
+              } else if (fileType === '.txt' || fileType === '.md') {
+                // For text files, just read the file directly
+                try {
+                  extractedText.text = fs.readFileSync(file.path, 'utf8');
+                } catch (error) {
+                  throw new Error(`Failed to read text file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
               }
               
               // Update status to generating requirements
@@ -289,11 +328,30 @@ export class InputDataController {
                 })
               });
               
-              // Generate requirements with null/undefined safety
-              const requirements = await generateRequirementsForFile(
-                extractedText.text || '', 
-                file && file.originalname ? file.originalname : 'document.docx'
-              );
+              // Get project name for context
+              const project = await storage.getProject(projectId);
+              const projectName = project ? project.name : 'Unknown Project';
+              
+              // Generate requirements based on file type
+              let requirements = [];
+              
+              if (fileType === '.txt' || fileType === '.md') {
+                // For text files, use processTextFile with proper parameters
+                requirements = await processTextFile(
+                  file.path,
+                  projectName,
+                  file.originalname,
+                  'general', // contentType
+                  5, // minRequirements
+                  inputData.id // Pass input data ID for text references
+                );
+              } else {
+                // For DOCX, use generateRequirementsForFile as before
+                requirements = await generateRequirementsForFile(
+                  extractedText.text || '', 
+                  file && file.originalname ? file.originalname : 'document.docx'
+                );
+              }
               
               if (!requirements || !Array.isArray(requirements) || requirements.length === 0) {
                 logger.warn(`No requirements generated from DOCX file: ${file.originalname}`);
@@ -326,12 +384,15 @@ export class InputDataController {
                 });
               }
               
+              // Get file format based on file type
+              const fileFormat = (fileType === '.txt' || fileType === '.md') ? 'TEXT' : 'DOCX';
+              
               // Update input data status
               await storage.updateInputData(inputData.id, {
                 status: "completed",
                 metadata: JSON.stringify({
                   textLength: extractedText.text.length,
-                  format: "DOCX",
+                  format: fileFormat,
                   processingTime: new Date().toISOString(),
                   requirementsCount: requirements.length
                 })
@@ -346,7 +407,7 @@ export class InputDataController {
                 relatedEntityId: inputData.id
               });
               
-              logger.info(`Successfully auto-processed DOCX into ${requirements.length} requirements`);
+              logger.info(`Successfully auto-processed ${fileFormat} into ${requirements.length} requirements`);
             } catch (error) {
               logger.error("Error auto-processing DOCX into requirements:", error);
               await storage.updateInputData(inputData.id, {
@@ -363,7 +424,7 @@ export class InputDataController {
       return res.status(201).json(inputData);
     } catch (error) {
       logger.error("Error creating input data:", error);
-      return res.status(500).json({ message: "Error creating input data" });
+      return res.status(500).json({ message: "Error creating input data: " + (error instanceof Error ? error.message : String(error)) });
     }
   }
 
