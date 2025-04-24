@@ -306,11 +306,24 @@ export class InputDataController {
                   throw new Error(extractedText.error || 'Failed to extract text from document');
                 }
               } else if (fileType === '.txt' || fileType === '.md') {
-                // For text files, just read the file directly
+                // For text files, don't read the entire file into memory
+                // Instead, just set success flag and let processTextFile handle the streaming
                 try {
-                  extractedText.text = fs.readFileSync(file.path, 'utf8');
+                  // Check if file exists and is readable
+                  fs.accessSync(file.path, fs.constants.R_OK);
+                  
+                  // Get file size to include in metadata
+                  const stats = fs.statSync(file.path);
+                  const fileSizeMB = stats.size / (1024 * 1024);
+                  
+                  extractedText = { 
+                    text: `Text file (${fileSizeMB.toFixed(2)} MB) - will be processed in streaming mode`, 
+                    success: true 
+                  };
+                  
+                  logger.info(`Text file size: ${fileSizeMB.toFixed(2)} MB - will be processed in streaming mode`);
                 } catch (error) {
-                  throw new Error(`Failed to read text file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                  throw new Error(`Failed to access text file: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
               }
               

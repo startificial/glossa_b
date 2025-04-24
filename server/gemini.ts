@@ -117,81 +117,62 @@ function chunkTextContent(fileContent: string, chunkSize: number = 4000, overlap
  * @returns Array of requirements with categories and priorities
  */
 export async function processTextFile(filePath: string, projectName: string, fileName: string, contentType: string = 'general', minRequirements: number = 5, inputDataId?: number): Promise<any[]> {
-  // No upper limit on requirements - extract as many as needed from the content
+  // Set higher memory limit for Node.js when processing large text files
+  const originalNodeOptions = process.env.NODE_OPTIONS;
+  
+  // Increase memory limit temporarily for this operation
+  process.env.NODE_OPTIONS = "--max-old-space-size=4096";
+  
   try {
-    // Check file size first to determine approach
-    const stats = fs.statSync(filePath);
-    const fileSizeMB = stats.size / (1024 * 1024);
-    console.log(`Processing text file: ${fileName} (${fileSizeMB.toFixed(2)} MB)`);
-
-    let fileContent: string;
-    let chunks: string[];
-    
-    // For large files (>5MB), read and process in streaming manner
-    if (fileSizeMB > 5) {
-      console.log(`Large text file detected. Using streaming approach with max 5 chunks.`);
-      
-      // Read file content in chunks to avoid loading entire file into memory
-      const chunkSizeBytes = Math.ceil(stats.size / 5); // Divide into max 5 chunks
-      const buffer = Buffer.alloc(chunkSizeBytes);
-      const fd = fs.openSync(filePath, 'r');
-      
-      chunks = [];
       let bytesRead = 0;
       let position = 0;
       
-      try {
-        // Read up to 5 evenly spaced chunks from the file
-        for (let i = 0; i < 5; i++) {
-          // Calculate position to read from
-          position = i * chunkSizeBytes;
+      // Read evenly spaced chunks from the file
+      for (let i = 0; i < maxChunks; i++) {
+        // For small files (< 1MB), just read the entire file once
+        if (fileSizeMB < 1 && i > 0) break;
+        
+        // Calculate position to read from - evenly space throughout the file
+        position = i * Math.floor(stats.size / maxChunks);
+        
+        // Skip if we're past the end of file
+        if (position >= stats.size) break;
+        
+        // Read a chunk
+        bytesRead = fs.readSync(fd, buffer, 0, chunkSizeBytes, position);
+        
+        if (bytesRead > 0) {
+          const chunkContent = buffer.slice(0, bytesRead).toString('utf8');
           
-          // Skip if we're past the end of file
-          if (position >= stats.size) break;
+          // Clean up chunk boundaries to avoid cutting in the middle of words
+          let cleanedChunk = chunkContent;
           
-          // Read a chunk
-          bytesRead = fs.readSync(fd, buffer, 0, chunkSizeBytes, position);
-          
-          if (bytesRead > 0) {
-            const chunkContent = buffer.slice(0, bytesRead).toString('utf8');
-            
-            // Clean up chunk boundaries to avoid cutting in the middle of words
-            let cleanedChunk = chunkContent;
-            
-            // Find sentence boundaries for cleaner chunks
-            if (i > 0) {
-              // For all chunks except first, trim beginning to a sentence start
-              const sentenceStart = cleanedChunk.match(/[.!?]\s+[A-Z]/);
-              if (sentenceStart && sentenceStart.index && sentenceStart.index < 1000) {
-                cleanedChunk = cleanedChunk.substring(sentenceStart.index + 2);
-              }
+          // Find sentence boundaries for cleaner chunks
+          if (i > 0) {
+            // For all chunks except first, trim beginning to a sentence start
+            const sentenceStart = cleanedChunk.match(/[.!?]\s+[A-Z]/);
+            if (sentenceStart && sentenceStart.index && sentenceStart.index < 1000) {
+              cleanedChunk = cleanedChunk.substring(sentenceStart.index + 2);
             }
-            
-            if (i < 4 && position + bytesRead < stats.size) {
-              // For all chunks except last, trim end to a sentence end
-              const reversedChunk = cleanedChunk.split('').reverse().join('');
-              const sentenceEnd = reversedChunk.match(/[A-Z]\s+[.!?]/);
-              if (sentenceEnd && sentenceEnd.index && sentenceEnd.index < 1000) {
-                cleanedChunk = cleanedChunk.substring(0, cleanedChunk.length - (sentenceEnd.index + 2));
-              }
-            }
-            
-            chunks.push(cleanedChunk);
           }
+          
+          if (i < maxChunks - 1 && position + bytesRead < stats.size) {
+            // For all chunks except last, trim end to a sentence end
+            const reversedChunk = cleanedChunk.split('').reverse().join('');
+            const sentenceEnd = reversedChunk.match(/[A-Z]\s+[.!?]/);
+            if (sentenceEnd && sentenceEnd.index && sentenceEnd.index < 1000) {
+              cleanedChunk = cleanedChunk.substring(0, cleanedChunk.length - (sentenceEnd.index + 2));
+            }
+          }
+          
+          chunks.push(cleanedChunk);
         }
-      } finally {
-        fs.closeSync(fd);
       }
-      
-      console.log(`Read ${chunks.length} representative chunks for processing`);
-    } else {
-      // For smaller files, read the entire file
-      fileContent = fs.readFileSync(filePath, 'utf8');
-      
-      // Split into chunks for processing
-      chunks = chunkTextContent(fileContent);
-      console.log(`Split into ${chunks.length} chunks for processing`);
+    } finally {
+      fs.closeSync(fd);
     }
+    
+    console.log(`Read ${chunks.length} representative chunks for processing`);
     
     // Initialize an array to store all requirements
     let allRequirements: any[] = [];
@@ -327,6 +308,13 @@ export async function processTextFile(filePath: string, projectName: string, fil
   } catch (error) {
     console.error("Error processing file with Gemini:", error);
     throw error;
+  } finally {
+    // Restore original NODE_OPTIONS
+    if (originalNodeOptions) {
+      process.env.NODE_OPTIONS = originalNodeOptions;
+    } else {
+      delete process.env.NODE_OPTIONS;
+    }
   }
 }
 
