@@ -2409,6 +2409,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const activities = await storage.getAllActivities(limit);
       
+      console.log(`[DEBUG] Fetched ${activities.length} activities`);
+      activities.forEach((act, i) => {
+        if (i < 5) { // Log just the first few to avoid overwhelming the logs
+          console.log(`[DEBUG] Activity ${i}: userId=${act.userId}, type=${act.type}, desc=${act.description.substring(0, 30)}...`);
+        }
+      });
+      
       // Fetch all projects for organization-wide visibility
       const projectsMap = new Map();
       // Query all projects directly from the database
@@ -2418,24 +2425,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Collect unique user IDs from activities
-      const userIds: number[] = [];
-      activities.forEach(activity => {
-        if (!userIds.includes(activity.userId)) {
-          userIds.push(activity.userId);
-        }
-      });
+      const userIds = [...new Set(activities.map(a => a.userId))];
+      console.log('[DEBUG] Activity user IDs:', userIds);
       
-      // Get user data for all users involved in activities
+      // Get user data for all users involved in activities using direct database query for better reliability
       const usersMap = new Map();
-      for (let i = 0; i < userIds.length; i++) {
-        const userId = userIds[i];
-        const user = await storage.getUser(userId);
-        if (user) {
-          // Exclude sensitive data
-          const { password, ...userData } = user;
-          usersMap.set(userId, userData);
-        }
-      }
+      
+      // For completeness, get all users in the system to ensure we don't miss any
+      const allUsers = await db.select({
+        id: users.id,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        company: users.company,
+        avatarUrl: users.avatarUrl,
+        role: users.role,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      })
+      .from(users);
+      
+      console.log(`[DEBUG] Found ${allUsers.length} total users in DB`);
+      
+      // Populate the users map for quick activity lookup
+      allUsers.forEach(user => {
+        usersMap.set(user.id, user);
+      });
       
       // Add project name and user data to each activity
       const activitiesWithData = activities.map(activity => {

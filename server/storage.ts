@@ -1164,9 +1164,46 @@ export class DatabaseStorage implements IStorage {
   
   async getAllActivities(limit: number = 10): Promise<Activity[]> {
     try {
-      return await db.select().from(activities)
-        .orderBy(desc(activities.createdAt))
-        .limit(limit);
+      // Instead of getting just the most recent activities which might all be from one user,
+      // we'll get some activities from each user to ensure balanced representation
+      
+      // First, find distinct user IDs that have activities
+      const distinctUsers = await db.select({
+        userId: activities.userId
+      })
+      .from(activities)
+      .groupBy(activities.userId);
+      
+      const userIds = distinctUsers.map(u => u.userId);
+      console.log(`[DEBUG] Found activity records for ${userIds.length} distinct users:`, userIds);
+      
+      if (userIds.length === 0) {
+        return [];
+      }
+      
+      // Get activities balanced across users
+      // For better distribution, we'll get some recent activities from each user
+      const allActivities: Activity[] = [];
+      
+      // Get most recent activities for each user
+      for (const userId of userIds) {
+        const userActivities = await db.select()
+          .from(activities)
+          .where(eq(activities.userId, userId))
+          .orderBy(desc(activities.createdAt))
+          .limit(Math.max(2, Math.floor(limit / userIds.length))); // At least 2 per user
+          
+        allActivities.push(...userActivities);
+      }
+      
+      // Sort combined results by date and limit to requested number
+      const result = allActivities
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit);
+      
+      console.log(`[DEBUG] getAllActivities: Returning ${result.length} activities from ${userIds.length} users`);
+      
+      return result;
     } catch (error) {
       console.error('Error fetching all activities:', error);
       return [];

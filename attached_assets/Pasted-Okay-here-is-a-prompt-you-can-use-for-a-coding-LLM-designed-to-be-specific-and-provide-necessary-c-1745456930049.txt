@@ -1,0 +1,40 @@
+Okay, here is a prompt you can use for a coding LLM, designed to be specific and provide necessary context:
+
+---
+
+**Prompt:**
+
+**Role:** You are an expert backend developer experienced with Node.js, React, Drizzle ORM, Neon databases, and handling file uploads efficiently in production environments.
+
+**Context:**
+I have a web application built with a React frontend and a Node.js backend (using Express.js). We utilize Drizzle ORM for database interactions with a Neon (Serverless Postgres) database. A key feature allows users to upload multiple files simultaneously through a `multipart/form-data` request.
+
+**Problem:**
+Our production Node.js service is experiencing severe memory/heap issues when multiple files are uploaded concurrently or when large files are uploaded. This often leads to performance degradation, heap overflows, and potential crashes. The current implementation likely buffers entire files into memory during the upload process, which is unsustainable under load.
+
+**Task:**
+Refactor the Node.js backend file upload logic to be memory-efficient and robust against concurrent uploads. The goal is to process incoming files without loading their entire content into the server's memory at once, thus preventing heap exhaustion.
+
+**Requirements & Considerations:**
+
+1.  **Streaming:** The primary solution should involve streaming the file uploads directly to a temporary location on disk or immediately piping them to their final destination (e.g., cloud storage like S3, or processing pipeline) rather than using memory buffering.
+2.  **Middleware:** Show how to configure and use appropriate Node.js middleware (e.g., `multer` configured for disk storage, or potentially alternatives like `busboy` for more direct stream handling) to manage the `multipart/form-data` requests.
+3.  **Temporary Storage:** If using temporary disk storage, demonstrate how to correctly manage these temporary files, including cleanup after successful processing or in case of errors.
+4.  **Processing:** Provide a structure for processing *each* file *after* it has been successfully streamed/saved temporarily. This might include validation, moving the file, extracting metadata, etc.
+5.  **Database Interaction (Drizzle/Neon):** Show an example of how to use Drizzle ORM to save file metadata (e.g., filename, path/URL, size, MIME type) to the Neon database *per file*, once it's successfully handled.
+6.  **Concurrency:** The streaming/disk-based approach should inherently improve concurrency tolerance. Explain *why* this approach is better for handling simultaneous uploads compared to memory buffering. Briefly mention potential bottlenecks if processing *after* upload is CPU-intensive (though the primary focus is memory during upload).
+7.  **Error Handling:** Include robust error handling for potential issues during upload (e.g., file size limits, write errors, network interruptions) and processing. Ensure proper cleanup occurs on error.
+8.  **Response:** Show how to send appropriate responses back to the React client upon success (potentially per file or batch) or failure.
+9.  **Technology Stack:** The solution must be implemented in Node.js (preferably using modern JavaScript/TypeScript) within an Express.js context, using Drizzle ORM for database operations against Neon.
+
+**Output:**
+Provide optimized Node.js code snippets for:
+* Configuring the file upload middleware (e.g., `multer` with `diskStorage`).
+* The Express.js route handler(s) managing the file upload request.
+* An example of processing a single file from its temporary location (including potential Drizzle ORM interaction for metadata storage).
+* Necessary cleanup logic for temporary files.
+* Clear explanations for the choices made and how they address the memory issue.
+
+---
+
+This prompt clearly defines the problem, the existing tech stack, the specific requirements (streaming, disk storage, database interaction), and the desired output format, giving the LLM a solid foundation to generate a relevant and helpful solution.
