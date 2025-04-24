@@ -80,8 +80,8 @@ export class InputDataController {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      // Insert input data record
-      const fileType = path.extname(file.originalname).toLowerCase();
+      // Insert input data record - add null/undefined checks
+      const fileType = file && file.originalname ? path.extname(file.originalname).toLowerCase() : '';
       
       // Determine the type of file based on extension
       let fileContentType = "file";
@@ -266,17 +266,46 @@ export class InputDataController {
             try {
               logger.info(`Auto-processing DOCX file into requirements: ${file.originalname}`);
               
+              // Update status to processing
+              await storage.updateInputData(inputData.id, {
+                status: "processing",
+                metadata: JSON.stringify({ 
+                  message: "Extracting text from document" 
+                })
+              });
+              
               // Extract text from document
               const extractedText = await extractTextFromDocx(file.path);
               if (!extractedText.success) {
                 throw new Error(extractedText.error || 'Failed to extract text from document');
               }
               
-              // Generate requirements
-              const requirements = await generateRequirementsForFile(extractedText.text, file.originalname);
+              // Update status to generating requirements
+              await storage.updateInputData(inputData.id, {
+                status: "processing",
+                metadata: JSON.stringify({ 
+                  message: "Generating requirements",
+                  textLength: extractedText.text.length
+                })
+              });
+              
+              // Generate requirements with null/undefined safety
+              const requirements = await generateRequirementsForFile(
+                extractedText.text || '', 
+                file && file.originalname ? file.originalname : 'document.docx'
+              );
               
               if (!requirements || !Array.isArray(requirements) || requirements.length === 0) {
                 logger.warn(`No requirements generated from DOCX file: ${file.originalname}`);
+                
+                // Update status to completed but with warning
+                await storage.updateInputData(inputData.id, {
+                  status: "completed",
+                  metadata: JSON.stringify({ 
+                    warning: "No requirements were extracted from this document" 
+                  })
+                });
+                
                 return;
               }
               
@@ -299,7 +328,13 @@ export class InputDataController {
               
               // Update input data status
               await storage.updateInputData(inputData.id, {
-                status: "completed"
+                status: "completed",
+                metadata: JSON.stringify({
+                  textLength: extractedText.text.length,
+                  format: "DOCX",
+                  processingTime: new Date().toISOString(),
+                  requirementsCount: requirements.length
+                })
               });
               
               // Log activity

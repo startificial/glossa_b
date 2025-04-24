@@ -101,11 +101,16 @@ export async function analyzeDocx(filePath: string): Promise<any> {
     
     // Check if it likely contains requirements based on keyword detection
     const requirementsKeywords = ['shall', 'must', 'required', 'requirement', 'should', 'necessary'];
-    const hasRequirements = requirementsKeywords.some(kw => text.toLowerCase().includes(kw));
+    // Add null/undefined check before using toLowerCase
+    const hasRequirements = text && typeof text === 'string' 
+      ? requirementsKeywords.some(kw => text.toLowerCase().includes(kw))
+      : false;
     
-    // Infer domain from content
+    // Infer domain from content with null/undefined safety
     let domain = "general";
-    if (text.toLowerCase().includes("software") || text.toLowerCase().includes("application")) {
+    if (!text || typeof text !== 'string') {
+      domain = "unknown";
+    } else if (text.toLowerCase().includes("software") || text.toLowerCase().includes("application")) {
       domain = "software";
     } else if (text.toLowerCase().includes("service") || text.toLowerCase().includes("customer")) {
       domain = "service management";
@@ -308,9 +313,10 @@ export async function streamProcessFile(
       'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
     
     // Check if any domain keywords are in the filename or project name
+    // Add null/undefined checks
     const matchedKeywords = domainsList.filter(domain => 
-      fileName.toLowerCase().includes(domain.toLowerCase()) || 
-      projectName.toLowerCase().includes(domain.toLowerCase())
+      (fileName && typeof fileName === 'string' && domain && typeof domain === 'string' && fileName.toLowerCase().includes(domain.toLowerCase())) || 
+      (projectName && typeof projectName === 'string' && domain && typeof domain === 'string' && projectName.toLowerCase().includes(domain.toLowerCase()))
     );
     
     const inferredDomain = matchedKeywords.length > 0 

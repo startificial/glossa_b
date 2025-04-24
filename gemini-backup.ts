@@ -299,18 +299,10 @@ export async function processVideoFile(
       'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
     
     // Check if any domain keywords are in the filename or project name
-    // With null/undefined safety checks
-    const matchedKeywords = domainsList.filter(domain => {
-      if (!domain) return false;
-      
-      const fileNameMatch = fileName && typeof fileName === 'string' ? 
-        fileName.toLowerCase().includes(domain.toLowerCase()) : false;
-        
-      const projectNameMatch = projectName && typeof projectName === 'string' ? 
-        projectName.toLowerCase().includes(domain.toLowerCase()) : false;
-        
-      return fileNameMatch || projectNameMatch;
-    });
+    const matchedKeywords = domainsList.filter(domain => 
+      fileName.toLowerCase().includes(domain.toLowerCase()) || 
+      projectName.toLowerCase().includes(domain.toLowerCase())
+    );
     
     const inferredDomain = matchedKeywords.length > 0 
       ? matchedKeywords.join(', ') 
@@ -631,10 +623,7 @@ export async function processVideoFile(
           console.error('Error processing audio from video:', audioError);
           return requirementsWithScenes;
         }
-      } else if (fileInfo && fileInfo.name && typeof fileInfo.name === 'string' && 
-        (fileInfo.name.toLowerCase().endsWith('.mp3') || 
-         fileInfo.name.toLowerCase().endsWith('.wav') || 
-         fileInfo.name.toLowerCase().endsWith('.m4a'))) {
+      } else if (fileInfo.name.toLowerCase().endsWith('.mp3') || fileInfo.name.toLowerCase().endsWith('.wav') || fileInfo.name.toLowerCase().endsWith('.m4a')) {
         // This is an audio file, try to extract audio timestamps
         console.log('Extracting audio timestamps...');
         
@@ -716,18 +705,10 @@ export async function generateRequirementsForFile(
       'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
     
     // Check if any domain keywords are in the filename or project name
-    // With null/undefined safety checks
-    const matchedKeywords = domainsList.filter(domain => {
-      if (!domain) return false;
-      
-      const fileNameMatch = fileName && typeof fileName === 'string' ? 
-        fileName.toLowerCase().includes(domain.toLowerCase()) : false;
-        
-      const projectNameMatch = projectName && typeof projectName === 'string' ? 
-        projectName.toLowerCase().includes(domain.toLowerCase()) : false;
-        
-      return fileNameMatch || projectNameMatch;
-    });
+    const matchedKeywords = domainsList.filter(domain => 
+      fileName.toLowerCase().includes(domain.toLowerCase()) || 
+      projectName.toLowerCase().includes(domain.toLowerCase())
+    );
     
     const inferredDomain = matchedKeywords.length > 0 
       ? matchedKeywords.join(', ') 
@@ -777,9 +758,9 @@ export async function generateRequirementsForFile(
 
       // Create a prompt based on the file type, content type, and current perspective
       const prompt = `
-        You are a business systems analyst specializing in ${inferredDomain} systems with expertise in ${perspective && perspective.name && typeof perspective.name === 'string' ? perspective.name.toLowerCase() : 'functional requirements'}. 
+        You are a business systems analyst specializing in ${inferredDomain} systems with expertise in ${perspective.name.toLowerCase()}. 
         Your task is to generate migration requirements for a project that's moving functionality from a source system to a target system, 
-        focusing specifically on ${perspective && perspective.focus ? perspective.focus : 'system requirements'}.
+        focusing specifically on ${perspective.focus}.
         
         Project context: ${projectName}
         File name: ${fileName}
