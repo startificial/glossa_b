@@ -259,16 +259,12 @@ export function InputDataList({ projectId }: InputDataListProps) {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  {item.fileType?.toLowerCase() === '.txt' || item.fileType?.toLowerCase() === '.md' 
-                                    ? "Processing text file in background..." 
-                                    : "Extracting requirements with AI..."}
+                                  Extracting requirements with AI...
                                 </p>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p className="text-xs">
-                                  {item.fileType?.toLowerCase() === '.txt' || item.fileType?.toLowerCase() === '.md'
-                                    ? "Text file processing happens in the background. You can continue working."
-                                    : "This process may take a few minutes depending on file size and complexity"}
+                                  This process may take a few minutes depending on file size and complexity
                                 </p>
                               </TooltipContent>
                             </Tooltip>

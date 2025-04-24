@@ -107,6 +107,8 @@ function chunkTextContent(fileContent: string, chunkSize: number = 4000, overlap
 
 /**
  * Process a text file to extract requirements using Gemini
+ * Uses a memory-efficient streaming approach for large files
+ * 
  * @param filePath Path to the text file
  * @param projectName Name of the project for context
  * @param fileName Name of the file being processed
@@ -117,16 +119,79 @@ function chunkTextContent(fileContent: string, chunkSize: number = 4000, overlap
 export async function processTextFile(filePath: string, projectName: string, fileName: string, contentType: string = 'general', minRequirements: number = 5, inputDataId?: number): Promise<any[]> {
   // No upper limit on requirements - extract as many as needed from the content
   try {
-    // Read the file content
-    const fileContent = fs.readFileSync(filePath, 'utf8');
+    // Check file size first to determine approach
+    const stats = fs.statSync(filePath);
+    const fileSizeMB = stats.size / (1024 * 1024);
+    console.log(`Processing text file: ${fileName} (${fileSizeMB.toFixed(2)} MB)`);
+
+    let fileContent: string;
+    let chunks: string[];
     
-    // Get file size in KB
-    const fileSizeKB = Buffer.byteLength(fileContent, 'utf8') / 1024;
-    console.log(`Processing text file: ${fileName} (${fileSizeKB.toFixed(2)} KB)`);
-    
-    // Split into chunks if large file
-    const chunks = chunkTextContent(fileContent);
-    console.log(`Split into ${chunks.length} chunks for processing`);
+    // For large files (>5MB), read and process in streaming manner
+    if (fileSizeMB > 5) {
+      console.log(`Large text file detected. Using streaming approach with max 5 chunks.`);
+      
+      // Read file content in chunks to avoid loading entire file into memory
+      const chunkSizeBytes = Math.ceil(stats.size / 5); // Divide into max 5 chunks
+      const buffer = Buffer.alloc(chunkSizeBytes);
+      const fd = fs.openSync(filePath, 'r');
+      
+      chunks = [];
+      let bytesRead = 0;
+      let position = 0;
+      
+      try {
+        // Read up to 5 evenly spaced chunks from the file
+        for (let i = 0; i < 5; i++) {
+          // Calculate position to read from
+          position = i * chunkSizeBytes;
+          
+          // Skip if we're past the end of file
+          if (position >= stats.size) break;
+          
+          // Read a chunk
+          bytesRead = fs.readSync(fd, buffer, 0, chunkSizeBytes, position);
+          
+          if (bytesRead > 0) {
+            const chunkContent = buffer.slice(0, bytesRead).toString('utf8');
+            
+            // Clean up chunk boundaries to avoid cutting in the middle of words
+            let cleanedChunk = chunkContent;
+            
+            // Find sentence boundaries for cleaner chunks
+            if (i > 0) {
+              // For all chunks except first, trim beginning to a sentence start
+              const sentenceStart = cleanedChunk.match(/[.!?]\s+[A-Z]/);
+              if (sentenceStart && sentenceStart.index && sentenceStart.index < 1000) {
+                cleanedChunk = cleanedChunk.substring(sentenceStart.index + 2);
+              }
+            }
+            
+            if (i < 4 && position + bytesRead < stats.size) {
+              // For all chunks except last, trim end to a sentence end
+              const reversedChunk = cleanedChunk.split('').reverse().join('');
+              const sentenceEnd = reversedChunk.match(/[A-Z]\s+[.!?]/);
+              if (sentenceEnd && sentenceEnd.index && sentenceEnd.index < 1000) {
+                cleanedChunk = cleanedChunk.substring(0, cleanedChunk.length - (sentenceEnd.index + 2));
+              }
+            }
+            
+            chunks.push(cleanedChunk);
+          }
+        }
+      } finally {
+        fs.closeSync(fd);
+      }
+      
+      console.log(`Read ${chunks.length} representative chunks for processing`);
+    } else {
+      // For smaller files, read the entire file
+      fileContent = fs.readFileSync(filePath, 'utf8');
+      
+      // Split into chunks for processing
+      chunks = chunkTextContent(fileContent);
+      console.log(`Split into ${chunks.length} chunks for processing`);
+    }
     
     // Initialize an array to store all requirements
     let allRequirements: any[] = [];

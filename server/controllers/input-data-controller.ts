@@ -278,13 +278,8 @@ export class InputDataController {
           metadata: processingResult.metadata
         });
         
-        // For text files, mark as "processed" immediately to prevent UI from hanging
-        if (fileType === '.txt' || fileType === '.md') {
-          // Set status to "processed" now, even though we'll continue processing in background
-          await storage.updateInputData(inputData.id, {
-            status: "processed"
-          });
-        }
+        // No need to mark text files as processed immediately - we'll follow the normal flow
+        // This ensures the UI displays processing status correctly
         
         // For DOCX or TXT files, automatically start processing into requirements
         if (fileType === '.docx' || fileType === '.doc' || fileType === '.txt' || fileType === '.md') {

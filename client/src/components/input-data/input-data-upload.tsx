@@ -87,15 +87,9 @@ export function InputDataUpload({ projectId, onUploaded }: InputDataUploadProps)
       setSelectedFile(null);
       setUploadProgress(0);
       
-      // Special handling for text files
-      const isTextFile = selectedFile?.name?.toLowerCase().endsWith('.txt') || 
-                        selectedFile?.name?.toLowerCase().endsWith('.md');
-      
       toast({
         title: 'Upload successful',
-        description: isTextFile ? 
-          'Your text file has been uploaded and will be processed in the background. You can continue working while requirements are being extracted.' : 
-          'Your file has been uploaded and is being processed.',
+        description: 'Your file has been uploaded and is being processed.',
       });
       
       // Invalidate the query to refresh the input data list

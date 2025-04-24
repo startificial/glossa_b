@@ -270,6 +270,8 @@ export function findTextReferences(
 
 /**
  * Process a text file to find references for a requirement
+ * Uses a streaming approach for large files to prevent memory issues
+ * 
  * @param filePath Path to the text file
  * @param requirement The requirement text to find references for
  * @param inputDataId The ID of the input data
@@ -281,11 +283,73 @@ export async function processTextFileForRequirement(
   inputDataId: number
 ): Promise<TextReference[]> {
   try {
-    // Read the text file
-    const text = fs.readFileSync(filePath, 'utf8');
+    // Check file size first
+    const stats = fs.statSync(filePath);
+    const fileSizeMB = stats.size / (1024 * 1024);
     
-    // Find references
-    return findTextReferences(text, requirement, inputDataId);
+    // For files smaller than 2MB, use simple approach to read entire file
+    if (fileSizeMB < 2) {
+      // Read the text file
+      const text = fs.readFileSync(filePath, 'utf8');
+      
+      // Find references
+      return findTextReferences(text, requirement, inputDataId);
+    } else {
+      console.log(`Large text file detected (${fileSizeMB.toFixed(2)}MB). Using chunked processing.`);
+      
+      // For larger files, process in chunks to avoid memory issues
+      // We'll read chunks of text and process them incrementally
+      const chunkSize = 1 * 1024 * 1024; // 1MB chunks
+      const buffer = Buffer.alloc(chunkSize);
+      const fd = fs.openSync(filePath, 'r');
+      
+      let position = 0;
+      let bytesRead = 0;
+      let allReferences: TextReference[] = [];
+      
+      try {
+        do {
+          // Read a chunk from the file
+          bytesRead = fs.readSync(fd, buffer, 0, chunkSize, position);
+          
+          if (bytesRead > 0) {
+            // Convert chunk to text
+            const chunk = buffer.slice(0, bytesRead).toString('utf8');
+            
+            // Adjust positions to be relative to overall file
+            const chunkReferences = findTextReferences(chunk, requirement, inputDataId)
+              .map(ref => ({
+                ...ref,
+                startPosition: ref.startPosition + position,
+                endPosition: ref.endPosition + position
+              }));
+            
+            // Add to all references
+            allReferences = [...allReferences, ...chunkReferences];
+            
+            // Move position for next read
+            position += bytesRead;
+          }
+        } while (bytesRead === chunkSize);
+        
+        // Deduplicate references that might span across chunks
+        const uniqueReferences = allReferences
+          .sort((a, b) => b.relevance! - a.relevance!) // Sort by relevance
+          .filter((ref, index, self) => 
+            // Keep this reference if it doesn't significantly overlap with any higher-relevance reference
+            !self.slice(0, index).some(prevRef => {
+              const overlapThreshold = 50; // Number of characters considered an overlap
+              return Math.abs(ref.startPosition - prevRef.startPosition) < overlapThreshold;
+            })
+          )
+          .slice(0, 3); // Limit to 3 best references
+        
+        // Sort by position
+        return uniqueReferences.sort((a, b) => a.startPosition - b.startPosition);
+      } finally {
+        fs.closeSync(fd);
+      }
+    }
   } catch (error) {
     console.error('Error processing text file for references:', error);
     return [];
