@@ -4,10 +4,13 @@ import { pipeline } from 'stream/promises';
 import { promisify } from 'util';
 import { createReadStream, createWriteStream } from 'fs';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as mammoth from 'mammoth';
+import { logger } from './utils/logger';
 
 const mkdir = promisify(fs.mkdir);
 const unlink = promisify(fs.unlink);
 const stat = promisify(fs.stat);
+const readFile = promisify(fs.readFile);
 
 // Initialize Google Generative AI with appropriate model
 const API_KEY = process.env.GEMINI_API_KEY || '';
@@ -53,6 +56,229 @@ const safetySettings = [
  * @param inputDataId Optional ID for the input data record
  * @returns Array of generated requirements
  */
+/**
+ * Process a DOCX document and analyze its content
+ * @param filePath Path to the DOCX file
+ * @returns Object containing extracted text and analysis results
+ */
+export async function analyzeDocx(filePath: string): Promise<any> {
+  try {
+    logger.info(`Analyzing DOCX file: ${filePath}`);
+    
+    // Extract text from the document
+    const textResult = await extractTextFromDocx(filePath);
+    
+    if (!textResult.success) {
+      logger.error(`Failed to extract text from DOCX: ${textResult.error}`);
+      return {
+        success: false,
+        error: textResult.error,
+        metadata: {},
+        context: {
+          domain: "unknown",
+          docType: "DOCX document",
+          keywords: [],
+          hasRequirements: false
+        }
+      };
+    }
+    
+    const text = textResult.text;
+    
+    // Simplified metadata extraction - in a more complex implementation, 
+    // we could use mammoth to extract more document properties
+    const metadata = {
+      textLength: text.length,
+      format: "DOCX",
+      processingTime: new Date().toISOString()
+    };
+    
+    // Basic context detection - this could be enhanced with NLP or AI
+    const keywords = text.split(/\s+/)
+      .filter(word => word.length > 5)
+      .filter((word, index, self) => self.indexOf(word) === index)
+      .slice(0, 20);
+    
+    // Check if it likely contains requirements based on keyword detection
+    const requirementsKeywords = ['shall', 'must', 'required', 'requirement', 'should', 'necessary'];
+    const hasRequirements = requirementsKeywords.some(kw => text.toLowerCase().includes(kw));
+    
+    // Infer domain from content
+    let domain = "general";
+    if (text.toLowerCase().includes("software") || text.toLowerCase().includes("application")) {
+      domain = "software";
+    } else if (text.toLowerCase().includes("service") || text.toLowerCase().includes("customer")) {
+      domain = "service management";
+    } else if (text.toLowerCase().includes("sales") || text.toLowerCase().includes("marketing")) {
+      domain = "sales and marketing";
+    }
+    
+    return {
+      success: true,
+      text,
+      metadata,
+      context: {
+        domain,
+        docType: "DOCX document",
+        keywords,
+        hasRequirements
+      }
+    };
+  } catch (error) {
+    logger.error(`Error analyzing DOCX file: ${error}`);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error analyzing DOCX',
+      metadata: {},
+      context: {
+        domain: "unknown",
+        docType: "DOCX document",
+        keywords: [],
+        hasRequirements: false
+      }
+    };
+  }
+}
+
+/**
+ * Extract text from a DOCX file
+ * @param filePath Path to the DOCX file
+ * @returns Object containing the extracted text and processing info
+ */
+export async function extractTextFromDocx(filePath: string): Promise<{text: string, success: boolean, error?: string}> {
+  try {
+    logger.info(`Extracting text from DOCX: ${filePath}`);
+    
+    // Check if the file exists
+    if (!fs.existsSync(filePath)) {
+      logger.error(`DOCX file not found: ${filePath}`);
+      return {
+        text: '',
+        success: false,
+        error: 'File not found'
+      };
+    }
+    
+    // Read the file buffer
+    const buffer = await readFile(filePath);
+    
+    // Extract text from the document
+    const result = await mammoth.extractRawText({ buffer });
+    const text = result.value;
+    
+    // Log any warnings
+    if (result.messages && result.messages.length > 0) {
+      logger.warn(`Warnings while extracting text from DOCX: ${JSON.stringify(result.messages)}`);
+    }
+    
+    if (!text || text.trim().length === 0) {
+      logger.error('No text extracted from DOCX file');
+      return {
+        text: '',
+        success: false,
+        error: 'No text could be extracted from the document'
+      };
+    }
+    
+    logger.info(`Successfully extracted ${text.length} characters from DOCX`);
+    return {
+      text,
+      success: true
+    };
+  } catch (error) {
+    logger.error(`Error extracting text from DOCX file: ${error}`);
+    return {
+      text: '',
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error during DOCX text extraction'
+    };
+  }
+}
+
+/**
+ * Extract text content from a text file
+ * @param filePath Path to the text file
+ * @returns Object containing the extracted text and processing info
+ */
+export async function extractTextFromTxt(filePath: string): Promise<{text: string, success: boolean, error?: string}> {
+  try {
+    logger.info(`Reading text from file: ${filePath}`);
+    
+    // Check if the file exists
+    if (!fs.existsSync(filePath)) {
+      logger.error(`Text file not found: ${filePath}`);
+      return {
+        text: '',
+        success: false,
+        error: 'File not found'
+      };
+    }
+    
+    // Read the file content
+    const text = await readFile(filePath, 'utf8');
+    
+    if (!text || text.trim().length === 0) {
+      logger.error('Text file is empty');
+      return {
+        text: '',
+        success: false,
+        error: 'Text file is empty'
+      };
+    }
+    
+    logger.info(`Successfully read ${text.length} characters from text file`);
+    return {
+      text,
+      success: true
+    };
+  } catch (error) {
+    logger.error(`Error reading text file: ${error}`);
+    return {
+      text: '',
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error during text file reading'
+    };
+  }
+}
+
+/**
+ * Get file content based on file type 
+ * @param filePath Path to the file
+ * @param fileType Type of file (.pdf, .docx, .txt, etc)
+ */
+export async function getFileContent(filePath: string, fileType: string): Promise<{text: string, success: boolean, error?: string}> {
+  try {
+    logger.info(`Getting content from file: ${filePath} (type: ${fileType})`);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      logger.error(`File not found: ${filePath}`);
+      return { text: '', success: false, error: 'File not found' };
+    }
+    
+    // Process based on file type
+    if (fileType.toLowerCase() === '.docx' || fileType.toLowerCase() === '.doc') {
+      return await extractTextFromDocx(filePath);
+    } else if (fileType.toLowerCase() === '.txt' || fileType.toLowerCase() === '.md') {
+      return await extractTextFromTxt(filePath);
+    } else {
+      logger.error(`Unsupported file type for text extraction: ${fileType}`);
+      return { 
+        text: '', 
+        success: false, 
+        error: `Unsupported file type: ${fileType}. Supported types include .docx, .doc, .txt, and .md` 
+      };
+    }
+  } catch (error) {
+    logger.error(`Error getting file content: ${error}`);
+    return {
+      text: '',
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error extracting file content'
+    };
+  }
+}
+
 export async function streamProcessFile(
   filePath: string,
   fileName: string,
@@ -117,6 +343,45 @@ export async function streamProcessFile(
 
     // Select perspectives based on numAnalyses
     const selectedPerspectives = perspectives.slice(0, Math.min(numAnalyses, perspectives.length));
+    
+    // Get file content based on file type
+    let fileContent = '';
+    let fileExtractSuccess = true;
+    let fileExtractError = '';
+    
+    // Handle different file types for text extraction
+    if (fileType.toLowerCase() === '.docx' || fileType.toLowerCase() === '.doc') {
+      logger.info(`Processing DOCX file: ${filePath}`);
+      const docxResult = await extractTextFromDocx(filePath);
+      if (!docxResult.success) {
+        logger.error(`Failed to extract text from DOCX: ${docxResult.error}`);
+        fileExtractSuccess = false;
+        fileExtractError = docxResult.error || 'Unknown error extracting DOCX text';
+      } else {
+        fileContent = docxResult.text;
+        logger.info(`Successfully extracted ${fileContent.length} characters from DOCX`);
+      }
+    } else if (fileType.toLowerCase() === '.txt' || fileType.toLowerCase() === '.md') {
+      logger.info(`Processing text file: ${filePath}`);
+      const txtResult = await extractTextFromTxt(filePath);
+      if (!txtResult.success) {
+        logger.error(`Failed to extract text from text file: ${txtResult.error}`);
+        fileExtractSuccess = false;
+        fileExtractError = txtResult.error || 'Unknown error reading text file';
+      } else {
+        fileContent = txtResult.text;
+        logger.info(`Successfully read ${fileContent.length} characters from text file`);
+      }
+    } else {
+      // For other file types (binary, etc.), we might need specialized handling
+      // but for now, we'll just proceed with the default stream processing
+      logger.info(`Processing file with type ${fileType} using default method`);
+    }
+    
+    // If text extraction failed, throw an error to be caught by the try/catch block
+    if (!fileExtractSuccess) {
+      throw new Error(`Failed to extract content from file: ${fileExtractError}`);
+    }
     
     // Stream the file to a temporary location in chunks if needed
     // This process is more important for larger files

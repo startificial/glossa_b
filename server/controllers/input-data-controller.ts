@@ -11,6 +11,7 @@ import { insertInputDataSchema } from '@shared/schema';
 import { processTextFile, generateRequirementsForFile, generateExpertReview } from '../gemini';
 import { processPdfFile, validatePdf, extractTextFromPdf } from '../pdf-processor';
 import { analyzePdf } from '../pdf-analyzer';
+import { extractTextFromDocx, analyzeDocx } from '../stream-file-processor';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -161,6 +162,42 @@ export class InputDataController {
           });
           return res.status(500).json({ message: "Error processing PDF file" });
         }
+      } else if (fileType === '.docx' || fileType === '.doc') {
+        // Process DOCX files
+        try {
+          // Extract text and analyze the DOCX document
+          const extractedText = await extractTextFromDocx(file.path);
+          
+          if (!extractedText.success) {
+            throw new Error(extractedText.error || 'Failed to extract text from document');
+          }
+          
+          textContent = extractedText.text;
+          
+          // Analyze the document content
+          const analysisResult = await analyzeDocx(file.path);
+          
+          processingResult = {
+            text: textContent,
+            metadata: JSON.stringify(analysisResult.metadata || {}),
+            context: analysisResult.context || {
+              domain: "unknown",
+              docType: "DOCX document",
+              keywords: [],
+              hasRequirements: false
+            },
+            hasOcrText: false,
+            pageCount: 1, // DOCX doesn't have pages in the same way PDFs do
+            isScanOrImage: false
+          };
+        } catch (error) {
+          logger.error("Error processing DOCX:", error);
+          await storage.updateInputData(inputData.id, {
+            status: "error",
+            metadata: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to process DOCX file" })
+          });
+          return res.status(500).json({ message: "Error processing DOCX file" });
+        }
       } else if (fileType === '.mp4' || fileType === '.mov' || fileType === '.webm') {
         // Process video files
         const videoProcessor = new VideoProcessor();
@@ -189,17 +226,18 @@ export class InputDataController {
           logger.error("Error processing video:", error);
           await storage.updateInputData(inputData.id, {
             status: "error",
-            metadata: JSON.stringify({ error: "Failed to process video" })
+            metadata: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to process video" })
           });
           return res.status(500).json({ message: "Error processing video file" });
         }
       } else {
         // Unsupported file type
+        logger.warn(`Unsupported file type: ${fileType} for file: ${file.originalname}`);
         await storage.updateInputData(inputData.id, {
           status: "error",
-          metadata: JSON.stringify({ error: "Unsupported file type" })
+          metadata: JSON.stringify({ error: `Unsupported file type: ${fileType}` })
         });
-        return res.status(400).json({ message: "Unsupported file type" });
+        return res.status(400).json({ message: `Unsupported file type: ${fileType}. Supported types include PDF, DOCX, TXT, and video formats.` });
       }
       
       // Update input data with processing results
@@ -273,8 +311,19 @@ export class InputDataController {
           content = extractedText.text;
         } else if (inputData.fileType === '.txt' || inputData.fileType === '.md') {
           content = fs.readFileSync(inputData.filePath, 'utf8');
+        } else if (inputData.fileType === '.docx' || inputData.fileType === '.doc') {
+          try {
+            const extractedText = await extractTextFromDocx(inputData.filePath);
+            if (!extractedText.success) {
+              throw new Error(extractedText.error || 'Failed to extract text from document');
+            }
+            content = extractedText.text;
+          } catch (error) {
+            logger.error("Error extracting text from DOCX:", error);
+            throw new Error("Failed to extract text from DOCX file");
+          }
         } else {
-          throw new Error("Unsupported file type for requirement generation");
+          throw new Error(`Unsupported file type: ${inputData.fileType} for requirement generation. Supported types include PDF, DOCX, and TXT files.`);
         }
         
         // Use appropriate AI to generate requirements
@@ -387,8 +436,19 @@ export class InputDataController {
           content = extractedText.text;
         } else if (inputData.fileType === '.txt' || inputData.fileType === '.md') {
           content = fs.readFileSync(inputData.filePath, 'utf8');
+        } else if (inputData.fileType === '.docx' || inputData.fileType === '.doc') {
+          try {
+            const extractedText = await extractTextFromDocx(inputData.filePath);
+            if (!extractedText.success) {
+              throw new Error(extractedText.error || 'Failed to extract text from document');
+            }
+            content = extractedText.text;
+          } catch (error) {
+            logger.error("Error extracting text from DOCX for expert review:", error);
+            throw new Error("Failed to extract text from DOCX file for expert review");
+          }
         } else {
-          throw new Error("Unsupported file type for expert review");
+          throw new Error(`Unsupported file type: ${inputData.fileType} for expert review. Supported types include PDF, DOCX, and TXT files.`);
         }
         
         // Get all requirements for this input data
