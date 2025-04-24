@@ -4,7 +4,7 @@
  * This module applies performance optimizations to the application.
  * It should be called at application startup.
  */
-import { db } from './database';
+import { db } from './db';
 import { sql } from 'drizzle-orm';
 import { cacheService } from './services/cache-service';
 

@@ -21,6 +21,7 @@ import projectRolesRoutes from './routes/project-roles';
 import applicationSettingsRoutes from './routes/application-settings';
 import jobRoutes from './routes/job-routes';
 import { registerInputDataRoutes } from './routes/input-data-routes';
+import { registerProjectRoutes } from './routes/project-routes';
 
 /**
  * Helper function to get the current user from session
@@ -2445,6 +2446,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register admin routes
   registerAdminRoutes(app);
+  
+  // Register project routes
+  registerProjectRoutes(app);
   
   // Register input data routes
   registerInputDataRoutes(app);

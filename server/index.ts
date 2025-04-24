@@ -4,7 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import session from "express-session";
 import { storage } from "./storage";
 import createMemoryStore from "memorystore";
-import { initializeDatabase, runMigrations } from "./database";
+import { initializeDatabase, runMigrations } from "./db";
 import connectPgSimple from "connect-pg-simple";
 import path from "path";
 import os from "os";

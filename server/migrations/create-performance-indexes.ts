@@ -5,7 +5,7 @@
  * These indexes are focused on the most frequent query patterns in the application.
  */
 import { sql } from 'drizzle-orm';
-import { db } from '../database';
+import { db } from '../db';
 
 console.log('Starting performance indexes migration...');
 
