@@ -5,7 +5,7 @@
  * This centralizes request handling, error processing,
  * and provides consistent request/response interceptors.
  */
-import { ENV_CONFIG } from '@shared/config';
+import { ENV_CONFIG, HTTP_STATUS } from '@shared/config';
 import { logger } from './logger';
 
 /**
@@ -20,6 +20,8 @@ interface ApiClientOptions {
   timeout?: number;
   /** Whether to include credentials (cookies) */
   withCredentials?: boolean;
+  /** Maximum number of retry attempts for server errors */
+  maxRetries?: number;
 }
 
 /**
@@ -80,6 +82,7 @@ export class ApiClient {
   private defaultHeaders: Record<string, string>;
   private timeout: number;
   private withCredentials: boolean;
+  private maxRetries: number;
 
   /**
    * Create a new API client
@@ -97,6 +100,26 @@ export class ApiClient {
     
     this.timeout = options.timeout || 30000; // 30 seconds default
     this.withCredentials = options.withCredentials ?? true;
+    this.maxRetries = options.maxRetries || 3; // Default to 3 retry attempts
+  }
+  
+  /**
+   * Determine if an HTTP status code is a server error (5xx)
+   * that might be eligible for retry
+   */
+  private isServerError(statusCode: number): boolean {
+    return statusCode >= 500 && statusCode < 600;
+  }
+  
+  /**
+   * Calculate the delay for exponential backoff retry strategy
+   * @param attempt The current attempt number (0-based)
+   * @returns Delay in milliseconds
+   */
+  private getRetryDelay(attempt: number): number {
+    // Exponential backoff: 2^attempt * 100ms with jitter
+    const jitter = Math.random() * 100;
+    return Math.min(Math.pow(2, attempt) * 100 + jitter, 5000); // Cap at 5 seconds
   }
 
   /**
@@ -136,8 +159,9 @@ export class ApiClient {
 
   /**
    * Make a request with the given configuration
+   * Includes retry logic for server errors (5xx)
    */
-  async request<T = any>(config: RequestConfig): Promise<T> {
+  async request<T = any>(config: RequestConfig, retryAttempt: number = 0): Promise<T> {
     // Initialize request configuration
     const requestConfig: RequestConfig = {
       method: 'GET',
@@ -158,12 +182,15 @@ export class ApiClient {
     const startTime = Date.now();
     
     try {
-      // Log the request
-      logger.debug('API request', {
+      // Log the request (with retry information if applicable)
+      const logContext = {
         method: requestConfig.method,
         url,
         requestId: requestConfig.requestId,
-      });
+        ...(retryAttempt > 0 ? { retryAttempt } : {})
+      };
+      
+      logger.debug('API request', logContext);
 
       // Create AbortController for timeout handling
       const controller = new AbortController();
@@ -213,11 +240,37 @@ export class ApiClient {
           status: response.status,
           duration: `${duration}ms`,
           requestId: requestConfig.requestId,
+          ...(retryAttempt > 0 ? { retryAttempt } : {}),
           responseData,
         });
 
+        // Check if this is a server error that should be retried
+        if (this.isServerError(response.status) && retryAttempt < this.maxRetries) {
+          // Increment retry attempt
+          const nextRetryAttempt = retryAttempt + 1;
+          
+          // Calculate delay with exponential backoff
+          const retryDelay = this.getRetryDelay(retryAttempt);
+          
+          logger.info(`Retrying request (attempt ${nextRetryAttempt}/${this.maxRetries}) after ${retryDelay}ms delay`, {
+            requestId: requestConfig.requestId,
+            status: response.status,
+            url,
+          });
+          
+          // Wait for the calculated delay
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          
+          // Retry the request
+          return this.request(requestConfig, nextRetryAttempt);
+        }
+
+        // If we reached max retries or it's not a retriable error, throw the error
+        const errorMessage = responseData?.message || `API request failed with status ${response.status}`;
+        const userFriendlyMessage = this.getUserFriendlyErrorMessage(response.status, errorMessage);
+        
         throw new ApiError(
-          responseData?.message || `API request failed with status ${response.status}`,
+          userFriendlyMessage,
           response.status,
           requestConfig,
           response,
@@ -232,6 +285,7 @@ export class ApiClient {
         status: response.status,
         duration: `${duration}ms`,
         requestId: requestConfig.requestId,
+        ...(retryAttempt > 0 ? { retryAttempt, recoveredAfterRetry: true } : {})
       });
 
       return responseData as T;
@@ -239,8 +293,29 @@ export class ApiClient {
       // Calculate request duration even for failures
       const duration = Date.now() - startTime;
 
-      // Handle request errors
+      // Handle ApiError exceptions
       if (error instanceof ApiError) {
+        // Check if this is a server error that should be retried
+        if (this.isServerError(error.statusCode) && retryAttempt < this.maxRetries) {
+          // Increment retry attempt
+          const nextRetryAttempt = retryAttempt + 1;
+          
+          // Calculate delay with exponential backoff
+          const retryDelay = this.getRetryDelay(retryAttempt);
+          
+          logger.info(`Retrying request after ApiError (attempt ${nextRetryAttempt}/${this.maxRetries}) after ${retryDelay}ms delay`, {
+            requestId: requestConfig.requestId,
+            status: error.statusCode,
+            url,
+          });
+          
+          // Wait for the calculated delay
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          
+          // Retry the request
+          return this.request(requestConfig, nextRetryAttempt);
+        }
+        
         throw error;
       }
 
@@ -252,10 +327,31 @@ export class ApiClient {
           duration: `${duration}ms`,
           timeout: requestConfig.timeout,
           requestId: requestConfig.requestId,
+          ...(retryAttempt > 0 ? { retryAttempt } : {})
         });
 
+        // Timeouts can be retried
+        if (retryAttempt < this.maxRetries) {
+          // Increment retry attempt
+          const nextRetryAttempt = retryAttempt + 1;
+          
+          // Calculate delay with exponential backoff
+          const retryDelay = this.getRetryDelay(retryAttempt);
+          
+          logger.info(`Retrying request after timeout (attempt ${nextRetryAttempt}/${this.maxRetries}) after ${retryDelay}ms delay`, {
+            requestId: requestConfig.requestId,
+            url,
+          });
+          
+          // Wait for the calculated delay
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          
+          // Retry the request
+          return this.request(requestConfig, nextRetryAttempt);
+        }
+
         throw new ApiError(
-          'Request timeout',
+          'Request timed out after multiple attempts. Please try again later.',
           408,
           requestConfig
         );
@@ -268,13 +364,54 @@ export class ApiClient {
         duration: `${duration}ms`,
         error: error instanceof Error ? error.message : String(error),
         requestId: requestConfig.requestId,
+        ...(retryAttempt > 0 ? { retryAttempt } : {})
       });
 
+      // Network errors can also be retried
+      if (retryAttempt < this.maxRetries) {
+        // Increment retry attempt
+        const nextRetryAttempt = retryAttempt + 1;
+        
+        // Calculate delay with exponential backoff
+        const retryDelay = this.getRetryDelay(retryAttempt);
+        
+        logger.info(`Retrying request after network error (attempt ${nextRetryAttempt}/${this.maxRetries}) after ${retryDelay}ms delay`, {
+          requestId: requestConfig.requestId,
+          url,
+        });
+        
+        // Wait for the calculated delay
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        
+        // Retry the request
+        return this.request(requestConfig, nextRetryAttempt);
+      }
+
       throw new ApiError(
-        error instanceof Error ? error.message : 'Network error',
+        error instanceof Error 
+          ? `Network error: ${error.message}. Please check your connection and try again.`
+          : 'Network error. Please check your connection and try again.',
         0, // 0 indicates a network or client error rather than an HTTP status code
         requestConfig
       );
+    }
+  }
+  
+  /**
+   * Get a user-friendly error message based on status code
+   */
+  private getUserFriendlyErrorMessage(statusCode: number, defaultMessage: string): string {
+    switch (statusCode) {
+      case HTTP_STATUS.INTERNAL_SERVER_ERROR:
+        return 'The server encountered an unexpected error. Please try again later or contact support if the issue persists.';
+      case 502:
+        return 'Bad Gateway: The server received an invalid response from an upstream server. Please try again later.';
+      case HTTP_STATUS.SERVICE_UNAVAILABLE:
+        return 'Service Unavailable: The server is temporarily overloaded or under maintenance. Please try again later.';
+      case 504:
+        return 'Gateway Timeout: The server timed out waiting for a response. Please try again later.';
+      default:
+        return defaultMessage;
     }
   }
 
@@ -324,4 +461,5 @@ export class ApiClient {
 export const apiClient = new ApiClient({
   baseUrl: ENV_CONFIG.API_URL,
   withCredentials: true,
+  maxRetries: 3, // Retry up to 3 times for server errors
 });
