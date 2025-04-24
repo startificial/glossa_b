@@ -26,7 +26,7 @@ import {
 } from "@shared/schema";
 import { ExtendedImplementationTask } from './extended-types';
 import { and, desc, eq, or, like, sql as drizzleSql, gte, lte, inArray } from 'drizzle-orm';
-import { db, sql } from './db';
+import { db, pool } from './db';
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 
@@ -354,9 +354,8 @@ export class DatabaseStorage implements IStorage {
       console.log(`[DEBUG] updatePasswordAndClearToken: Updating password for user ID ${userId}`);
       console.log(`[DEBUG] updatePasswordAndClearToken: New hashed password: ${hashedPassword.substring(0, 15)}...`);
       
-      // Import the direct Neon HTTP client from db.ts
-      const { neon } = await import('@neondatabase/serverless');
-      const sql = neon(process.env.DATABASE_URL!);
+      // Import the sql function from our db.ts module
+      const { sql } = await import('./db');
       
       // Execute the update using the direct SQL approach
       const updateResult = await sql`
@@ -1332,6 +1331,9 @@ export class DatabaseStorage implements IStorage {
     try {
       // This requires a more complex query as we need to look inside the JSON nodes
       // to find workflows that reference this requirement
+      // Import the sql function from our db.ts module
+      const { sql } = await import('./db');
+      
       const rawResults = await sql`
         SELECT * FROM workflows 
         WHERE project_id IN (

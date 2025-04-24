@@ -1,26 +1,54 @@
 import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import path from "path";
-import fs from "fs";
-import os from "os";
-import crypto from "crypto";
-import multer from "multer";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
-import { projects, requirements, users } from "@shared/schema";
-import { processTextFile, generateRequirementsForFile, generateExpertReview } from "./gemini";
-import { processPdfFile, validatePdf, extractTextFromPdf } from "./pdf-processor";
-import { analyzePdf } from "./pdf-analyzer";
-import { insertRequirementSchema, insertImplementationTaskSchema } from "@shared/schema";
-import { registerAdminRoutes } from './routes/admin-routes';
+import { createProjectInDb, updateProjectInDb } from "./database";
 import documentTemplateRoutes from './routes/document-templates';
 import documentRoutes from './routes/documents';
 import pdfRoutes from './routes/pdf-route';
 import projectRolesRoutes from './routes/project-roles';
 import applicationSettingsRoutes from './routes/application-settings';
 import jobRoutes from './routes/job-routes';
-import { registerInputDataRoutes } from './routes/input-data-routes';
+import { registerAdminRoutes } from './routes/admin-routes';
+import { requirementRoleEffortController } from './controllers/requirement-role-effort-controller';
+import { taskRoleEffortController } from './controllers/task-role-effort-controller';
+import { 
+  insertProjectSchema, 
+  insertInputDataSchema, 
+  insertRequirementSchema,
+  insertActivitySchema,
+  insertImplementationTaskSchema,
+  insertUserSchema,
+  insertInviteSchema,
+  insertCustomerSchema,
+  insertDocumentTemplateSchema,
+  insertDocumentSchema,
+  insertFieldMappingSchema,
+  insertWorkflowSchema,
+  customers,
+  projects,
+  requirements,
+  activities,
+  users,
+  implementationTasks,
+  documentTemplates,
+  documents,
+  fieldMappings
+} from "@shared/schema";
+import { eq, asc, desc, and, like, inArray } from "drizzle-orm";
+import { AcceptanceCriterion, WorkflowNode, WorkflowEdge } from "@shared/types";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import os from "os";
+import nlp from "compromise";
+import { processTextFile, generateRequirementsForFile, generateExpertReview } from "./gemini";
+import { processPdfFile, validatePdf, extractTextFromPdf } from "./pdf-processor";
+import { analyzePdf } from "./pdf-analyzer";
+import crypto from "crypto";
+import VideoProcessor from "./video-processor";
+import { generateAcceptanceCriteria, generateImplementationTasks } from "./claude";
+import { z } from "zod";
 
 /**
  * Helper function to get the current user from session
@@ -109,10 +137,402 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Project endpoints have been moved to project-routes.ts
 
   // All workflow routes have been moved to workflow-routes.ts
-  // Input data routes have been moved to input-data-routes.ts
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
 
-  // Input data routes have been moved to input-data-routes.ts
-  /*app.post("/api/projects/:projectId/input-data", upload.single('file'), async (req: Request, res: Response) => {
+      // Check if project exists
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // Get specific requirements if IDs were provided, otherwise get all workflow category requirements
+      let workflowRequirements;
+      
+      if (req.body.requirementIds && Array.isArray(req.body.requirementIds) && req.body.requirementIds.length > 0) {
+        // Get the specified requirements with their acceptance criteria
+        workflowRequirements = await db.query.requirements.findMany({
+          where: and(
+            eq(requirements.projectId, projectId),
+            inArray(requirements.id, req.body.requirementIds)
+          )
+        });
+      } else {
+        // Get all requirements with the "workflow" category and their acceptance criteria
+        workflowRequirements = await db.query.requirements.findMany({
+          where: and(
+            eq(requirements.projectId, projectId),
+            eq(requirements.category, "workflow")
+          )
+        });
+      }
+
+      if (workflowRequirements.length === 0) {
+        return res.status(404).json({ 
+          message: "No workflow requirements found",
+          detail: "Add requirements with the 'Workflow' category to generate a workflow"
+        });
+      }
+
+      // Create a new workflow with default structure
+      const workflowName = req.body.name || `${project.name} Workflow`;
+      
+      let nodes: WorkflowNode[] = [];
+      let edges: WorkflowEdge[] = [];
+      
+      // For Claude-based workflow generation, we'll use a single requirement with its acceptance criteria
+      // If multiple requirements are selected, we'll use the first one for simplicity
+      const primaryRequirement = workflowRequirements[0];
+      
+      // Check for Anthropic API key
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        console.error('Missing ANTHROPIC_API_KEY environment variable');
+        return res.status(500).json({ 
+          message: "Missing API key",
+          detail: "Claude API key is not configured. Please set the ANTHROPIC_API_KEY environment variable."
+        });
+      }
+      
+      // Try to generate workflow using the workflow service
+      try {
+        // Import the workflow service
+        const { generateWorkflowDiagram } = await import('./services/workflow-service');
+        
+        // Call the service to generate the workflow
+        console.log(`Generating workflow diagram with Claude for ${primaryRequirement.title}...`);
+        const workflowJson = await generateWorkflowDiagram(primaryRequirement);
+        
+        // Transform Claude's output to our WorkflowNode and WorkflowEdge format
+        if (workflowJson && workflowJson.nodes && workflowJson.edges) {
+          // Map Claude's nodes to our format
+          const mappedNodes = workflowJson.nodes.map((node: any) => {
+            // Map Claude's nodeType to our node type format
+            let nodeType = 'task'; // Default to task
+            switch (node.data.nodeType) {
+              case 'Start Event': nodeType = 'start'; break;
+              case 'End Event': nodeType = 'end'; break;
+              case 'Task': nodeType = 'task'; break;
+              case 'Subprocess': nodeType = 'subprocess'; break;
+              case 'Decision': nodeType = 'decision'; break;
+              case 'Parallel GW': nodeType = 'parallel'; break;
+              case 'User Task': nodeType = 'userTask'; break;
+              case 'Wait / Delay': nodeType = 'wait'; break;
+              case 'Message Event': nodeType = 'message'; break;
+              case 'Error Event': nodeType = 'error'; break;
+              case 'Annotation': nodeType = 'annotation'; break;
+            }
+            
+            return {
+              id: node.id,
+              type: nodeType,
+              // Initially set position to origin, will be arranged by layout algorithm
+              position: { x: 0, y: 0 },
+              data: {
+                label: node.data.label,
+                description: node.data.justification,
+                requirementId: primaryRequirement.id,
+                properties: {
+                  justification: node.data.justification
+                }
+              }
+            };
+          });
+          
+          // Map Claude's edges to our format
+          const mappedEdges = workflowJson.edges.map((edge: any) => {
+            return {
+              id: edge.id,
+              source: edge.source,
+              target: edge.target,
+              label: edge.label || '',
+              type: edge.type === 'smoothstep' ? 'default' : edge.type || 'default',
+              animated: false
+            };
+          });
+          
+          // Apply layout algorithm to the nodes
+          // We'll use a simple hierarchical layout (top to bottom)
+          
+          // Step 1: Build a graph structure from nodes and edges
+          type GraphNode = {
+            id: string;
+            nodeData: any;
+            outgoingEdges: string[]; // target node IDs
+            incomingEdges: string[]; // source node IDs
+            level?: number; // Level in the hierarchy (distance from start)
+            column?: number; // Column in the layout
+          };
+          
+          const graph: Record<string, GraphNode> = {};
+          
+          // Initialize graph with nodes
+          mappedNodes.forEach(node => {
+            graph[node.id] = {
+              id: node.id,
+              nodeData: node,
+              outgoingEdges: [],
+              incomingEdges: [],
+            };
+          });
+          
+          // Add edge information to the graph
+          mappedEdges.forEach(edge => {
+            if (graph[edge.source]) {
+              graph[edge.source].outgoingEdges.push(edge.target);
+            }
+            if (graph[edge.target]) {
+              graph[edge.target].incomingEdges.push(edge.source);
+            }
+          });
+          
+          // Step 2: Find start and end nodes (sources and sinks)
+          const startNodes: string[] = [];
+          const endNodes: string[] = [];
+          
+          Object.keys(graph).forEach(nodeId => {
+            const node = graph[nodeId];
+            
+            // Node with no incoming edges is a source/start
+            if (node.incomingEdges.length === 0) {
+              startNodes.push(nodeId);
+            }
+            
+            // Node with no outgoing edges is a sink/end
+            if (node.outgoingEdges.length === 0) {
+              endNodes.push(nodeId);
+            }
+          });
+          
+          // Step 3: Assign levels to nodes (distance from start)
+          // Start with start nodes at level 0
+          startNodes.forEach(nodeId => {
+            graph[nodeId].level = 0;
+          });
+          
+          // Breadth-first traversal to assign levels
+          const queue = [...startNodes];
+          const visited = new Set<string>(startNodes);
+          
+          while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            const currentNode = graph[currentId];
+            
+            currentNode.outgoingEdges.forEach(targetId => {
+              const targetNode = graph[targetId];
+              
+              // Update level if not set or if new level is higher
+              const newLevel = (currentNode.level || 0) + 1;
+              if (targetNode.level === undefined || newLevel > targetNode.level) {
+                targetNode.level = newLevel;
+              }
+              
+              // Add to queue if not visited
+              if (!visited.has(targetId)) {
+                queue.push(targetId);
+                visited.add(targetId);
+              }
+            });
+          }
+          
+          // For any unvisited nodes (disconnected), set a default level
+          Object.keys(graph).forEach(nodeId => {
+            if (graph[nodeId].level === undefined) {
+              graph[nodeId].level = 0;
+            }
+          });
+          
+          // Step 4: Assign columns to nodes within each level
+          // First, count nodes at each level
+          const levelCounts: Record<number, number> = {};
+          const nodesAtLevel: Record<number, string[]> = {};
+          
+          Object.keys(graph).forEach(nodeId => {
+            const level = graph[nodeId].level || 0;
+            if (!levelCounts[level]) {
+              levelCounts[level] = 0;
+              nodesAtLevel[level] = [];
+            }
+            nodesAtLevel[level].push(nodeId);
+            levelCounts[level]++;
+          });
+          
+          // Assign columns based on node position within level
+          Object.keys(nodesAtLevel).forEach(level => {
+            const nodesInLevel = nodesAtLevel[Number(level)];
+            const nodeCount = nodesInLevel.length;
+            
+            nodesInLevel.forEach((nodeId, index) => {
+              graph[nodeId].column = index;
+            });
+          });
+          
+          // Step 5: Calculate final positions
+          const LEVEL_HEIGHT = 150; // Vertical spacing between levels
+          const NODE_WIDTH = 200; // Horizontal spacing between nodes
+          
+          // Apply positions to nodes
+          mappedNodes.forEach(node => {
+            const graphNode = graph[node.id];
+            const level = graphNode.level || 0;
+            const column = graphNode.column || 0;
+            const totalNodesAtLevel = levelCounts[level] || 1;
+            
+            // Center nodes horizontally at each level
+            const levelWidth = totalNodesAtLevel * NODE_WIDTH;
+            const startX = -(levelWidth / 2) + (NODE_WIDTH / 2);
+            
+            node.position = {
+              x: startX + (column * NODE_WIDTH),
+              y: level * LEVEL_HEIGHT
+            };
+          });
+          
+          nodes = mappedNodes;
+          edges = mappedEdges;
+        } else {
+          // Fallback if Claude doesn't return proper structure
+          console.error('Invalid workflow structure in Claude response');
+          throw new Error('Invalid workflow structure in Claude response');
+        }
+      } catch (aiError) {
+        console.error('Error generating workflow with Claude:', aiError);
+        
+        // Fallback to basic workflow structure if Claude API fails
+        console.log('Falling back to basic workflow structure');
+        
+        // Generate nodes for start, end, and each requirement
+        nodes = [
+          {
+            id: 'start',
+            type: 'start',
+            position: { x: 250, y: 50 },
+            data: { label: 'Start' }
+          }
+        ];
+        
+        // Add nodes for each requirement
+        workflowRequirements.forEach((req, index) => {
+          nodes.push({
+            id: `req-${req.id}`,
+            type: 'task',
+            position: { x: 250, y: 150 + (index * 100) },
+            data: {
+              label: req.title,
+              description: req.description,
+              requirementId: req.id
+            }
+          });
+        });
+        
+        // Add end node
+        nodes.push({
+          id: 'end',
+          type: 'end',
+          position: { x: 250, y: 150 + (workflowRequirements.length * 100) },
+          data: { label: 'End' }
+        });
+        
+        // Generate edges connecting all nodes in sequence
+        edges = [];
+        
+        // Connect start to first requirement
+        if (workflowRequirements.length > 0) {
+          edges.push({
+            id: 'start-to-first',
+            source: 'start',
+            target: `req-${workflowRequirements[0].id}`,
+            type: 'default'
+          });
+        } else {
+          // If no requirements, connect start directly to end
+          edges.push({
+            id: 'start-to-end',
+            source: 'start',
+            target: 'end',
+            type: 'default'
+          });
+        }
+      
+        // Connect requirements to each other in sequence
+        for (let i = 0; i < workflowRequirements.length - 1; i++) {
+          edges.push({
+            id: `req-${workflowRequirements[i].id}-to-req-${workflowRequirements[i+1].id}`,
+            source: `req-${workflowRequirements[i].id}`,
+            target: `req-${workflowRequirements[i+1].id}`,
+            type: 'default'
+          });
+        }
+        
+        // Connect last requirement to end
+        if (workflowRequirements.length > 0) {
+          edges.push({
+            id: 'last-to-end',
+            source: `req-${workflowRequirements[workflowRequirements.length-1].id}`,
+            target: 'end',
+            type: 'default'
+          });
+        }
+      }
+      
+      // Create the workflow
+      const newWorkflow = await storage.createWorkflow({
+        name: workflowName,
+        description: req.body.description || 'Automatically generated workflow from requirements',
+        projectId,
+        status: 'draft',
+        version: 1,
+        nodes,
+        edges
+      });
+      
+      // Log the creation as an activity
+      await storage.createActivity({
+        type: "generated_workflow",
+        description: `Generated workflow "${newWorkflow.name}" from ${workflowRequirements.length} requirements`,
+        userId: req.session.userId || 1, // Use demo user if not logged in
+        projectId,
+        relatedEntityId: newWorkflow.id
+      });
+      
+      res.status(201).json(newWorkflow);
+    } catch (error) {
+      console.error("Error generating workflow:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Input data endpoints
+  app.get("/api/projects/:projectId/input-data", async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      const inputDataItems = await storage.getInputDataByProject(projectId);
+      res.json(inputDataItems);
+    } catch (error) {
+      console.error("Error fetching input data:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/input-data", upload.single('file'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
@@ -643,8 +1063,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Input data processing endpoint
-  // Input data routes have been moved to input-data-routes.ts
-  /*app.post("/api/input-data/:inputDataId/process", async (req: Request, res: Response) => {
+  app.post("/api/input-data/:inputDataId/process", async (req: Request, res: Response) => {
     try {
       const inputDataId = parseInt(req.params.inputDataId);
       if (isNaN(inputDataId)) {
@@ -817,7 +1236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error processing input data:", error);
       res.status(500).json({ message: "Internal server error" });
     }
-  });*/
+  });
 
   // Requirements endpoints
   // Define high-priority requirements route explicitly first
@@ -2445,9 +2864,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register admin routes
   registerAdminRoutes(app);
-  
-  // Register input data routes
-  registerInputDataRoutes(app);
   
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Unhandled error:", err);

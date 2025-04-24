@@ -1,16 +1,12 @@
 /**
  * Database Connection Module
  * 
- * This module provides centralized database connection setup using Neon Serverless
- * PostgreSQL and Drizzle ORM. It configures the connection with performance
- * optimizations and exports both the raw SQL client and the Drizzle database instance.
+ * This module provides centralized database connection setup using PostgreSQL
+ * with the node-postgres driver and Drizzle ORM.
  */
-import { neon, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
-
-// Enable fetch connection cache for better performance with Neon
-neonConfig.fetchConnectionCache = true;
 
 // Validate database URL is provided in environment variables
 if (!process.env.DATABASE_URL) {
@@ -19,14 +15,45 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+// Create a connection pool for PostgreSQL
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
+
+// Log pool events for debugging
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle PostgreSQL client', err);
+  process.exit(-1);
+});
+
+pool.on('connect', () => {
+  console.log('New connection established to PostgreSQL');
+});
+
 /**
- * Raw SQL client for Neon Serverless PostgreSQL
- * Used for direct SQL queries when needed outside of Drizzle ORM
+ * Utility function to run raw SQL queries
+ * This replaces the previous neon SQL template tag
+ * @param strings Template strings
+ * @param values Values to interpolate
+ * @returns Query result
  */
-export const sql = neon(process.env.DATABASE_URL);
+export async function sql(strings: TemplateStringsArray, ...values: any[]) {
+  let text = strings[0];
+  for (let i = 0; i < values.length; i++) {
+    text += `$${i + 1}${strings[i + 1]}`;
+  }
+  
+  try {
+    const result = await pool.query(text, values);
+    return result.rows;
+  } catch (error) {
+    console.error('SQL query error:', error);
+    throw error;
+  }
+}
 
 /**
  * Drizzle ORM database instance with schema configuration
  * The primary interface for database interactions in the application
  */
-export const db = drizzle(sql, { schema });
+export const db = drizzle(pool, { schema });

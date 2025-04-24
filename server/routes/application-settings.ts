@@ -6,7 +6,7 @@
  */
 import { Router } from 'express';
 import { applicationSettingsController } from '../controllers/application-settings-controller';
-import { requireAuthentication, requireAdmin } from '../middleware/auth';
+import { isAuthenticated, isAdmin } from '../middleware/auth';
 
 const router = Router();
 
@@ -15,13 +15,13 @@ const router = Router();
  * @desc Get application settings
  * @access Private
  */
-router.get('/', requireAuthentication, applicationSettingsController.getApplicationSettings);
+router.get('/', isAuthenticated, applicationSettingsController.getApplicationSettings);
 
 /**
  * @route PUT /api/application-settings
  * @desc Update application settings
  * @access Private (Admin only)
  */
-router.put('/', requireAuthentication, requireAdmin, applicationSettingsController.updateApplicationSettings);
+router.put('/', isAuthenticated, isAdmin, applicationSettingsController.updateApplicationSettings);
 
 export default router;

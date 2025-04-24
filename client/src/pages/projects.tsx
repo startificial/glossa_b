@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Project } from "@/lib/types";
 import { ProjectCard } from "@/components/projects/project-card";
@@ -21,13 +21,17 @@ export default function Projects() {
     queryKey: ['/api/projects']
   });
   
-  if (error) {
-    toast({
-      title: "Error",
-      description: "Failed to load projects. Please try again later.",
-      variant: "destructive"
-    });
-  }
+  // Using useEffect to handle error toast to prevent infinite rendering
+  // This ensures the toast is only shown once when an error occurs
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load projects. Please try again later.",
+        variant: "destructive"
+      });
+    }
+  }, [error, toast]);
 
   const handleCreateProject = () => {
     console.log("Opening project modal");

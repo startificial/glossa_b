@@ -11,6 +11,17 @@ import { registerAuthRoutes } from './auth-routes';
 import { registerUserRoutes } from './user-routes';
 import { registerProjectRoutes } from './project-routes';
 import { registerRequirementRoutes } from './requirement-routes';
+import { registerInviteRoutes } from './invite-routes';
+import { registerSchemaRoutes } from './schema-routes';
+import { registerCustomerRoutes } from './customer-routes';
+import { registerWorkflowRoutes } from './workflow-routes';
+import { registerInputDataRoutes } from './input-data-routes';
+import { registerActivityRoutes } from './activity-routes';
+import { registerTaskRoutes } from './task-routes';
+import { registerSearchRoutes } from './search-routes';
+import { registerRoleEffortRoutes } from './role-effort-routes';
+import { registerRequirementAnalysisRoutes } from './requirement-analysis-routes';
+import projectRolesRouter from './project-roles';
 import { Server } from 'http';
 import { createServer } from 'http';
 
@@ -37,6 +48,20 @@ export async function registerRoutes(app: Express, quickStart: boolean = false):
         registerUserRoutes(app);
         registerProjectRoutes(app);
         registerRequirementRoutes(app);
+        registerInviteRoutes(app);
+        registerSchemaRoutes(app);
+        registerCustomerRoutes(app);
+        registerWorkflowRoutes(app);
+        registerInputDataRoutes(app);
+        registerActivityRoutes(app);
+        registerTaskRoutes(app);
+        registerSearchRoutes(app);
+        registerRoleEffortRoutes(app);
+        registerRequirementAnalysisRoutes(app);
+        
+        // Register project roles routes using the router
+        app.use('/api', projectRolesRouter);
+        
         console.log('[ROUTES] Successfully loaded all routes');
       } catch (error) {
         console.error('[ROUTES] Error loading routes asynchronously:', error);
@@ -48,6 +73,19 @@ export async function registerRoutes(app: Express, quickStart: boolean = false):
     registerUserRoutes(app);
     registerProjectRoutes(app);
     registerRequirementRoutes(app);
+    registerInviteRoutes(app);
+    registerSchemaRoutes(app);
+    registerCustomerRoutes(app);
+    registerWorkflowRoutes(app);
+    registerInputDataRoutes(app);
+    registerActivityRoutes(app);
+    registerTaskRoutes(app);
+    registerSearchRoutes(app);
+    registerRoleEffortRoutes(app);
+    registerRequirementAnalysisRoutes(app);
+    
+    // Register project roles routes using the router
+    app.use('/api', projectRolesRouter);
   }
   
   // Register 404 handler

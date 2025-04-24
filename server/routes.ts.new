@@ -1,0 +1,86 @@
+/**
+ * Routes Module
+ * 
+ * This file contains core routing utilities and sets up
+ * static file directories. All actual route handlers have been 
+ * moved to dedicated modules in the routes/ directory.
+ */
+import express, { type Express, Request, Response, NextFunction } from "express";
+import { createServer, type Server } from "http";
+import path from "path";
+import fs from "fs";
+import os from "os";
+import crypto from "crypto";
+
+// Import route modules
+import documentTemplateRoutes from './routes/document-templates';
+import documentRoutes from './routes/documents';
+import pdfRoutes from './routes/pdf-route';
+import projectRolesRoutes from './routes/project-roles';
+import applicationSettingsRoutes from './routes/application-settings';
+import jobRoutes from './routes/job-routes';
+import { registerAdminRoutes } from './routes/admin-routes';
+
+// Export middleware for reuse in other modules
+/**
+ * Authentication middleware that checks if a user is logged in
+ */
+export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if (req.session && req.session.userId) {
+    return next();
+  }
+  return res.status(401).json({ message: "Unauthorized" });
+}
+
+/**
+ * Utility to generate secure tokens
+ */
+export function generateToken(length: number = 32): string {
+  return crypto.randomBytes(length).toString('hex');
+}
+
+/**
+ * Registers all routes with the Express application and configures static directories
+ * @param app Express application instance
+ * @returns HTTP server instance
+ */
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Create HTTP server
+  const httpServer = createServer(app);
+  
+  // Setup upload directories
+  // First, configure the temp uploads directory for normal file uploads
+  const uploadsDir = path.join(os.tmpdir(), 'glossa-uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  
+  // Then, setup access to the local uploads directory for test files
+  const localUploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(localUploadsDir)) {
+    fs.mkdirSync(localUploadsDir, { recursive: true });
+  }
+  
+  // Serve files from both directories
+  app.use("/api/uploads", express.static(uploadsDir));
+  app.use("/api/uploads", express.static(localUploadsDir));
+  
+  // Register older route modules that use Router.use pattern
+  app.use('/api/document-templates', documentTemplateRoutes);
+  app.use('/api/documents', documentRoutes);
+  app.use('/api/pdf', pdfRoutes);
+  app.use('/api/project-roles', projectRolesRoutes);
+  app.use('/api/application-settings', applicationSettingsRoutes);
+  app.use('/api/jobs', jobRoutes);
+  
+  // Register admin routes
+  registerAdminRoutes(app);
+  
+  // Global error handler middleware
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error("Unhandled error:", err);
+    res.status(500).json({ message: "An unexpected error occurred", error: err.message });
+  });
+  
+  return httpServer;
+}
