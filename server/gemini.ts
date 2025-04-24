@@ -120,10 +120,37 @@ export async function processTextFile(filePath: string, projectName: string, fil
   // Set higher memory limit for Node.js when processing large text files
   const originalNodeOptions = process.env.NODE_OPTIONS;
   
-  // Increase memory limit temporarily for this operation
-  process.env.NODE_OPTIONS = "--max-old-space-size=4096";
-  
   try {
+    // Increase memory limit temporarily for this operation
+    process.env.NODE_OPTIONS = "--max-old-space-size=4096";
+    
+    // Check file size first to determine approach
+    const stats = fs.statSync(filePath);
+    const fileSizeMB = stats.size / (1024 * 1024);
+    console.log(`Processing text file: ${fileName} (${fileSizeMB.toFixed(2)} MB)`);
+
+    let chunks: string[] = [];
+    
+    // For all files, use a streaming approach with optimized parameters based on file size
+    // This prevents memory issues with large files
+    const maxChunks = fileSizeMB < 1 ? 1 : 
+                      fileSizeMB < 3 ? 2 : 
+                      fileSizeMB < 10 ? 4 : 5;
+                      
+    console.log(`Using streaming approach with max ${maxChunks} chunks for memory efficiency.`);
+    
+    // Determine an appropriate chunk size based on file size
+    // For small files, use a larger percentage of the file for better context
+    // For large files, use smaller chunks to avoid memory issues
+    const chunkSizeBytes = Math.min(
+      Math.ceil(stats.size / maxChunks),
+      2 * 1024 * 1024 // Max 2MB per chunk to prevent memory issues
+    );
+    
+    const buffer = Buffer.alloc(chunkSizeBytes);
+    const fd = fs.openSync(filePath, 'r');
+    
+    try {
       let bytesRead = 0;
       let position = 0;
       
@@ -294,7 +321,7 @@ export async function processTextFile(filePath: string, projectName: string, fil
               textReferences: textReferences.length > 0 ? textReferences : undefined
             };
           } catch (error) {
-            console.error(`Error finding text references for requirement: ${req.text.substring(0, 50)}...`, error);
+            console.error(`Error finding text references for requirement: ${req.text?.substring(0, 50) || 'unknown'}...`, error);
             return req; // Return the original requirement without references
           }
         })
@@ -316,19 +343,7 @@ export async function processTextFile(filePath: string, projectName: string, fil
       delete process.env.NODE_OPTIONS;
     }
   }
-}
-
-/**
- * Generate requirements specifically for video files using Gemini
- * @param filePath Path to the video file
- * @param fileName Name of the file
- * @param projectName Name of the project for context
- * @param contentType Type of content in the video (workflow, user_feedback, demonstration, training, etc.)
- * @param numChunks Number of different analysis chunks to generate (default 3)
- * @param reqPerChunk Number of requirements to extract per chunk (default 5)
- * @returns Array of requirements with categories and priorities
- */
-export async function processVideoFile(
+}export async function processVideoFile(
   filePath: string, 
   fileName: string, 
   projectName: string, 
