@@ -83,12 +83,24 @@ export class InputDataController {
       // Insert input data record
       const fileType = path.extname(file.originalname).toLowerCase();
       
+      // Determine the type of file based on extension
+      let fileContentType = "file";
+      if (['.pdf'].includes(fileType)) {
+        fileContentType = "pdf";
+      } else if (['.docx', '.doc'].includes(fileType)) {
+        fileContentType = "document";
+      } else if (['.txt', '.md'].includes(fileType)) {
+        fileContentType = "text";
+      } else if (['.mp4', '.mov', '.webm'].includes(fileType)) {
+        fileContentType = "video";
+      }
+      
       // Create input data record
       const inputData = await storage.createInputData({
         name: file.originalname,
-        type: "file",
+        type: fileContentType,
         size: file.size,
-        contentType: file.mimetype,
+        contentType: file.mimetype.length > 50 ? file.mimetype.substring(0, 50) : file.mimetype,
         projectId: projectId,
         status: "uploaded",
         filePath: file.path,
