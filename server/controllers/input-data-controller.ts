@@ -124,52 +124,15 @@ export class InputDataController {
         // Process text files - read content but don't do AI processing here
         // (we'll do that asynchronously later)
         try {
-          // Check file size first
-          const stats = fs.statSync(file.path);
-          const fileSizeMB = stats.size / (1024 * 1024);
+          textContent = fs.readFileSync(file.path, 'utf8');
           
-          if (fileSizeMB > 5) {
-            // For very large files, don't load the entire content into memory
-            // Just record the file size and path for later processing
-            textContent = `Large text file (${fileSizeMB.toFixed(2)} MB) - Content will be processed in chunks`;
-            
-            processingResult = {
-              text: textContent,
-              metadata: JSON.stringify({ 
-                fileSize: stats.size,
-                fileSizeMB: fileSizeMB,
-                largeFile: true,
-                processingMethod: "streaming"
-              }),
-              context: {
-                domain: "document",
-                docType: "text document",
-                keywords: [],
-                hasRequirements: false
-              },
-              hasOcrText: false,
-              pageCount: 1,
-              isScanOrImage: false
-            }
-            
-          } else {
-            // For smaller files, still read into memory but with a size limit for safety
-            textContent = fs.readFileSync(file.path, 'utf8');
-            if (textContent.length > 500000) {
-              // If content is still large, truncate it for metadata purposes only
-              textContent = textContent.substring(0, 500000) + "\n\n[Content truncated for memory efficiency]";
-            }
-            
-            processingResult = {
-              text: textContent,
-              metadata: JSON.stringify({ 
-                fileSize: textContent.length,
-                fileSizeMB: fileSizeMB
-              }),
-              context: {
-                domain: "document",
-                docType: "text document",
-                keywords: [],
+          processingResult = {
+            text: textContent,
+            metadata: JSON.stringify({ fileSize: textContent.length }),
+            context: {
+              domain: "document",
+              docType: "text document",
+              keywords: [],
               hasRequirements: false
             },
             hasOcrText: false,
