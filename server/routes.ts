@@ -10,6 +10,15 @@ import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 import { projects, requirements, users } from "@shared/schema";
 import { processTextFile, generateRequirementsForFile, generateExpertReview } from "./gemini";
+import { generateAcceptanceCriteria, generateImplementationTasks } from "./claude";
+
+// Define the AcceptanceCriterion interface to match the type expected in Claude's functions
+interface AcceptanceCriterion {
+  id: string;
+  criterion: string;
+  description?: string;
+  testMethod?: string;
+};
 import { processPdfFile, validatePdf, extractTextFromPdf } from "./pdf-processor";
 import { analyzePdf } from "./pdf-analyzer";
 import { insertRequirementSchema, insertImplementationTaskSchema } from "@shared/schema";
@@ -1603,9 +1612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Import the generateAcceptanceCriteria function from claude.ts
-      const { generateAcceptanceCriteria } = require('./claude');
-      
+      // Use the already imported function
       // Generate acceptance criteria using Claude
       const acceptanceCriteria = await generateAcceptanceCriteria(
         project.name,
@@ -1733,9 +1740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Generating Salesforce implementation tasks using Claude AI for requirement: ${requirement.codeId}`);
       
-      // Import the generateImplementationTasks function
-      const { generateImplementationTasks } = require('./claude');
-      
+      // Use the function imported at the top of the file
       // Use Claude AI to generate Salesforce-specific implementation tasks
       const generatedTasks = await generateImplementationTasks(
         project.name,
