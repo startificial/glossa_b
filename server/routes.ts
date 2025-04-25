@@ -22,6 +22,7 @@ import applicationSettingsRoutes from './routes/application-settings';
 import jobRoutes from './routes/job-routes';
 import { registerInputDataRoutes } from './routes/input-data-routes';
 import { registerProjectRoutes } from './routes/project-routes';
+import { registerSearchRoutes } from './routes/search-routes';
 
 /**
  * Helper function to get the current user from session
@@ -2452,6 +2453,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register input data routes
   registerInputDataRoutes(app);
+  
+  // Register search routes
+  registerSearchRoutes(app);
   
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Unhandled error:", err);
