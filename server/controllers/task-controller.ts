@@ -2,7 +2,7 @@
  * Task Controller
  * 
  * Handles all operations related to tasks management including CRUD operations
- * and task-specific functionality.
+ * and task-specific functionality. Utilizes optimized task service for performance.
  */
 import { Request, Response } from 'express';
 import { db } from '../db';
@@ -12,6 +12,7 @@ import { insertImplementationTaskSchema } from '@shared/schema';
 import { storage } from '../storage';
 import { logger } from '../utils/logger';
 import { z } from 'zod';
+import * as taskService from '../services/task-service';
 
 /**
  * Controller for task related operations
@@ -29,22 +30,12 @@ export class TaskController {
         return res.status(400).json({ message: "Invalid requirement ID" });
       }
 
-      // Check if requirement exists
-      const requirement = await db.query.requirements.findFirst({
-        where: eq(requirements.id, requirementId)
-      });
+      // Use the optimized task service to get tasks with caching
+      const tasks = await taskService.getTasksByRequirementId(requirementId);
       
-      if (!requirement) {
-        return res.status(404).json({ message: "Requirement not found" });
-      }
-
-      // Get tasks for the requirement
-      const tasksList = await db.query.implementationTasks.findMany({
-        where: eq(implementationTasks.requirementId, requirementId),
-        orderBy: [asc(implementationTasks.id)]
-      });
-      
-      return res.json(tasksList);
+      // If no tasks are found, we'll still return an empty array
+      // This is a valid result even if the requirement itself doesn't exist
+      return res.json(tasks);
     } catch (error) {
       logger.error("Error fetching tasks for requirement:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -116,50 +107,11 @@ export class TaskController {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      // Check if project exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
+      // Use the optimized task service to get project tasks with caching
+      const tasks = await taskService.getTasksByProjectId(projectId);
       
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      // Get all requirements for the project
-      const requirementList = await db.query.requirements.findMany({
-        where: eq(requirements.projectId, projectId)
-      });
-      
-      const requirementIds = requirementList.map(req => req.id);
-      
-      // If no requirements found, return empty array
-      if (requirementIds.length === 0) {
-        return res.json([]);
-      }
-      
-      // Get tasks for all requirements
-      const tasksList = await db.query.implementationTasks.findMany({
-        where: inArray(implementationTasks.requirementId, requirementIds),
-        orderBy: [asc(implementationTasks.id)]
-      });
-      
-      // Get a map of requirement titles for context
-      const requirementMap = new Map();
-      requirementList.forEach(req => {
-        requirementMap.set(req.id, {
-          id: req.id,
-          title: req.title,
-          category: req.category
-        });
-      });
-      
-      // Add requirement context to tasks
-      const tasksWithContext = tasksList.map(task => ({
-        ...task,
-        requirement: requirementMap.get(task.requirementId) || null
-      }));
-      
-      return res.json(tasksWithContext);
+      // Return the tasks (which already have the requirement context added)
+      return res.json(tasks);
     } catch (error) {
       logger.error("Error fetching tasks for project:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -178,8 +130,8 @@ export class TaskController {
         return res.status(400).json({ message: "Invalid task ID" });
       }
 
-      // Get the task
-      const task = await storage.getImplementationTask(taskId);
+      // Get the task using optimized task service
+      const task = await taskService.getTaskById(taskId);
       
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
@@ -217,8 +169,8 @@ export class TaskController {
         return res.status(400).json({ message: "Invalid task ID" });
       }
 
-      // Check if task exists
-      const existingTask = await storage.getImplementationTask(taskId);
+      // Check if task exists - use optimized service
+      const existingTask = await taskService.getTaskById(taskId);
       
       if (!existingTask) {
         return res.status(404).json({ message: "Task not found" });
@@ -232,6 +184,9 @@ export class TaskController {
 
       // Update the task
       const updatedTask = await storage.updateImplementationTask(taskId, updateData);
+      if (!updatedTask) {
+        return res.status(500).json({ message: "Failed to update task" });
+      }
       
       // Get requirement for activity context
       const requirement = await storage.getRequirement(existingTask.requirementId);
@@ -241,9 +196,12 @@ export class TaskController {
         type: "updated_task",
         description: `Updated task "${updatedTask.title}"${requirement ? ` for requirement "${requirement.title}"` : ''}`,
         userId: req.session.userId || 1, // Use demo user if not logged in
-        projectId: requirement ? requirement.projectId : null,
+        projectId: requirement ? requirement.projectId || 0 : 0,
         relatedEntityId: taskId
       });
+
+      // Invalidate caches
+      taskService.invalidateTaskCaches(taskId, existingTask.requirementId, existingTask.projectId);
 
       return res.json(updatedTask);
     } catch (error) {
@@ -271,8 +229,8 @@ export class TaskController {
         return res.status(400).json({ message: "Invalid task ID" });
       }
 
-      // Check if task exists
-      const existingTask = await storage.getImplementationTask(taskId);
+      // Check if task exists - use optimized service
+      const existingTask = await taskService.getTaskById(taskId);
       
       if (!existingTask) {
         return res.status(404).json({ message: "Task not found" });
@@ -280,6 +238,10 @@ export class TaskController {
 
       // Get requirement for activity context
       const requirement = await storage.getRequirement(existingTask.requirementId);
+
+      // Store ids for cache invalidation before deleting
+      const requirementId = existingTask.requirementId;
+      const projectId = existingTask.projectId || 0;
 
       // Delete the task
       await storage.deleteImplementationTask(taskId);
@@ -289,9 +251,12 @@ export class TaskController {
         type: "deleted_task",
         description: `Deleted task "${existingTask.title}"${requirement ? ` from requirement "${requirement.title}"` : ''}`,
         userId: req.session.userId || 1, // Use demo user if not logged in
-        projectId: requirement ? requirement.projectId : null,
+        projectId: requirement ? requirement.projectId || 0 : 0,
         relatedEntityId: null
       });
+
+      // Invalidate caches
+      taskService.invalidateTaskCaches(taskId, requirementId, projectId);
 
       return res.status(200).json({ 
         message: "Task deleted successfully",
