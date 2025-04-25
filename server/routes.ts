@@ -1615,9 +1615,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use the already imported function
       // Generate acceptance criteria using Claude
       const acceptanceCriteria = await generateAcceptanceCriteria(
+        requirement.description,
         project.name,
-        project.description || "No project description available",
-        requirement.description
+        project.description || "No project description available"
       );
 
       // Update the requirement with the new acceptance criteria

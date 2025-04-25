@@ -301,11 +301,7 @@ Your response must begin with "[" and end with "]" and be valid parseable JSON.`
  * @param requirementText The requirement text to analyze
  * @returns Promise resolving to an array of acceptance criteria with descriptions
  */
-export async function generateAcceptanceCriteria(
-  requirementText: string, 
-  projectName: string = "Software Migration Project",
-  projectDescription: string = "Migration project to modernize legacy systems"
-): Promise<AcceptanceCriterion[]> {
+export async function generateAcceptanceCriteria(requirementText: string): Promise<AcceptanceCriterion[]> {
   try {
     if (!apiKey) {
       console.error('Missing ANTHROPIC_API_KEY environment variable');
@@ -315,29 +311,16 @@ export async function generateAcceptanceCriteria(
     console.log(`Generating acceptance criteria for requirement: ${requirementText.substring(0, 100)}...`);
     
     // Create a prompt for generating acceptance criteria using template
-    let prompt = ACCEPTANCE_CRITERIA_PROMPT
-      .replace('{requirementText}', requirementText)
-      .replace('{projectName}', projectName)
-      .replace('{projectDescription}', projectDescription);
+    let prompt = ACCEPTANCE_CRITERIA_PROMPT.replace('{requirementText}', requirementText);
     
-    // Call Claude API to generate acceptance criteria with improved system prompt
+    // Call Claude API to generate acceptance criteria
     const message = await anthropic.messages.create({
       model: 'claude-3-7-sonnet-20250219', // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
       max_tokens: 3000,
-      temperature: 0.5, // Lower temperature for more focused, relevant responses
-      system: `You are a business analyst specializing in writing clear, specific acceptance criteria.
-Your task is to analyze a given requirement in the context of its project and create acceptance criteria that directly verify its implementation.
-
-IMPORTANT INSTRUCTIONS:
-1. Each acceptance criterion MUST be directly related to the specific requirement provided.
-2. Do NOT generate generic criteria that could apply to any software system.
-3. Focus on the actual functionality described in the requirement text.
-4. Use Gherkin format (Given/When/Then) that is specific and testable.
-5. Include specific details from the requirement in your criteria.
-6. Do NOT add features or requirements that are not mentioned or strongly implied.
-7. Include both happy path and error/edge cases that are relevant to the specific requirement.
-
-Return your response as a valid JSON array where each item has a 'title', 'description', and 'type' field.`,
+      temperature: 0.7,
+      system: `You are a business analyst specializing in writing clear, comprehensive acceptance criteria.
+Your task is to analyze a given requirement and create acceptance criteria that will verify its implementation.
+Return your response as a JSON array where each item has a 'description' field with the acceptance criterion.`,
       messages: [
         { role: 'user', content: prompt }
       ]

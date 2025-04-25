@@ -152,7 +152,7 @@ Project Description: {projectDescription}
 
 Requirement: {requirementText}
 
-Create 3-5 acceptance criteria scenarios using the Gherkin format. Each scenario should include:
+Create 5-15 acceptance criteria scenarios using the Gherkin format. Each scenario should include:
 1. A descriptive title in the "Scenario: [title]" format
 2. Given-When-Then steps that clearly define the expected behavior
 3. Example data or values where appropriate
@@ -172,7 +172,7 @@ Respond with a valid JSON array in this format:
 
 // Implementation Tasks Generation Prompts
 export const IMPLEMENTATION_TASKS_PROMPT = `
-You are an expert system architect specializing in {targetSystem} implementation projects. Your task is to break down a software requirement into specific implementation tasks.
+You are an expert system architect specializing in {targetSystem} implementation projects. Your task is to break down a software requirement into specific implementation tasks with HIGHLY DETAILED implementation steps.
 
 Project: {projectName}
 Source System: {sourceSystem}
@@ -182,13 +182,20 @@ Requirement: {requirementText}
 Acceptance Criteria:
 {acceptanceCriteria}
 
-Create 3-6 detailed implementation tasks that would be needed to fulfill this requirement in {targetSystem}. Each task should:
+Create 5-17 detailed implementation tasks that would be needed to fulfill this requirement in {targetSystem}. Each task should:
 1. Have a specific, action-oriented title
 2. Include comprehensive implementation details with technical specifics for {targetSystem}
 3. Specify the system or component where the work needs to be done
 4. Include complexity and estimated effort
 5. Specify dependencies or prerequisites where applicable
-6. Include 3-5 step-by-step implementation steps that clearly outline how to accomplish the task
+6. Include 5-15 COMPREHENSIVE step-by-step implementation steps that clearly outline how to accomplish the task
+
+For the implementationSteps, each stepDescription must be extremely detailed and actionable:
+- Write at least 25-50 words for each step description
+- Include specific code examples, field definitions, or configuration parameters when relevant
+- Provide exact technical details that a developer would need to implement the step
+- Reference specific APIs, components, or objects that need to be created or modified
+- Include precise field mappings, validation rules, or business logic when applicable
 
 For {targetSystem} tasks, include specific technical details like object types, fields, workflows, integrations, or UI components that would need to be created or modified.
 
@@ -206,12 +213,12 @@ Respond with a valid JSON array in this format:
     "implementationSteps": [
       {
         "stepNumber": 1,
-        "stepDescription": "Detailed description of the first implementation step",
+        "stepDescription": "Provide a detailed explanation of this implementation step (minimum 35 words). Include specific technical details such as field definitions, API parameters, exact component names, configuration values, code snippets, or business logic. A developer should be able to follow these instructions without needing additional context.",
         "relevantDocumentationLinks": ["URL to relevant documentation or empty array"]
       },
       {
         "stepNumber": 2,
-        "stepDescription": "Detailed description of the second implementation step",
+        "stepDescription": "Provide a detailed explanation of this implementation step (minimum 35 words). Include specific technical details such as field definitions, API parameters, exact component names, configuration values, code snippets, or business logic. A developer should be able to follow these instructions without needing additional context.",
         "relevantDocumentationLinks": ["URL to relevant documentation or empty array"]
       }
     ]
