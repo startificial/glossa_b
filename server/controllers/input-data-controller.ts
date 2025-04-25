@@ -164,17 +164,17 @@ export class InputDataController {
       } else if (fileType === '.pdf') {
         // Process PDF files
         const pdfInfo = await validatePdf(file.path);
-        if (!pdfInfo.isValid) {
+        if (!pdfInfo.valid) {
           return res.status(400).json({ message: "Invalid PDF file" });
         }
         
         try {
-          // Extract text and analyze the PDF
+          // Extract text from the PDF
           const extractedText = await extractTextFromPdf(file.path);
-          textContent = extractedText.text;
+          textContent = extractedText;
           
           // Analyze the PDF content
-          const analysisResult = await analyzePdf(file.path, extractedText);
+          const analysisResult = await analyzePdf(file.path);
           
           processingResult = {
             text: textContent,
@@ -185,9 +185,9 @@ export class InputDataController {
               keywords: [],
               hasRequirements: false
             },
-            hasOcrText: extractedText.containsScannedText,
-            pageCount: pdfInfo.pageCount,
-            isScanOrImage: pdfInfo.isScanned
+            hasOcrText: analysisResult.hasOcrText,
+            pageCount: analysisResult.pageCount,
+            isScanOrImage: analysisResult.isScanOrImage
           };
         } catch (error) {
           logger.error("Error processing PDF:", error);
