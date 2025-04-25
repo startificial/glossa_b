@@ -169,12 +169,11 @@ export class InputDataController {
         }
         
         try {
-          // Extract text from the PDF
-          const extractedText = await extractTextFromPdf(file.path);
-          textContent = extractedText;
-          
-          // Analyze the PDF content
+          // Analyze the PDF content first, which also extracts text
           const analysisResult = await analyzePdf(file.path);
+          
+          // Get the extracted text from the analysis result
+          textContent = analysisResult.text || '';
           
           processingResult = {
             text: textContent,
@@ -285,12 +284,17 @@ export class InputDataController {
         // No need to mark text files as processed immediately - we'll follow the normal flow
         // This ensures the UI displays processing status correctly
         
-        // For DOCX or TXT files, automatically start processing into requirements
-        if (fileType === '.docx' || fileType === '.doc' || fileType === '.txt' || fileType === '.md') {
+        // For DOCX, TXT, and PDF files, automatically start processing into requirements
+        if (fileType === '.docx' || fileType === '.doc' || fileType === '.txt' || fileType === '.md' || fileType === '.pdf') {
           // Process asynchronously in the background
           (async () => {
             try {
-              const fileTypeLabel = (fileType === '.txt' || fileType === '.md') ? 'text' : 'DOCX';
+              let fileTypeLabel = 'DOCX';
+              if (fileType === '.txt' || fileType === '.md') {
+                fileTypeLabel = 'text';
+              } else if (fileType === '.pdf') {
+                fileTypeLabel = 'PDF';
+              }
               logger.info(`Auto-processing ${fileTypeLabel} file into requirements: ${file.originalname}`);
               
               // Update status to processing
@@ -350,6 +354,30 @@ export class InputDataController {
                 } catch (error) {
                   throw new Error(`Failed to analyze text file: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
+              } else if (fileType === '.pdf') {
+                // For PDF files, use the analyzer which includes better text extraction
+                try {
+                  // Use analyzePdf which handles text extraction more robustly
+                  const analysisResult = await analyzePdf(file.path);
+                  
+                  // Use the text from the analysis result, which is more complete than simple extraction
+                  extractedText.text = analysisResult.text || '';
+                  
+                  // Add analysis metadata to the input data
+                  await storage.updateInputData(inputData.id, {
+                    metadata: JSON.stringify({ 
+                      message: "Analyzing PDF content",
+                      metadata: analysisResult.metadata || {},
+                      context: analysisResult.context || {},
+                      pageCount: analysisResult.pageCount,
+                      hasOcrText: analysisResult.hasOcrText
+                    })
+                  });
+                  
+                  logger.info(`Extracted ${extractedText.text.length} characters of text from PDF file for requirement generation`);
+                } catch (error) {
+                  throw new Error(`Failed to analyze PDF file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
               }
               
               // Update status to generating requirements
@@ -388,7 +416,7 @@ export class InputDataController {
               }
               
               if (!requirements || !Array.isArray(requirements) || requirements.length === 0) {
-                logger.warn(`No requirements generated from DOCX file: ${file.originalname}`);
+                logger.warn(`No requirements generated from ${fileTypeLabel} file: ${file.originalname}`);
                 
                 // Update status to completed but with warning
                 await storage.updateInputData(inputData.id, {
@@ -419,7 +447,12 @@ export class InputDataController {
               }
               
               // Get file format based on file type
-              const fileFormat = (fileType === '.txt' || fileType === '.md') ? 'TEXT' : 'DOCX';
+              let fileFormat = 'DOCX';
+              if (fileType === '.txt' || fileType === '.md') {
+                fileFormat = 'TEXT';
+              } else if (fileType === '.pdf') {
+                fileFormat = 'PDF';
+              }
               
               // Update input data status
               await storage.updateInputData(inputData.id, {
@@ -443,7 +476,7 @@ export class InputDataController {
               
               logger.info(`Successfully auto-processed ${fileFormat} into ${requirements.length} requirements`);
             } catch (error) {
-              logger.error("Error auto-processing DOCX into requirements:", error);
+              logger.error(`Error auto-processing ${fileTypeLabel} into requirements:`, error);
               await storage.updateInputData(inputData.id, {
                 status: "error",
                 metadata: JSON.stringify({ 

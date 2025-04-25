@@ -166,43 +166,43 @@ export async function generateRequirementsFromText(
         // Read this chunk's content
         const chunkContent = await readFile(chunk.path, 'utf8');
         
-        // Initialize Gemini for this chunk
+        // Initialize Gemini for this chunk with the same settings as PDF processing
         const model = genAI.getGenerativeModel({
           model: "gemini-1.5-pro",
           generationConfig: {
-            temperature: 0.7,
+            temperature: 0.7, 
             topP: 0.8,
             topK: 40,
-            maxOutputTokens: 4096, // Allow larger output for better analysis
+            maxOutputTokens: 8192, // Match the PDF processing output tokens for more detailed requirements
           },
           safetySettings,
         });
         
-        // Create a prompt for this chunk
+        // Create a prompt for this chunk using the same format as PDF processing
         const prompt = `
-          You are a requirements analysis expert. Extract software requirements from the following text,
-          which is chunk ${chunk.index} of ${chunks.length} from a larger document.
+          You are a business systems analyst specializing in service management systems with expertise in functional requirements. 
+          Extract software requirements from the following text, which is chunk ${chunk.index} of ${chunks.length} from a larger document.
           
-          Project: ${projectName}
-          File: ${fileName}
+          Your task is to generate migration requirements for a project that's moving functionality from a source system to a target system, 
+          focusing specifically on core functionality and business processes that must be migrated.
+          
+          Project context: ${projectName}
+          File name: ${fileName}
+          File type: text file
+          Inferred domain: service management
           
           For each requirement you identify in this chunk:
-          1. Create a concise title
-          2. Write a clear description
-          3. Categorize it as functional, non-functional, or technical
-          4. Assign a priority (high, medium, or low)
+          1. Provide a concise title (3-10 words) that summarizes the requirement
+          2. Provide a detailed, domain-specific requirement description of at least 150 words related to core functionality within service management functionality
+          3. Classify it into one of these categories: 'functional', 'non-functional', 'security', 'performance'
+          4. Assign a priority level: 'high', 'medium', or 'low'
           
           Important: Only extract requirements that are explicitly mentioned in this chunk.
           
-          Return your response in the following JSON format:
-          [
-            {
-              "title": "Requirement title",
-              "description": "Requirement description",
-              "category": "functional",
-              "priority": "medium"
-            }
-          ]
+          Format your response as a JSON array with comprehensive requirements, each with the properties 'title', 'description', 'category', and 'priority'.
+          Example: [{"title": "Call Center Queue Logic", "description": "The target system must maintain the current call center queuing logic that routes cases based on SLA priority and agent skill matching... [detailed 150+ word description that thoroughly explains the requirement]", "category": "functional", "priority": "high"}, ...]
+          
+          Only output valid JSON with no additional text or explanations.
           
           TEXT CHUNK ${chunk.index}/${chunks.length} TO ANALYZE:
           ${chunkContent}
