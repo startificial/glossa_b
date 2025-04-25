@@ -66,7 +66,12 @@ export default function Customers() {
         ) : isError ? (
           <div className="py-12 text-center">
             <h3 className="text-lg font-medium mb-2">Failed to load customers</h3>
-            <p className="text-muted-foreground mb-4">There was an error loading the customers. Please try again.</p>
+            <p className="text-muted-foreground mb-4">There was an error loading the customers. Our team has been notified.</p>
+            <div className="mb-4 p-4 bg-gray-100 rounded-md text-left max-w-md mx-auto">
+              <p className="text-xs text-gray-500 mb-1">Debug Information:</p>
+              <p className="text-xs text-gray-500">API URL: {window.location.origin}/api/customers</p>
+              <p className="text-xs text-gray-500">Browser URL: {window.location.href}</p>
+            </div>
             <Button onClick={() => window.location.reload()}>Retry</Button>
           </div>
         ) : filteredCustomers && filteredCustomers.length > 0 ? (

@@ -70,6 +70,30 @@ class BatchedRequestManager {
 const batchedRequestManager = new BatchedRequestManager();
 
 /**
+ * Helper function to get the correct API URL
+ * @param endpoint API endpoint path (e.g., '/api/customers')
+ * @returns Full URL with the correct port
+ */
+function getApiUrl(endpoint: string): string {
+  // If endpoint already starts with http:// or https://, return as is
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    return endpoint;
+  }
+  
+  // If we're in a deployed Replit environment, use the same origin 
+  // This ensures we use the correct port in the deployed environment
+  const baseUrl = window.location.origin;
+  
+  // Clean the endpoint to ensure it starts with "/"
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  
+  // Log the constructed URL for debugging
+  console.log(`Constructed API URL: ${baseUrl}${cleanEndpoint}`);
+  
+  return `${baseUrl}${cleanEndpoint}`;
+}
+
+/**
  * Enhanced API request function with batching, error handling, and typing
  * @param endpoint API endpoint
  * @param options Fetch options
@@ -80,8 +104,13 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   try {
+    // Get the full API URL
+    const apiUrl = getApiUrl(endpoint);
+    
+    console.log(`Making API request to: ${apiUrl}`);
+    
     // Use the batched request manager for fetch operations
-    const response = await batchedRequestManager.fetch(endpoint, {
+    const response = await batchedRequestManager.fetch(apiUrl, {
       headers: {
         'Content-Type': 'application/json',
         ...(options.headers || {})
@@ -92,8 +121,15 @@ export async function apiRequest<T>(
     // Handle non-successful responses
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(`API request to ${apiUrl} failed with status ${response.status}`, {
+        errorData,
+        response
+      });
+      
+      // Enhanced error with diagnostics
       throw new Error(
-        errorData.message || `API request failed with status ${response.status}`
+        errorData.message || 
+        `API request failed with status ${response.status}. URL: ${apiUrl}. Browser: ${window.navigator.userAgent}`
       );
     }
     
@@ -164,9 +200,12 @@ export const queryClient = new QueryClient({
       // Default query function that works with our API endpoints
       queryFn: async ({ queryKey }) => {
         // Convert query key to API path
-        const endpoint = Array.isArray(queryKey) 
-          ? queryKey[0] as string
-          : queryKey as string;
+        let endpoint = '/';
+        
+        if (Array.isArray(queryKey) && queryKey.length > 0) {
+          const firstKey = queryKey[0];
+          endpoint = typeof firstKey === 'string' ? firstKey : String(firstKey);
+        }
           
         return apiRequest(endpoint);
       },
@@ -185,12 +224,14 @@ export const queryClient = new QueryClient({
 });
 
 /**
- * Type-safe API fetch wrapper
+ * Type-safe API fetch wrapper with improved logging
  * @param endpoint API endpoint
+ * @param options Optional fetch options
  * @returns Promise with typed data
  */
-export async function fetchApi<T>(endpoint: string): Promise<T> {
-  return apiRequest<T>(endpoint);
+export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  console.log(`Fetch API called for endpoint: ${endpoint}`);
+  return apiRequest<T>(endpoint, options);
 }
 
 /**
@@ -204,6 +245,7 @@ export function prefetchQuery(
   queryKey: unknown[],
   staleTime = staleTimeConfigs.dynamic
 ): Promise<void> {
+  console.log(`Prefetching data for endpoint: ${endpoint}`);
   return queryClient.prefetchQuery({
     queryKey,
     queryFn: () => apiRequest(endpoint),
