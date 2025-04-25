@@ -17,13 +17,21 @@ export class CustomerController {
    */
   async getAllCustomers(req: Request, res: Response): Promise<Response> {
     try {
+      logger.info("GET /api/customers - Fetching all customers");
+      
       const customersList = await db.query.customers.findMany({
         orderBy: (customers, { desc }) => [desc(customers.updatedAt)]
       });
+      
+      logger.info(`GET /api/customers - Successfully retrieved ${customersList.length} customers`);
       return res.json(customersList);
     } catch (error) {
       logger.error("Error fetching customers:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Customer query error details:", error);
+      return res.status(500).json({ 
+        message: "Internal server error", 
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
     }
   }
 

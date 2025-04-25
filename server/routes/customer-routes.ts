@@ -15,35 +15,35 @@ export function registerCustomerRoutes(app: Express): void {
   /**
    * @route GET /api/customers
    * @desc Get all customers
-   * @access Public
+   * @access Private
    */
-  app.get('/api/customers', customerController.getAllCustomers.bind(customerController));
+  app.get('/api/customers', isAuthenticated, customerController.getAllCustomers.bind(customerController));
   
   /**
    * @route GET /api/customers/:id
    * @desc Get a customer by ID
-   * @access Public
+   * @access Private
    */
-  app.get('/api/customers/:id', customerController.getCustomerById.bind(customerController));
+  app.get('/api/customers/:id', isAuthenticated, customerController.getCustomerById.bind(customerController));
   
   /**
    * @route POST /api/customers
    * @desc Create a new customer
-   * @access Public
+   * @access Private
    */
-  app.post('/api/customers', customerController.createCustomer.bind(customerController));
+  app.post('/api/customers', isAuthenticated, customerController.createCustomer.bind(customerController));
   
   /**
    * @route PUT /api/customers/:id
    * @desc Update a customer
-   * @access Public
+   * @access Private
    */
-  app.put('/api/customers/:id', customerController.updateCustomer.bind(customerController));
+  app.put('/api/customers/:id', isAuthenticated, customerController.updateCustomer.bind(customerController));
   
   /**
    * @route DELETE /api/customers/:id
    * @desc Delete a customer
-   * @access Public
+   * @access Private
    */
-  app.delete('/api/customers/:id', customerController.deleteCustomer.bind(customerController));
+  app.delete('/api/customers/:id', isAuthenticated, customerController.deleteCustomer.bind(customerController));
 }
