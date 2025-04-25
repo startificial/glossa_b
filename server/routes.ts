@@ -1603,6 +1603,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Import the generateAcceptanceCriteria function from claude.ts
+      const { generateAcceptanceCriteria } = require('./claude');
+      
       // Generate acceptance criteria using Claude
       const acceptanceCriteria = await generateAcceptanceCriteria(
         project.name,
@@ -1729,6 +1732,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`Generating Salesforce implementation tasks using Claude AI for requirement: ${requirement.codeId}`);
+      
+      // Import the generateImplementationTasks function
+      const { generateImplementationTasks } = require('./claude');
       
       // Use Claude AI to generate Salesforce-specific implementation tasks
       const generatedTasks = await generateImplementationTasks(

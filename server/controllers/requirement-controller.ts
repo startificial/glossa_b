@@ -329,7 +329,21 @@ export class RequirementController {
 
       // Generate acceptance criteria using Claude
       logger.info(`Generating acceptance criteria for requirement #${requirementId}: ${requirement.title}`);
-      const criteria = await generateAcceptanceCriteria(requirement);
+      
+      // Get the project to extract project name and description
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, requirement.projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const criteria = await generateAcceptanceCriteria(
+        project.name,
+        project.description || "No project description available",
+        requirement.description
+      );
 
       // Update the requirement with the new acceptance criteria
       await storage.updateRequirement(requirementId, {
@@ -375,7 +389,25 @@ export class RequirementController {
 
       // Generate tasks using Claude
       logger.info(`Generating tasks for requirement #${requirementId}: ${requirement.title}`);
-      const tasks = await generateImplementationTasks(requirement);
+      
+      // Get the project to extract necessary information
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, requirement.projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const tasks = await generateImplementationTasks(
+        project.name,
+        project.sourceSystem || "Unknown",
+        project.targetSystem || "Salesforce",
+        project.description || "No project description available",
+        requirement.description,
+        requirement.acceptanceCriteria || [],
+        requirementId
+      );
 
       // Create the tasks in the database
       const createdTasks = [];
