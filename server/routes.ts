@@ -1820,6 +1820,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // We still pass userId for logging purposes, but the search will be across all records
+      console.log(`Performing quick search with query "${query}" for user ${userId}`);
       const results = await storage.quickSearch(userId, query, limit);
       res.status(200).json(results);
     } catch (error) {
@@ -1863,6 +1865,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Performing advanced search with query "${query}" for user ${userId}`);
       
+      // We still pass userId for logging purposes, but the storage.advancedSearch
+      // function should be modified to search across all records
       const results = await storage.advancedSearch(
         userId, 
         query, 
