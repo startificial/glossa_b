@@ -8,11 +8,13 @@ import { Input } from "../components/ui/input";
 import { Plus, Search } from "lucide-react";
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from "../components/ui/page-header";
 import { CustomerDialog } from "../components/customers/customer-dialog";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Customers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   
+  // Use the standard query configuration from queryClient
   const { 
     data: customers, 
     isLoading, 
@@ -21,9 +23,7 @@ export default function Customers() {
     refetch
   } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
-    staleTime: 60000, // 1 minute
-    retry: 3, // Retry failed requests 3 times
-    retryDelay: 1000, // Wait 1 second between retries
+    retry: 1
   });
   
   // Filter customers based on search query
