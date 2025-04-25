@@ -52,7 +52,26 @@ export class ProjectController {
         orderBy: [desc(projects.updatedAt)]
       });
       
-      return res.json(projectsList);
+      // For each project, fetch customer details if customerId exists
+      const projectsWithCustomers = await Promise.all(
+        projectsList.map(async (project) => {
+          if (project.customerId) {
+            const customer = await db.query.customers.findFirst({
+              where: eq(customers.id, project.customerId)
+            });
+            
+            if (customer) {
+              return {
+                ...project,
+                customerDetails: customer
+              };
+            }
+          }
+          return project;
+        })
+      );
+      
+      return res.json(projectsWithCustomers);
     } catch (error) {
       logger.error("Error fetching projects:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -96,7 +115,8 @@ export class ProjectController {
           // Return project with associated customer
           return res.json({
             ...project,
-            customer
+            customer,
+            customerDetails: customer // Add customerDetails property for consistency
           });
         }
       }
@@ -266,7 +286,23 @@ export class ProjectController {
         relatedEntityId: null
       });
       
-      return res.json(result[0]);
+      // If the updated project has a customer ID, fetch and include customer details
+      const updatedProject = result[0];
+      if (updatedProject.customerId) {
+        const customer = await db.query.customers.findFirst({
+          where: eq(customers.id, updatedProject.customerId)
+        });
+        
+        if (customer) {
+          return res.json({
+            ...updatedProject,
+            customer,
+            customerDetails: customer
+          });
+        }
+      }
+      
+      return res.json(updatedProject);
     } catch (error) {
       logger.error("Error updating project:", error);
       return res.status(400).json({ message: "Invalid project data", error });
@@ -318,7 +354,7 @@ export class ProjectController {
         type: "deleted_project",
         description: `${user.username} deleted project "${project.name}"`,
         userId: userId,
-        projectId: undefined, // Don't include projectId as it's been deleted
+        projectId: null as any, // Use null instead of undefined, with type assertion to prevent TypeScript error
         relatedEntityId: null
       });
       
