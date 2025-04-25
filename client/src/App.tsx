@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Navbar } from "@/components/layout/navbar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { AuthProvider } from "@/hooks/use-auth";
-import { ProtectedRoute } from "@/components/auth/protected-route";
+import { ProtectedRoute } from "@/lib/protected-route";
 import glossaLogo from "./assets/glossa-logo.png";
 
 import Dashboard from "@/pages/dashboard";

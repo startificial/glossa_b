@@ -1,374 +1,304 @@
 import React, { useState, useEffect } from "react";
-import { useAuth, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "@/hooks/use-auth";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { TabsContent, Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, AlertCircle } from "lucide-react";
-// Import IBM Plex Sans font
-import "@fontsource/ibm-plex-sans/400.css";
-import "@fontsource/ibm-plex-sans/700.css";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Main Auth Page Component
 export default function AuthPage() {
-  const [location, navigate] = useLocation();
-  const { user, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>("login");
-  const [resetToken, setResetToken] = useState<string | null>(null);
-  const [tokenValid, setTokenValid] = useState<boolean>(false);
-  const [tokenError, setTokenError] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const { user, loginMutation, registerMutation } = useAuth();
 
-  // Check for reset token in URL
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    
-    if (token) {
-      setResetToken(token);
-      setActiveTab("reset-password");
-      validateToken(token);
-    }
-  }, []);
-
-  // Redirect if user is already logged in
+  // Redirect to home if already authenticated
   useEffect(() => {
     if (user) {
-      navigate("/");
+      setLocation("/");
     }
-  }, [user, navigate]);
+  }, [user, setLocation]);
 
-  // Validate reset token
-  const { verifyResetToken } = useAuth();
-  
-  const validateToken = async (token: string) => {
-    try {
-      const result = await verifyResetToken(token);
-      setTokenValid(result.valid);
-      if (!result.valid) {
-        setTokenError(result.message);
-      }
-    } catch (error) {
-      setTokenValid(false);
-      setTokenError("Failed to validate token");
-    }
+  const [loginForm, setLoginForm] = useState({
+    username: "",
+    password: "",
+  });
+
+  const [registerForm, setRegisterForm] = useState({
+    username: "",
+    password: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    company: "",
+  });
+
+  const handleLoginSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    console.log("Logging in with:", loginForm);
+    loginMutation.mutate(loginForm, {
+      onSuccess: () => {
+        toast({
+          title: "Login successful",
+          description: "Welcome back!",
+        });
+        setLocation("/");
+      },
+    });
   };
 
-  // If still checking authentication status, show loading
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const handleRegisterSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    console.log("Registering with:", registerForm);
+    registerMutation.mutate(registerForm, {
+      onSuccess: () => {
+        toast({
+          title: "Registration successful",
+          description: "Your account has been created.",
+        });
+        setLocation("/");
+      },
+    });
+  };
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      {/* Auth Forms Container */}
-      <div className="flex flex-col items-center justify-center w-full md:w-1/2 p-8">
-        <div className="w-full max-w-md">
-          <Tabs
-            defaultValue="login"
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            <TabsList className="grid grid-cols-2 mb-8">
+    <div className="grid min-h-screen grid-cols-1 md:grid-cols-2">
+      {/* Left side - Auth form */}
+      <div className="flex items-center justify-center p-8">
+        <div className="mx-auto w-full max-w-md space-y-8">
+          <div className="space-y-2 text-center">
+            <h1 className="text-3xl font-bold">Welcome</h1>
+            <p className="text-gray-500 dark:text-gray-400">
+              Sign in to your account or create a new one
+            </p>
+          </div>
+
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="forgot-password">Forgot Password</TabsTrigger>
+              <TabsTrigger value="register">Register</TabsTrigger>
             </TabsList>
 
-            {/* Login Form */}
             <TabsContent value="login">
-              <LoginForm />
+              <Card>
+                <form onSubmit={handleLoginSubmit}>
+                  <CardHeader>
+                    <CardTitle>Login</CardTitle>
+                    <CardDescription>
+                      Enter your credentials to access your account
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="username">Username</Label>
+                      <Input
+                        id="username"
+                        placeholder="Enter your username"
+                        value={loginForm.username}
+                        onChange={(e) =>
+                          setLoginForm({ ...loginForm, username: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={loginForm.password}
+                        onChange={(e) =>
+                          setLoginForm({ ...loginForm, password: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={loginMutation.isPending}
+                    >
+                      {loginMutation.isPending ? "Signing in..." : "Sign in"}
+                    </Button>
+                  </CardFooter>
+                </form>
+              </Card>
             </TabsContent>
 
-            {/* Forgot Password Form */}
-            <TabsContent value="forgot-password">
-              <ForgotPasswordForm onSuccess={() => {}} />
-            </TabsContent>
-
-            {/* Reset Password Form (hidden tab, only shown when token is present) */}
-            <TabsContent value="reset-password">
-              {resetToken && (
-                <>
-                  {tokenError && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Invalid or expired token</AlertTitle>
-                      <AlertDescription>{tokenError}</AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  {tokenValid && (
-                    <ResetPasswordForm token={resetToken} onSuccess={() => {
-                      setActiveTab("login");
-                      setResetToken(null);
-                      // Remove token from URL without page refresh
-                      window.history.pushState({}, document.title, window.location.pathname);
-                    }} />
-                  )}
-                </>
-              )}
+            <TabsContent value="register">
+              <Card>
+                <form onSubmit={handleRegisterSubmit}>
+                  <CardHeader>
+                    <CardTitle>Register</CardTitle>
+                    <CardDescription>
+                      Create a new account to get started
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">First name</Label>
+                        <Input
+                          id="firstName"
+                          placeholder="John"
+                          value={registerForm.firstName}
+                          onChange={(e) =>
+                            setRegisterForm({
+                              ...registerForm,
+                              firstName: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">Last name</Label>
+                        <Input
+                          id="lastName"
+                          placeholder="Doe"
+                          value={registerForm.lastName}
+                          onChange={(e) =>
+                            setRegisterForm({
+                              ...registerForm,
+                              lastName: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="john.doe@example.com"
+                        value={registerForm.email}
+                        onChange={(e) =>
+                          setRegisterForm({
+                            ...registerForm,
+                            email: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="company">Company</Label>
+                      <Input
+                        id="company"
+                        placeholder="Your company name"
+                        value={registerForm.company}
+                        onChange={(e) =>
+                          setRegisterForm({
+                            ...registerForm,
+                            company: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reg-username">Username</Label>
+                      <Input
+                        id="reg-username"
+                        placeholder="Choose a username"
+                        value={registerForm.username}
+                        onChange={(e) =>
+                          setRegisterForm({
+                            ...registerForm,
+                            username: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reg-password">Password</Label>
+                      <Input
+                        id="reg-password"
+                        type="password"
+                        placeholder="Choose a password"
+                        value={registerForm.password}
+                        onChange={(e) =>
+                          setRegisterForm({
+                            ...registerForm,
+                            password: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={registerMutation.isPending}
+                    >
+                      {registerMutation.isPending
+                        ? "Creating account..."
+                        : "Create account"}
+                    </Button>
+                  </CardFooter>
+                </form>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
       </div>
 
-      {/* Hero Section - Black background with Glossa text */}
-      <div className="hidden md:flex md:w-1/2 bg-black flex-col justify-center items-center">
-        <h1 className="text-8xl font-bold text-white font-['IBM_Plex_Sans']">Glossa</h1>
+      {/* Right side - Hero section */}
+      <div className="hidden bg-muted p-10 md:flex md:flex-col md:justify-between">
+        <div className="mx-auto flex max-w-lg flex-col space-y-8 text-center">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
+              Smart Requirement Management
+            </h1>
+            <p className="max-w-[600px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
+              Leverage AI-driven collaborative tools to streamline your software development workflows.
+            </p>
+          </div>
+          <div className="mx-auto w-full max-w-sm space-y-4">
+            <div className="flex items-center space-x-2">
+              <div className="h-10 w-10 rounded-full bg-primary"></div>
+              <div className="space-y-1">
+                <p className="text-lg font-medium leading-none">Advanced AI Integration</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Multi-AI model integration with state-of-the-art tools
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="h-10 w-10 rounded-full bg-primary"></div>
+              <div className="space-y-1">
+                <p className="text-lg font-medium leading-none">Collaborative Planning</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Real-time collaboration on project requirements
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="h-10 w-10 rounded-full bg-primary"></div>
+              <div className="space-y-1">
+                <p className="text-lg font-medium leading-none">Customer Management</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Organize your customer projects in one place
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-gray-200 pt-6 dark:border-gray-800">
+          <div className="flex justify-between">
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                © 2025 Requirements Management Platform. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  );
-}
-
-// Login Form Component
-function LoginForm() {
-  const { loginMutation } = useAuth();
-  const [, navigate] = useLocation();
-
-  const form = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
-  });
-
-  async function onSubmit(values: z.infer<typeof loginSchema>) {
-    try {
-      await loginMutation.mutateAsync(values);
-      navigate("/");
-    } catch (error) {
-      // Error will be handled by the mutation's onError
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Login to your account</CardTitle>
-        <CardDescription>
-          Enter your credentials to access the platform
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter your username" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="Enter your password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loginMutation.isPending}
-            >
-              {loginMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Log in
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Forgot Password Form Component
-function ForgotPasswordForm({ onSuccess }: { onSuccess: () => void }) {
-  const { forgotPasswordMutation } = useAuth();
-
-  const form = useForm<z.infer<typeof forgotPasswordSchema>>({
-    resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: {
-      username: "",
-      email: "",
-    },
-  });
-
-  async function onSubmit(values: z.infer<typeof forgotPasswordSchema>) {
-    try {
-      await forgotPasswordMutation.mutateAsync(values);
-      form.reset();
-      if (onSuccess) onSuccess();
-    } catch (error) {
-      // Error will be handled by the mutation's onError
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Reset your password</CardTitle>
-        <CardDescription>
-          Enter your username and email address to reset your password. If the username and email match, we'll send you a password reset link.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter your username" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="Enter your email"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={forgotPasswordMutation.isPending}
-            >
-              {forgotPasswordMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Send Reset Link
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Reset Password Form Component
-function ResetPasswordForm({ token, onSuccess }: { token: string, onSuccess: () => void }) {
-  const { resetPasswordMutation } = useAuth();
-
-  const form = useForm<z.infer<typeof resetPasswordSchema>>({
-    resolver: zodResolver(resetPasswordSchema),
-    defaultValues: {
-      token,
-      password: "",
-      confirmPassword: "",
-    },
-  });
-
-  async function onSubmit(values: z.infer<typeof resetPasswordSchema>) {
-    try {
-      await resetPasswordMutation.mutateAsync(values);
-      if (onSuccess) onSuccess();
-    } catch (error) {
-      // Error will be handled by the mutation's onError
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create new password</CardTitle>
-        <CardDescription>
-          Enter your new password to complete the password reset process
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>New Password</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="Enter new password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="Confirm new password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={resetPasswordMutation.isPending}
-            >
-              {resetPasswordMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Reset Password
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
   );
 }

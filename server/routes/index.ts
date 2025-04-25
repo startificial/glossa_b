@@ -37,20 +37,20 @@ export async function registerRoutes(app: Express, quickStart: boolean = false):
   
   // In quick start mode, only register essential routes
   if (quickStart) {
-    console.log('[ROUTES] Quick start mode: only registering essential routes');
-    // Only register authentication routes for fast startup
+    console.log('[ROUTES] Quick start mode: registering essential routes');
+    // Register critical routes immediately (auth, users, customers)
     registerAuthRoutes(app);
+    registerUserRoutes(app);
+    registerCustomerRoutes(app);
     
     // Schedule other routes to load after server starts
     setTimeout(() => {
       console.log('[ROUTES] Loading remaining routes asynchronously...');
       try {
-        registerUserRoutes(app);
         registerProjectRoutes(app);
         registerRequirementRoutes(app);
         registerInviteRoutes(app);
         registerSchemaRoutes(app);
-        registerCustomerRoutes(app);
         registerWorkflowRoutes(app);
         registerInputDataRoutes(app);
         registerActivityRoutes(app);
