@@ -91,7 +91,7 @@ export class InputDataController {
         fileContentType = "document";
       } else if (['.txt', '.md'].includes(fileType)) {
         fileContentType = "text";
-      } else if (['.mp4', '.mov', '.webm'].includes(fileType)) {
+      } else if (['.mp4', '.mov', '.webm', '.mpeg', '.mpg', '.avi'].includes(fileType)) {
         fileContentType = "video";
       }
       
@@ -232,7 +232,7 @@ export class InputDataController {
           });
           return res.status(500).json({ message: "Error processing DOCX file" });
         }
-      } else if (fileType === '.mp4' || fileType === '.mov' || fileType === '.webm') {
+      } else if (fileType === '.mp4' || fileType === '.mov' || fileType === '.webm' || fileType === '.mpeg' || fileType === '.mpg' || fileType === '.avi') {
         // Process video files
         // Create output directory for video processing
         const outputDir = path.join(process.cwd(), 'uploads', 'video-processing', inputData.id.toString());
@@ -306,7 +306,7 @@ export class InputDataController {
         
         // For DOCX, TXT, PDF, and video files, automatically start processing into requirements
         if (fileType === '.docx' || fileType === '.doc' || fileType === '.txt' || fileType === '.md' || fileType === '.pdf' || 
-            fileType === '.mp4' || fileType === '.mov' || fileType === '.webm') {
+            fileType === '.mp4' || fileType === '.mov' || fileType === '.webm' || fileType === '.mpeg' || fileType === '.mpg' || fileType === '.avi') {
           // Process asynchronously in the background
           (async () => {
             try {
@@ -399,7 +399,7 @@ export class InputDataController {
                 } catch (error) {
                   throw new Error(`Failed to analyze PDF file: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
-              } else if (fileType === '.mp4' || fileType === '.mov' || fileType === '.webm') {
+              } else if (fileType === '.mp4' || fileType === '.mov' || fileType === '.webm' || fileType === '.mpeg' || fileType === '.mpg' || fileType === '.avi') {
                 // For video files, use the already processed text content
                 try {
                   // Create output directory for video processing if it doesn't exist
@@ -523,7 +523,7 @@ export class InputDataController {
                 fileFormat = 'TEXT';
               } else if (fileType === '.pdf') {
                 fileFormat = 'PDF';
-              } else if (fileType === '.mp4' || fileType === '.mov' || fileType === '.webm') {
+              } else if (fileType === '.mp4' || fileType === '.mov' || fileType === '.webm' || fileType === '.mpeg' || fileType === '.mpg' || fileType === '.avi') {
                 fileFormat = 'VIDEO';
               }
               

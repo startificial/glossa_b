@@ -94,8 +94,8 @@ if (enableDebugLogs) {
   // No middleware needed when debug logs are disabled
 }
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '300mb' }));
+app.use(express.urlencoded({ extended: false, limit: '300mb' }));
 
 // Create and serve the video scenes directory
 const videoScenesDir = ensureDirectoryExists(path.join(os.tmpdir(), 'video-scenes'), 'video scenes directory');
