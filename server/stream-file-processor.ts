@@ -696,8 +696,8 @@ export async function streamProcessFile(
   projectName: string,
   contentType: string = 'general',
   fileType: string = 'other',
-  numAnalyses: number = 2,
-  reqPerAnalysis: number = 5,
+  numAnalyses: number = 4,
+  reqPerAnalysis: number = 7,
   inputDataId?: number
 ): Promise<any[]> {
   // Create a temporary processing directory with a random ID

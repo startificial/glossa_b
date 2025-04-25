@@ -27,7 +27,7 @@ const generationConfig = {
   temperature: 0.7,
   topK: 32,
   topP: 0.95,
-  maxOutputTokens: 2048, // Reduced from 8192/4096 to prevent memory issues
+  maxOutputTokens: 4096, // Reduced from 8192/4096 to prevent memory issues
 };
 
 // Safety settings
@@ -753,8 +753,8 @@ export async function generateRequirementsForFile(
   projectName: string, 
   filePath?: string, 
   contentType: string = 'general',
-  numAnalyses: number = 2,
-  reqPerAnalysis: number = 5
+  numAnalyses: number = 4,
+  reqPerAnalysis: number = 13
 ): Promise<any[]> {
   try {
     // Special handling for video files if path is provided
