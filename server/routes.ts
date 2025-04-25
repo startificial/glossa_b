@@ -679,7 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -991,7 +991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -1124,7 +1124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -1380,7 +1380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -1482,7 +1482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -1532,7 +1532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
