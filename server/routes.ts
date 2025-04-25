@@ -32,6 +32,7 @@ import jobRoutes from './routes/job-routes';
 import { registerInputDataRoutes } from './routes/input-data-routes';
 import { registerProjectRoutes } from './routes/project-routes';
 import { registerSearchRoutes } from './routes/search-routes';
+import { registerCustomerRoutes } from './routes/customer-routes';
 
 /**
  * Helper function to get the current user from session
@@ -2462,6 +2463,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register admin routes
   registerAdminRoutes(app);
+  
+  // Register customer routes
+  registerCustomerRoutes(app);
   
   // Register project routes
   registerProjectRoutes(app);
