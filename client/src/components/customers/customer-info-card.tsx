@@ -62,7 +62,7 @@ export function CustomerInfoCard({ customerId }: CustomerInfoCardProps) {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {customer.industry || "Industry not specified"}
             </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-3 md:max-h-[72px] overflow-hidden">
               {customer.description}
             </p>
           </div>
