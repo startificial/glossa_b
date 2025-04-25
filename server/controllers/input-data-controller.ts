@@ -304,8 +304,9 @@ export class InputDataController {
         // No need to mark text files as processed immediately - we'll follow the normal flow
         // This ensures the UI displays processing status correctly
         
-        // For DOCX, TXT, and PDF files, automatically start processing into requirements
-        if (fileType === '.docx' || fileType === '.doc' || fileType === '.txt' || fileType === '.md' || fileType === '.pdf') {
+        // For DOCX, TXT, PDF, and video files, automatically start processing into requirements
+        if (fileType === '.docx' || fileType === '.doc' || fileType === '.txt' || fileType === '.md' || fileType === '.pdf' || 
+            fileType === '.mp4' || fileType === '.mov' || fileType === '.webm') {
           // Process asynchronously in the background
           (async () => {
             try {
@@ -398,6 +399,56 @@ export class InputDataController {
                 } catch (error) {
                   throw new Error(`Failed to analyze PDF file: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
+              } else if (fileType === '.mp4' || fileType === '.mov' || fileType === '.webm') {
+                // For video files, use the already processed text content
+                try {
+                  // Create output directory for video processing if it doesn't exist
+                  const outputDir = path.join(process.cwd(), 'uploads', 'video-processing', inputData.id.toString());
+                  if (!fs.existsSync(outputDir)) {
+                    fs.mkdirSync(outputDir, { recursive: true });
+                  }
+                  
+                  // Set fileTypeLabel for video files
+                  fileTypeLabel = 'video';
+                  
+                  // Update status to show we're processing the video
+                  await storage.updateInputData(inputData.id, {
+                    metadata: JSON.stringify({ 
+                      message: "Analyzing video content",
+                      videoProcessing: true
+                    })
+                  });
+                  
+                  // Use the VideoProcessor to get content from the video
+                  const videoProcessor = new VideoProcessor(inputData.filePath, outputDir, inputData.id);
+                  
+                  // First get metadata for the video
+                  const metadata = await videoProcessor.getMetadata();
+                  
+                  // Detect scenes in the video
+                  const scenes = await videoProcessor.detectScenes(0.3, 0.5); // Default thresholds
+                  
+                  // Process scenes to generate thumbnails, clips, and transcripts
+                  const processedScenes = await videoProcessor.processScenes(scenes);
+                  
+                  // Combine all scene transcripts into a single text
+                  const transcripts = processedScenes.map(scene => scene.transcript || '').join('\n\n');
+                  extractedText.text = transcripts || '';
+                  
+                  // Add metadata for the video
+                  await storage.updateInputData(inputData.id, {
+                    metadata: JSON.stringify({ 
+                      message: "Processing video scenes",
+                      sceneCount: scenes.length,
+                      duration: metadata?.format?.duration || 0,
+                      videoFormat: metadata?.format?.format_name || 'unknown'
+                    })
+                  });
+                  
+                  logger.info(`Processed video file: ${inputData.name} with ${scenes.length} scenes and extracted ${extractedText.text.length} characters of text`);
+                } catch (error) {
+                  throw new Error(`Failed to process video file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
               }
               
               // Update status to generating requirements
@@ -472,6 +523,8 @@ export class InputDataController {
                 fileFormat = 'TEXT';
               } else if (fileType === '.pdf') {
                 fileFormat = 'PDF';
+              } else if (fileType === '.mp4' || fileType === '.mov' || fileType === '.webm') {
+                fileFormat = 'VIDEO';
               }
               
               // Update input data status
@@ -603,8 +656,40 @@ export class InputDataController {
             logger.error("Error extracting text from DOCX:", error);
             throw new Error("Failed to extract text from DOCX file");
           }
+        } else if (inputData.fileType === '.mp4' || inputData.fileType === '.mov' || inputData.fileType === '.webm') {
+          try {
+            // Create output directory for video processing if it doesn't exist
+            const outputDir = path.join(process.cwd(), 'uploads', 'video-processing', inputData.id.toString());
+            if (!fs.existsSync(outputDir)) {
+              fs.mkdirSync(outputDir, { recursive: true });
+            }
+            
+            // Use VideoProcessor to extract content
+            const videoProcessor = new VideoProcessor(inputData.filePath, outputDir, inputData.id);
+            
+            // Get video metadata
+            const metadata = await videoProcessor.getMetadata();
+            
+            // Detect scenes in the video
+            const scenes = await videoProcessor.detectScenes(0.3, 0.5);
+            
+            // Process scenes to get transcripts
+            const processedScenes = await videoProcessor.processScenes(scenes);
+            
+            // Combine all transcripts into a single text
+            content = processedScenes.map(scene => scene.transcript || '').join('\n\n');
+            
+            if (!content || content.trim() === '') {
+              throw new Error("No transcribable content found in video");
+            }
+            
+            logger.info(`Extracted ${content.length} characters from video for requirement generation`);
+          } catch (error) {
+            logger.error("Error processing video file for requirements:", error);
+            throw new Error(`Failed to process video file: ${error instanceof Error ? error.message : "Unknown error"}`);
+          }
         } else {
-          throw new Error(`Unsupported file type: ${inputData.fileType} for requirement generation. Supported types include PDF, DOCX, and TXT files.`);
+          throw new Error(`Unsupported file type: ${inputData.fileType} for requirement generation. Supported types include PDF, DOCX, TXT, and video files.`);
         }
         
         // Use appropriate AI to generate requirements
@@ -748,8 +833,40 @@ export class InputDataController {
             logger.error("Error extracting text from DOCX for expert review:", error);
             throw new Error("Failed to extract text from DOCX file for expert review");
           }
+        } else if (inputData.fileType === '.mp4' || inputData.fileType === '.mov' || inputData.fileType === '.webm') {
+          try {
+            // Create output directory for video processing if it doesn't exist
+            const outputDir = path.join(process.cwd(), 'uploads', 'video-processing', inputData.id.toString());
+            if (!fs.existsSync(outputDir)) {
+              fs.mkdirSync(outputDir, { recursive: true });
+            }
+            
+            // Use VideoProcessor to extract content
+            const videoProcessor = new VideoProcessor(inputData.filePath, outputDir, inputData.id);
+            
+            // Get video metadata
+            const metadata = await videoProcessor.getMetadata();
+            
+            // Detect scenes in the video
+            const scenes = await videoProcessor.detectScenes(0.3, 0.5);
+            
+            // Process scenes to get transcripts
+            const processedScenes = await videoProcessor.processScenes(scenes);
+            
+            // Combine all transcripts into a single text
+            content = processedScenes.map(scene => scene.transcript || '').join('\n\n');
+            
+            if (!content || content.trim() === '') {
+              throw new Error("No transcribable content found in video for expert review");
+            }
+            
+            logger.info(`Extracted ${content.length} characters from video for expert review`);
+          } catch (error) {
+            logger.error("Error processing video file for expert review:", error);
+            throw new Error(`Failed to process video file: ${error instanceof Error ? error.message : "Unknown error"}`);
+          }
         } else {
-          throw new Error(`Unsupported file type: ${inputData.fileType} for expert review. Supported types include PDF, DOCX, and TXT files.`);
+          throw new Error(`Unsupported file type: ${inputData.fileType} for expert review. Supported types include PDF, DOCX, TXT, and video files.`);
         }
         
         // Get all requirements for this input data
