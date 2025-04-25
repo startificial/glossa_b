@@ -8,7 +8,7 @@ import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { logger } from '../utils/logger';
 import { insertInputDataSchema } from '@shared/schema';
-import { processTextFile, generateRequirementsForFile, generateExpertReview } from '../gemini';
+import { processTextFile as geminiProcessTextFile, generateRequirementsForFile, generateExpertReview } from '../gemini';
 import { processPdfFile, validatePdf, extractTextFromPdf } from '../pdf-processor';
 import { analyzePdf } from '../pdf-analyzer';
 import { extractTextFromDocx, analyzeDocx } from '../stream-file-processor';
@@ -121,32 +121,27 @@ export class InputDataController {
       let textContent = '';
       
       if (fileType === '.txt' || fileType === '.md') {
-        // Process text files - read content but don't do AI processing here
-        // (we'll do that asynchronously later)
+        // Process text files - use the same approach as DOCX for consistency
         try {
-          textContent = fs.readFileSync(file.path, 'utf8');
+          // Import text analysis functions from our stream-file-processor
+          const { extractTextFromTxt, analyzeTxt } = await import('../stream-file-processor.js');
+          
+          // First extract text content
+          const extractedText = await extractTextFromTxt(file.path);
+          
+          if (!extractedText.success) {
+            throw new Error(extractedText.error || 'Failed to extract text from file');
+          }
+          
+          textContent = extractedText.text;
+          
+          // Analyze the text content like we do for DOCX files
+          const analysisResult = await analyzeTxt(file.path);
           
           processingResult = {
             text: textContent,
-            metadata: JSON.stringify({ fileSize: textContent.length }),
-            context: {
-              domain: "document",
-              docType: "text document",
-              keywords: [],
-              hasRequirements: false
-            },
-            hasOcrText: false,
-            pageCount: 1,
-            isScanOrImage: false
-          };
-          
-          logger.info(`Successfully loaded text file content: ${file.originalname} with ${textContent.length} characters`);
-        } catch (error) {
-          logger.error("Error reading text file:", error);
-          processingResult = {
-            text: "",
-            metadata: JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error reading text file" }),
-            context: {
+            metadata: JSON.stringify(analysisResult.metadata || {}),
+            context: analysisResult.context || {
               domain: "unknown",
               docType: "text document",
               keywords: [],
@@ -156,6 +151,15 @@ export class InputDataController {
             pageCount: 1,
             isScanOrImage: false
           };
+          
+          logger.info(`Successfully analyzed text file: ${file.originalname} with ${textContent.length} characters ${extractedText.isStreaming ? '(streaming mode)' : ''}`);
+        } catch (error) {
+          logger.error("Error processing text file:", error);
+          await storage.updateInputData(inputData.id, {
+            status: "error",
+            metadata: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to process text file" })
+          });
+          return res.status(500).json({ message: "Error processing text file" });
         }
       } else if (fileType === '.pdf') {
         // Process PDF files
@@ -306,11 +310,45 @@ export class InputDataController {
                   throw new Error(extractedText.error || 'Failed to extract text from document');
                 }
               } else if (fileType === '.txt' || fileType === '.md') {
-                // For text files, just read the file directly
+                // For text files, use analyzeTxt to process everything
                 try {
-                  extractedText.text = fs.readFileSync(file.path, 'utf8');
+                  // Import both text extraction and analysis functions
+                  const { extractTextFromTxt, analyzeTxt } = await import('../stream-file-processor.js');
+                  
+                  // First get the text using our streaming-capable handler
+                  const txtResult = await extractTextFromTxt(file.path);
+                  
+                  if (!txtResult.success) {
+                    throw new Error(txtResult.error || "Failed to read text file");
+                  }
+                  
+                  // Store the extracted text
+                  extractedText.text = txtResult.text;
+                  
+                  // Get the full analysis
+                  const analysisResult = await analyzeTxt(file.path);
+                  
+                  // Add analysis metadata to the input data
+                  await storage.updateInputData(inputData.id, {
+                    metadata: JSON.stringify({ 
+                      message: "Analyzing text content",
+                      isStreaming: txtResult.isStreaming || false,
+                      metadata: analysisResult.metadata || {},
+                      context: analysisResult.context || {}
+                    })
+                  });
+                  
+                  // Add note about streaming mode
+                  if (txtResult.isStreaming) {
+                    await storage.updateInputData(inputData.id, {
+                      metadata: JSON.stringify({ 
+                        message: "Extracting text from document (streaming mode)",
+                        streamingNote: "This file is being processed in streaming mode due to its large size."
+                      })
+                    });
+                  }
                 } catch (error) {
-                  throw new Error(`Failed to read text file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                  throw new Error(`Failed to analyze text file: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
               }
               
@@ -331,14 +369,15 @@ export class InputDataController {
               let requirements = [];
               
               if (fileType === '.txt' || fileType === '.md') {
-                // For text files, use processTextFile with proper parameters
-                requirements = await processTextFile(
+                // Use our more efficient streaming approach for text files
+                // Import the function from stream-file-processor
+                const { generateRequirementsFromText } = await import('../stream-file-processor.js');
+                
+                // Process with memory-efficient approach
+                requirements = await generateRequirementsFromText(
                   file.path,
-                  projectName,
                   file.originalname,
-                  'general', // contentType
-                  5, // minRequirements
-                  inputData.id // Pass input data ID for text references
+                  projectName
                 );
               } else {
                 // For DOCX, use generateRequirementsForFile as before
@@ -478,7 +517,28 @@ export class InputDataController {
           const extractedText = await extractTextFromPdf(inputData.filePath);
           content = extractedText.text;
         } else if (inputData.fileType === '.txt' || inputData.fileType === '.md') {
-          content = fs.readFileSync(inputData.filePath, 'utf8');
+          // Use streaming text processor for better memory efficiency
+          try {
+            // Import the stream file processor for text handling
+            const { extractTextFromTxt } = await import("../stream-file-processor.js");
+            
+            // Process text with streaming support for large files
+            const txtResult = await extractTextFromTxt(inputData.filePath);
+            
+            if (!txtResult.success) {
+              throw new Error(txtResult.error || "Failed to read text file");
+            }
+            
+            content = txtResult.text;
+            
+            // Log streaming mode if it was used
+            if (txtResult.isStreaming) {
+              logger.info(`Processing large text file (${inputData.name}) in streaming mode`);
+            }
+          } catch (error) {
+            logger.error("Error extracting text from text file:", error);
+            throw new Error(`Failed to read text file: ${error instanceof Error ? error.message : "Unknown error"}`);
+          }
         } else if (inputData.fileType === '.docx' || inputData.fileType === '.doc') {
           try {
             const extractedText = await extractTextFromDocx(inputData.filePath);
@@ -602,7 +662,28 @@ export class InputDataController {
           const extractedText = await extractTextFromPdf(inputData.filePath);
           content = extractedText.text;
         } else if (inputData.fileType === '.txt' || inputData.fileType === '.md') {
-          content = fs.readFileSync(inputData.filePath, 'utf8');
+          // Use streaming text processor for better memory efficiency
+          try {
+            // Import the stream file processor for text handling
+            const { extractTextFromTxt } = await import("../stream-file-processor.js");
+            
+            // Process text with streaming support for large files
+            const txtResult = await extractTextFromTxt(inputData.filePath);
+            
+            if (!txtResult.success) {
+              throw new Error(txtResult.error || "Failed to read text file");
+            }
+            
+            content = txtResult.text;
+            
+            // Log streaming mode if it was used
+            if (txtResult.isStreaming) {
+              logger.info(`Processing large text file (${inputData.name}) in streaming mode`);
+            }
+          } catch (error) {
+            logger.error("Error extracting text from text file:", error);
+            throw new Error(`Failed to read text file: ${error instanceof Error ? error.message : "Unknown error"}`);
+          }
         } else if (inputData.fileType === '.docx' || inputData.fileType === '.doc') {
           try {
             const extractedText = await extractTextFromDocx(inputData.filePath);

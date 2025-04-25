@@ -22,12 +22,12 @@ export interface ExpertReview {
 const apiKey = process.env.GOOGLE_API_KEY || '';
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Gemini 2.5 model configuration with reduced token limit to prevent memory issues
+// Gemini 2.5 model configuration with significantly reduced token limit to prevent memory issues
 const generationConfig = {
   temperature: 0.7,
   topK: 32,
   topP: 0.95,
-  maxOutputTokens: 4096, // Reduced from 8192 to prevent memory issues
+  maxOutputTokens: 2048, // Reduced from 8192/4096 to prevent memory issues
 };
 
 // Safety settings
@@ -127,70 +127,59 @@ export async function processTextFile(filePath: string, projectName: string, fil
     let fileContent: string;
     let chunks: string[];
     
-    // For large files (>5MB), read and process in streaming manner
-    if (fileSizeMB > 5) {
-      console.log(`Large text file detected. Using streaming approach with max 5 chunks.`);
+    // For all files, use a more memory-efficient approach
+    // For very large files, limit to fewer chunks
+    const maxChunks = fileSizeMB > 20 ? 2 : (fileSizeMB > 5 ? 3 : 5);
+    console.log(`Using more memory-efficient approach with max ${maxChunks} chunks.`);
+    
+    // Sample the beginning, middle (if applicable), and end of the file
+    chunks = [];
+    
+    // Read beginning
+    const beginning = fs.readFileSync(filePath, {
+      encoding: 'utf8',
+      flag: 'r',
+      start: 0,
+      end: Math.min(stats.size, 2000) - 1
+    });
+    chunks.push(beginning);
+    
+    // For files with more content, read the middle
+    if (maxChunks >= 2 && stats.size > 4000) {
+      const middleStart = Math.floor(stats.size / 2) - 1000;
+      const middleEnd = Math.min(stats.size, middleStart + 2000) - 1;
       
-      // Read file content in chunks to avoid loading entire file into memory
-      const chunkSizeBytes = Math.ceil(stats.size / 5); // Divide into max 5 chunks
-      const buffer = Buffer.alloc(chunkSizeBytes);
-      const fd = fs.openSync(filePath, 'r');
-      
-      chunks = [];
-      let bytesRead = 0;
-      let position = 0;
-      
-      try {
-        // Read up to 5 evenly spaced chunks from the file
-        for (let i = 0; i < 5; i++) {
-          // Calculate position to read from
-          position = i * chunkSizeBytes;
-          
-          // Skip if we're past the end of file
-          if (position >= stats.size) break;
-          
-          // Read a chunk
-          bytesRead = fs.readSync(fd, buffer, 0, chunkSizeBytes, position);
-          
-          if (bytesRead > 0) {
-            const chunkContent = buffer.slice(0, bytesRead).toString('utf8');
-            
-            // Clean up chunk boundaries to avoid cutting in the middle of words
-            let cleanedChunk = chunkContent;
-            
-            // Find sentence boundaries for cleaner chunks
-            if (i > 0) {
-              // For all chunks except first, trim beginning to a sentence start
-              const sentenceStart = cleanedChunk.match(/[.!?]\s+[A-Z]/);
-              if (sentenceStart && sentenceStart.index && sentenceStart.index < 1000) {
-                cleanedChunk = cleanedChunk.substring(sentenceStart.index + 2);
-              }
-            }
-            
-            if (i < 4 && position + bytesRead < stats.size) {
-              // For all chunks except last, trim end to a sentence end
-              const reversedChunk = cleanedChunk.split('').reverse().join('');
-              const sentenceEnd = reversedChunk.match(/[A-Z]\s+[.!?]/);
-              if (sentenceEnd && sentenceEnd.index && sentenceEnd.index < 1000) {
-                cleanedChunk = cleanedChunk.substring(0, cleanedChunk.length - (sentenceEnd.index + 2));
-              }
-            }
-            
-            chunks.push(cleanedChunk);
-          }
-        }
-      } finally {
-        fs.closeSync(fd);
+      if (middleStart >= 0 && middleEnd > middleStart) {
+        const middle = fs.readFileSync(filePath, {
+          encoding: 'utf8',
+          flag: 'r',
+          start: middleStart,
+          end: middleEnd
+        });
+        chunks.push(middle);
       }
+    }
+    
+    // For files with even more content, read the end
+    if (maxChunks >= 3 && stats.size > 8000) {
+      const endStart = Math.max(0, stats.size - 2000);
       
-      console.log(`Read ${chunks.length} representative chunks for processing`);
-    } else {
-      // For smaller files, read the entire file
-      fileContent = fs.readFileSync(filePath, 'utf8');
-      
-      // Split into chunks for processing
-      chunks = chunkTextContent(fileContent);
-      console.log(`Split into ${chunks.length} chunks for processing`);
+      if (endStart > 0) {
+        const end = fs.readFileSync(filePath, {
+          encoding: 'utf8',
+          flag: 'r',
+          start: endStart,
+          end: stats.size - 1
+        });
+        chunks.push(end);
+      }
+    }
+    
+    console.log(`Read ${chunks.length} content samples for processing`);
+    
+    // Add a note about sampling for large files
+    if (fileSizeMB > 1) {
+      console.log(`Note: Due to file size (${fileSizeMB.toFixed(2)} MB), processing sampled content rather than entire file.`);
     }
     
     // Initialize an array to store all requirements
