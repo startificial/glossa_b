@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes/index"; // Use the version that accepts quickStart parameter
+import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import session from "express-session";
 import { storage } from "./storage";
@@ -195,17 +195,14 @@ setupAuth(app);
 
 console.log('[SERVER] Passport.js and authentication initialized');
 
-// Debug middleware to log session on every request (enable for troubleshooting)
-app.use((req, res, next) => {
-  // Always log API requests for debugging
-  if (req.path.startsWith('/api/')) {
-    console.log(`[API-DEBUG] ${req.method} ${req.path}`);
-    console.log(`[API-DEBUG] Session ID: ${req.sessionID}, Has userId: ${req.session && req.session.userId ? 'Yes' : 'No'}`);
-    console.log(`[API-DEBUG] Is Authenticated: ${req.isAuthenticated?.() ? 'Yes' : 'No'}`);
-    console.log(`[API-DEBUG] User: ${req.user ? `ID: ${req.user.id}, Username: ${req.user.username}` : 'Not authenticated'}`);
-  }
-  next();
-});
+// Debug middleware to log session on every request (only when DEBUG_LOGS=true)
+if (enableDebugLogs) {
+  app.use((req, res, next) => {
+    console.log(`[SESSION-DEBUG] Session ID: ${req.sessionID}, Has userId: ${req.session && req.session.userId ? 'Yes' : 'No'}`);
+    console.log(`[SESSION-DEBUG] Is Authenticated: ${req.isAuthenticated?.() ? 'Yes' : 'No'}`);
+    next();
+  });
+} // No middleware needed when debug logs are disabled
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -257,9 +254,7 @@ async function startServer() {
     }
     
     // Register application routes
-    console.log(`[SERVER] Registering routes with quickStart=${QUICK_START}`);
-    // Make sure to pass quickStart flag to route registration
-    const server = await registerRoutes(app, QUICK_START);
+    const server = await registerRoutes(app);
 
     // Error handling middleware
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

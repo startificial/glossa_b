@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Customer } from "../lib/types";
 import { CustomerCard } from "../components/customers/customer-card";
 import { EnhancedCustomerCard } from "../components/customers/enhanced-customer-card";
@@ -7,71 +8,15 @@ import { Input } from "../components/ui/input";
 import { Plus, Search } from "lucide-react";
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from "../components/ui/page-header";
 import { CustomerDialog } from "../components/customers/customer-dialog";
-import { useCustomers } from "@/hooks/use-customers";
-import { useToast } from "@/hooks/use-toast";
 
 export default function Customers() {
-  console.log('[CUSTOMERS-PAGE] Component rendering');
-  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [errorDetails, setErrorDetails] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<any>(null);
   
-  // Function to test API connectivity
-  const testApiConnection = async () => {
-    try {
-      console.log('[CUSTOMERS-PAGE] Testing API connectivity...');
-      const response = await fetch('/api/test-customer-query');
-      const data = await response.json();
-      console.log('[CUSTOMERS-PAGE] Test API response:', data);
-      setTestResults(data);
-      toast({
-        title: "Test successful",
-        description: `Found ${data.customersFound} customers. First customer: ${data.firstCustomer}`,
-      });
-    } catch (error) {
-      console.error('[CUSTOMERS-PAGE] Test API error:', error);
-      setTestResults({ error: String(error) });
-      toast({
-        title: "Test failed",
-        description: String(error),
-        variant: "destructive"
-      });
-    }
-  };
-  
-  // Query for customer data using our custom hook
-  console.log('[CUSTOMERS-PAGE] About to call useCustomers hook');
-  const { 
-    customers, 
-    isLoading, 
-    isError, 
-    error,
-    refetch
-  } = useCustomers();
-  
-  console.log('[CUSTOMERS-PAGE] useCustomers hook returned:', {
-    customersLength: customers?.length || 0,
-    isLoading,
-    isError,
-    errorMessage: error ? (error as Error).message : 'none'
+  const { data: customers, isLoading, isError } = useQuery<Customer[]>({
+    queryKey: ['/api/customers'],
+    staleTime: 60000, // 1 minute
   });
-  
-  // Effect to handle errors and logging
-  useEffect(() => {
-    if (isError && error) {
-      console.error('Customer query error:', error);
-      setErrorDetails((error as Error).message || 'Unknown error occurred');
-      toast({
-        title: "Error loading customers",
-        description: (error as Error).message || "Failed to load customers. Please try again.",
-        variant: "destructive"
-      });
-    } else if (customers) {
-      console.log('Customer data loaded successfully:', customers.length || 0, 'customers found');
-    }
-  }, [isError, error, customers, toast]);
   
   // Filter customers based on search query
   const filteredCustomers = searchQuery.trim() === ""
@@ -105,15 +50,10 @@ export default function Customers() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Customer
-              </Button>
-              <Button onClick={testApiConnection} variant="outline">
-                Test API
-              </Button>
-            </div>
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Customer
+            </Button>
           </div>
         </div>
       
@@ -126,7 +66,7 @@ export default function Customers() {
         ) : isError ? (
           <div className="py-12 text-center">
             <h3 className="text-lg font-medium mb-2">Failed to load customers</h3>
-            <p className="text-muted-foreground mb-4">There was an error loading the customers. Our team has been notified.</p>
+            <p className="text-muted-foreground mb-4">There was an error loading the customers. Please try again.</p>
             <Button onClick={() => window.location.reload()}>Retry</Button>
           </div>
         ) : filteredCustomers && filteredCustomers.length > 0 ? (
@@ -156,16 +96,6 @@ export default function Customers() {
                 </Button>
               </>
             )}
-          </div>
-        )}
-        
-        {/* Show test results if available */}
-        {testResults && (
-          <div className="mt-6 p-4 border rounded-md bg-background">
-            <h3 className="text-lg font-medium mb-2">API Test Results</h3>
-            <pre className="text-sm bg-muted p-3 rounded-md overflow-auto max-h-[300px]">
-              {JSON.stringify(testResults, null, 2)}
-            </pre>
           </div>
         )}
         

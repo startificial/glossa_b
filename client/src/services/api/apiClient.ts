@@ -50,8 +50,10 @@ export async function apiRequest<ResponseType = any, RequestDataType = any>(
     parseJson = true 
   } = options;
   
-  // Always enable debug logs for troubleshooting
-  console.log(`[API-CLIENT] Request: ${method} ${url}`, { data });
+  // Debug log
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`API Request: ${method} ${url}`, { data });
+  }
   
   // Set common headers
   const requestHeaders = {
@@ -74,8 +76,10 @@ export async function apiRequest<ResponseType = any, RequestDataType = any>(
       mode: 'same-origin', // Enforce same-origin requests
     });
     
-    // Always log API responses for troubleshooting
-    console.log(`[API-CLIENT] Response: ${res.status} ${res.statusText} for ${method} ${url}`);
+    // Debug log
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`API Response status: ${res.status} ${res.statusText}`);
+    }
     
     // For authentication issues, log more details
     if (res.status === 401) {
@@ -91,8 +95,10 @@ export async function apiRequest<ResponseType = any, RequestDataType = any>(
     if (parseJson && res.headers.get('content-type')?.includes('application/json')) {
       const jsonResponse = await res.json();
       
-      // Always log JSON response for troubleshooting
-      console.log(`[API-CLIENT] Response JSON for ${method} ${url}:`, jsonResponse);
+      // Debug log
+      if (process.env.NODE_ENV === 'development') {
+        console.log('API Response JSON:', jsonResponse);
+      }
       
       return jsonResponse as ResponseType;
     }
