@@ -234,17 +234,37 @@ export class InputDataController {
         }
       } else if (fileType === '.mp4' || fileType === '.mov' || fileType === '.webm') {
         // Process video files
-        const videoProcessor = new VideoProcessor();
+        // Create output directory for video processing
+        const outputDir = path.join(process.cwd(), 'uploads', 'video-processing', inputData.id.toString());
+        if (!fs.existsSync(outputDir)) {
+          fs.mkdirSync(outputDir, { recursive: true });
+        }
+        
+        const videoProcessor = new VideoProcessor(file.path, outputDir, inputData.id);
         
         try {
-          const videoResult = await videoProcessor.processVideo(file.path);
-          textContent = videoResult.transcript || '';
+          // First get metadata for the video
+          const metadata = await videoProcessor.getMetadata();
+          
+          // Detect scenes in the video
+          const scenes = await videoProcessor.detectScenes(0.3, 0.5); // Default thresholds
+          
+          // Process scenes to generate thumbnails, clips, and transcripts
+          const processedScenes = await videoProcessor.processScenes(scenes);
+          
+          // Combine all scene transcripts into a single text
+          textContent = processedScenes.map(scene => scene.transcript || '').join('\n\n');
+          
+          // Get duration from metadata
+          const duration = metadata?.format?.duration || 0;
+          const format = metadata?.format?.format_name || 'unknown';
           
           processingResult = {
             text: textContent,
             metadata: JSON.stringify({
-              duration: videoResult.duration,
-              format: videoResult.format
+              duration: duration,
+              format: format,
+              sceneCount: scenes.length
             }),
             context: {
               domain: "video content",
