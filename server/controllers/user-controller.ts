@@ -1,161 +1,135 @@
 import { Request, Response } from 'express';
-import { UserService } from '../services/user-service';
+import { storage } from '../storage';
 import { logger } from '../utils/logger';
-import { z } from 'zod';
+import { insertUserSchema } from '@shared/schema';
 
 /**
- * Controller handling user-related operations
+ * Controller for user-related operations
  */
 export class UserController {
-  constructor(private userService: UserService) {}
-
   /**
-   * Request a password reset
+   * Get the current authenticated user
    * @param req Express request object
    * @param res Express response object
    */
-  async requestPasswordReset(req: Request, res: Response): Promise<void> {
+  async getCurrentUser(req: Request, res: Response): Promise<Response> {
     try {
-      // Validate request body
-      const schema = z.object({
-        username: z.string().min(1, "Username is required"),
-        email: z.string().email("Invalid email format"),
-      });
-
-      const result = schema.safeParse(req.body);
-      if (!result.success) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: result.error.issues
-        });
-        return;
+      // Check if user is authenticated
+      if (req.session && req.session.userId) {
+        const user = await storage.getUser(req.session.userId);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        
+        // Don't return the password
+        const { password, ...userWithoutPassword } = user;
+        return res.json(userWithoutPassword);
       }
-
-      const { username, email } = result.data;
       
-      // Get origin URL for the reset link
-      const originUrl = req.headers.origin || undefined;
-      
-      // Process password reset request
-      const resetResult = await this.userService.requestPasswordReset(
-        username,
-        email,
-        originUrl
-      );
-      
-      // Always return 200 even if user/email not found to prevent user enumeration
-      res.status(200).json({
-        success: resetResult.success,
-        message: resetResult.message
-      });
+      // Return 401 if not authenticated
+      return res.status(401).json({ message: "Unauthorized" });
     } catch (error) {
-      logger.error('Error in requestPasswordReset controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'An error occurred while processing your request.'
-      });
+      logger.error("Error getting current user:", error);
+      return res.status(500).json({ message: "Server error" });
     }
   }
 
   /**
-   * Verify reset token validity
+   * Get the current authenticated user with fallback to demo user
    * @param req Express request object
    * @param res Express response object
    */
-  async verifyResetToken(req: Request, res: Response): Promise<void> {
+  async getCurrentUserWithFallback(req: Request, res: Response): Promise<Response> {
     try {
-      const { token } = req.params;
-      
-      if (!token) {
-        res.status(400).json({
-          success: false,
-          message: 'Reset token is required'
-        });
-        return;
+      // Check if user is authenticated
+      if (req.session && req.session.userId) {
+        const user = await storage.getUser(req.session.userId);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        
+        // Don't return the password
+        const { password, ...userWithoutPassword } = user;
+        return res.json(userWithoutPassword);
       }
       
-      // Find user by reset token
-      const user = await this.userService.getUserByResetToken(token);
+      // Import DEMO_USER_CONFIG for centralized configuration
+      const { DEMO_USER_CONFIG, ENV_CONFIG } = await import('@shared/config');
       
-      // Check if user exists and token is valid
-      if (!user || !user.resetPasswordToken || !user.resetPasswordExpires) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid or expired reset token'
-        });
-        return;
+      // Only auto-login as demo user if enabled in config
+      if (DEMO_USER_CONFIG.ENABLED && DEMO_USER_CONFIG.AUTO_LOGIN) {
+        // Find demo user by configured username
+        const demoUser = await storage.getUserByUsername(DEMO_USER_CONFIG.USERNAME);
+        if (!demoUser) {
+          return res.status(404).json({ message: "Demo user not found" });
+        }
+        
+        // Check if this is actually a demo user
+        if (!demoUser.isDemo) {
+          logger.warn(`User with username ${DEMO_USER_CONFIG.USERNAME} exists but is not marked as a demo user`);
+        }
+
+        // Set user in session
+        req.session.userId = demoUser.id;
+        
+        // Don't return the password
+        const { password, ...userWithoutPassword } = demoUser;
+        return res.json(userWithoutPassword);
       }
       
-      // Check if token is expired
-      if (new Date() > user.resetPasswordExpires) {
-        res.status(400).json({
-          success: false,
-          message: 'Reset token has expired'
-        });
-        return;
-      }
-      
-      res.status(200).json({
-        success: true,
-        message: 'Reset token is valid',
-        username: user.username
-      });
+      // No auto-login if feature is disabled
+      return res.status(401).json({ message: "Not authenticated" });
     } catch (error) {
-      logger.error('Error in verifyResetToken controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'An error occurred while processing your request.'
-      });
+      logger.error("Error getting current user with fallback:", error);
+      return res.status(500).json({ message: "Server error" });
     }
   }
 
   /**
-   * Reset user password
+   * Update the current user's profile
    * @param req Express request object
    * @param res Express response object
    */
-  async resetPassword(req: Request, res: Response): Promise<void> {
+  async updateProfile(req: Request, res: Response): Promise<Response> {
     try {
-      // Validate request body
-      const schema = z.object({
-        token: z.string().min(1, "Reset token is required"),
-        password: z.string().min(8, "Password must be at least 8 characters")
+      // Get user from session
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Create a subset of the updateUserSchema
+      const updateProfileSchema = insertUserSchema.pick({
+        firstName: true,
+        lastName: true,
+        email: true,
+        company: true,
+        avatarUrl: true
       });
-
-      const result = schema.safeParse(req.body);
-      if (!result.success) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: result.error.issues
-        });
-        return;
-      }
-
-      const { token, password } = result.data;
       
-      // Reset the password
-      const resetResult = await this.userService.resetPassword(token, password);
+      // Validate the incoming data
+      const validatedData = updateProfileSchema.parse(req.body);
       
-      // Return appropriate response
-      if (resetResult.success) {
-        res.status(200).json({
-          success: true,
-          message: resetResult.message
-        });
-      } else {
-        res.status(400).json({
-          success: false,
-          message: resetResult.message
-        });
+      // Update the user
+      const updatedUser = await storage.updateUser(user.id, validatedData);
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update user" });
       }
+      
+      // Don't return the password
+      const { password, ...userWithoutPassword } = updatedUser;
+      return res.json(userWithoutPassword);
     } catch (error) {
-      logger.error('Error in resetPassword controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'An error occurred while processing your request.'
-      });
+      logger.error("Error updating user profile:", error);
+      return res.status(400).json({ message: "Invalid profile data", error });
     }
   }
 }
+
+// Create and export the controller instance
+export const userController = new UserController();

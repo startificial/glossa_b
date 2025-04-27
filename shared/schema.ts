@@ -206,9 +206,9 @@ export const inputData = pgTable("input_data", {
   metadata: jsonb("metadata"), // Additional structured information about the file
   processed: boolean("processed").default(false), // Flag indicating if AI processing is complete
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  // Add missing fields that exist in the database
-  filePath: text("file_path").notNull(), // Path to the uploaded file (snake_case column name)
-  fileType: text("file_type").notNull(), // Type of file (mimetype)
+  // CamelCase column names to match the actual database structure
+  filePath: text("filePath").notNull(), // Path to the uploaded file
+  fileType: text("fileType").notNull(), // Type of file (mimetype)
 });
 
 /**

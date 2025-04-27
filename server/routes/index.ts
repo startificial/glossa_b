@@ -11,6 +11,17 @@ import { registerAuthRoutes } from './auth-routes';
 import { registerUserRoutes } from './user-routes';
 import { registerProjectRoutes } from './project-routes';
 import { registerRequirementRoutes } from './requirement-routes';
+import { registerInviteRoutes } from './invite-routes';
+import { registerSchemaRoutes } from './schema-routes';
+import { registerCustomerRoutes } from './customer-routes';
+import { registerWorkflowRoutes } from './workflow-routes';
+import { registerInputDataRoutes } from './input-data-routes';
+import { registerActivityRoutes } from './activity-routes';
+import { registerTaskRoutes } from './task-routes';
+import { registerSearchRoutes } from './search-routes';
+import { registerRoleEffortRoutes } from './role-effort-routes';
+import { registerRequirementAnalysisRoutes } from './requirement-analysis-routes';
+import projectRolesRouter from './project-roles';
 import { Server } from 'http';
 import { createServer } from 'http';
 
@@ -26,17 +37,32 @@ export async function registerRoutes(app: Express, quickStart: boolean = false):
   
   // In quick start mode, only register essential routes
   if (quickStart) {
-    console.log('[ROUTES] Quick start mode: only registering essential routes');
-    // Only register authentication routes for fast startup
+    console.log('[ROUTES] Quick start mode: registering essential routes');
+    // Register authentication and customer routes immediately for fast startup
     registerAuthRoutes(app);
+    registerUserRoutes(app);
+    registerCustomerRoutes(app);
+    console.log('[CUSTOMER ROUTES] Registering customer routes with authentication ENABLED');
     
     // Schedule other routes to load after server starts
     setTimeout(() => {
       console.log('[ROUTES] Loading remaining routes asynchronously...');
       try {
-        registerUserRoutes(app);
         registerProjectRoutes(app);
         registerRequirementRoutes(app);
+        registerInviteRoutes(app);
+        registerSchemaRoutes(app);
+        registerWorkflowRoutes(app);
+        registerInputDataRoutes(app);
+        registerActivityRoutes(app);
+        registerTaskRoutes(app);
+        registerSearchRoutes(app);
+        registerRoleEffortRoutes(app);
+        registerRequirementAnalysisRoutes(app);
+        
+        // Register project roles routes using the router
+        app.use('/api', projectRolesRouter);
+        
         console.log('[ROUTES] Successfully loaded all routes');
       } catch (error) {
         console.error('[ROUTES] Error loading routes asynchronously:', error);
@@ -48,6 +74,19 @@ export async function registerRoutes(app: Express, quickStart: boolean = false):
     registerUserRoutes(app);
     registerProjectRoutes(app);
     registerRequirementRoutes(app);
+    registerInviteRoutes(app);
+    registerSchemaRoutes(app);
+    registerCustomerRoutes(app);
+    registerWorkflowRoutes(app);
+    registerInputDataRoutes(app);
+    registerActivityRoutes(app);
+    registerTaskRoutes(app);
+    registerSearchRoutes(app);
+    registerRoleEffortRoutes(app);
+    registerRequirementAnalysisRoutes(app);
+    
+    // Register project roles routes using the router
+    app.use('/api', projectRolesRouter);
   }
   
   // Register 404 handler

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Project } from '@/lib/types';
+import { Project, Customer } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { CustomerDialog } from '@/components/customers/customer-dialog';
+import { PlusCircle } from 'lucide-react';
 
 import {
   Dialog,
@@ -45,7 +47,7 @@ const projectEditSchema = z.object({
   description: z.string().nullable().optional(),
   type: z.string(),
   stage: z.string(),
-  customer: z.string().nullable().optional(),
+  customerId: z.string().nullable().optional(),
   sourceSystem: z.string().nullable().optional(),
   targetSystem: z.string().nullable().optional(),
 });
@@ -54,14 +56,13 @@ type ProjectEditFormValues = z.infer<typeof projectEditSchema>;
 
 export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialogProps) {
   const { toast } = useToast();
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   
-  // Handle customer which can be a string or an object
-  const getCustomerValue = (customer: any): string => {
-    if (typeof customer === 'object' && customer && customer.name) {
-      return customer.name;
-    }
-    return typeof customer === 'string' ? customer : '';
-  };
+  // Fetch customers for the dropdown
+  const { data: customers = [], isLoading: isLoadingCustomers } = useQuery<Customer[]>({
+    queryKey: ['/api/customers'],
+    enabled: isOpen, // Only fetch when dialog is open
+  });
 
   const form = useForm<ProjectEditFormValues>({
     resolver: zodResolver(projectEditSchema),
@@ -70,7 +71,7 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
       description: project.description || '',
       type: project.type,
       stage: project.stage || 'discovery',
-      customer: getCustomerValue(project.customer),
+      customerId: project.customerId ? project.customerId.toString() : 'none',
       sourceSystem: project.sourceSystem || '',
       targetSystem: project.targetSystem || '',
     },
@@ -83,12 +84,23 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
         description: project.description || '',
         type: project.type,
         stage: project.stage || 'discovery',
-        customer: getCustomerValue(project.customer),
+        customerId: project.customerId ? project.customerId.toString() : 'none',
         sourceSystem: project.sourceSystem || '',
         targetSystem: project.targetSystem || '',
       });
     }
   }, [isOpen, project, form]);
+  
+  // Handler for when a new customer is created from the dialog
+  const handleCustomerCreated = (newCustomer: Customer) => {
+    // Set the new customer as the selected customer
+    form.setValue('customerId', newCustomer.id.toString());
+  };
+
+  // Handler for closing the customer dialog
+  const handleCloseCustomerDialog = () => {
+    setCustomerDialogOpen(false);
+  };
 
   const updateMutation = useMutation({
     mutationFn: async (data: ProjectEditFormValues) => {
@@ -121,13 +133,13 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
   });
 
   const onSubmit = (data: ProjectEditFormValues) => {
-    // Clean up empty strings to be null for API
+    // Clean up empty strings to null for API
     const apiData = {
       name: data.name,
       type: data.type,
       stage: data.stage,
       description: data.description?.trim() === '' ? null : data.description,
-      customer: data.customer?.trim() === '' ? null : data.customer,
+      customerId: data.customerId && data.customerId !== 'none' ? parseInt(data.customerId) : null,
       sourceSystem: data.sourceSystem?.trim() === '' ? null : data.sourceSystem,
       targetSystem: data.targetSystem?.trim() === '' ? null : data.targetSystem,
     };
@@ -136,18 +148,19 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Edit Project</DialogTitle>
-          <DialogDescription>
-            Update project information and settings. Be sure to configure source and target systems for migration projects.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>
+              Update project information and settings. Be sure to configure source and target systems for migration projects.
+            </DialogDescription>
+          </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
-            <FormField
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+              <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
@@ -236,17 +249,46 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
 
             <FormField
               control={form.control}
-              name="customer"
+              name="customerId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Customer</FormLabel>
-                  <FormControl>
-                    <Input 
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="e.g., Acme Inc."
-                    />
-                  </FormControl>
+                  <Select
+                    onValueChange={(value) => {
+                      // Only update the field value if it's not 'add_new'
+                      if (value === 'add_new') {
+                        setCustomerDialogOpen(true);
+                        // Don't change the form value
+                      } else {
+                        field.onChange(value);
+                      }
+                    }}
+                    value={field.value?.toString() || 'none'}
+                    disabled={isLoadingCustomers}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a customer" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {customers.map((customer: Customer) => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem 
+                        value="add_new" 
+                        className="text-primary font-medium border-t mt-1 pt-1"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <PlusCircle className="h-4 w-4" />
+                          Add New Customer
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -316,5 +358,12 @@ export function ProjectEditDialog({ project, isOpen, onClose }: ProjectEditDialo
         </Form>
       </DialogContent>
     </Dialog>
-  );
+    
+    <CustomerDialog 
+      isOpen={customerDialogOpen}
+      onClose={handleCloseCustomerDialog}
+      onCustomerCreated={handleCustomerCreated}
+    />
+  </>
+);
 }

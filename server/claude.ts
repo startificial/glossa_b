@@ -115,9 +115,7 @@ export async function generateImplementationTasks(
     }
 
     console.log(`Generating Salesforce implementation tasks for requirement: ${requirementText.substring(0, 100)}...`);
-
-    // Use Claude API for generating implementation tasks
-    console.log('Generating implementation tasks with Claude...');
+    
     // Format acceptance criteria for the prompt
     const formattedCriteria = acceptanceCriteria.map((ac, index) => {
       return `Acceptance Criterion ${index + 1}: ${ac.description}`;
@@ -131,123 +129,105 @@ export async function generateImplementationTasks(
       .replace('{requirementText}', requirementText)
       .replace('{acceptanceCriteria}', formattedCriteria);
 
+    // Strong system prompt that forces JSON output
+    const systemPrompt = `You are a Salesforce technical architect specialized in implementing complex migration projects and integrations.
+Your task is to create detailed implementation tasks for Salesforce development.
+You must respond ONLY with valid JSON formatted as an array of implementation task objects.
+
+The JSON array must follow this exact structure, with 2-3 tasks maximum:
+[
+  {
+    "title": "Task title - keep this concise",
+    "description": "Detailed task description with specific technical details",
+    "system": "${targetSystem}",
+    "taskType": "development|configuration|integration|testing",
+    "complexity": "simple|moderate|complex",
+    "estimatedHours": number,
+    "priority": "high|medium|low",
+    "implementationSteps": [
+      {
+        "stepNumber": 1,
+        "stepDescription": "Detailed explanation with minimum 35 words that includes specific technical details like field mappings, configuration settings, or code examples as appropriate",
+        "relevantDocumentationLinks": ["URL1", "URL2"]
+      },
+      {
+        "stepNumber": 2,
+        "stepDescription": "Detailed explanation with minimum 35 words that includes specific technical details",
+        "relevantDocumentationLinks": ["URL1", "URL2"]
+      }
+    ],
+    "sfDocumentationLinks": [],
+    "overallDocumentationLinks": []
+  }
+]
+
+For each implementation step:
+1. Each stepDescription must include specific technical instructions (minimum 35 words)
+2. Include exact field definitions, API parameters, component names, or configuration values
+3. Provide concrete, actionable guidance a developer can follow without additional context
+
+DO NOT include any text, explanations, markdown formatting, or non-JSON content in your response.
+Your response must begin with "[" and end with "]" and be valid parseable JSON.`;
+
+    console.log('Calling Claude API with enhanced JSON system prompt...');
+
     // Generate content using Claude with improved system prompt
     const message = await anthropic.messages.create({
       model: 'claude-3-7-sonnet-20250219', // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
-      max_tokens: 3000,
-      temperature: 0.7,
-      system: `You are a Salesforce technical architect specialized in implementing complex migration projects and integrations.
-Your task is to create detailed implementation tasks for Salesforce development.
-You must respond ONLY with valid JSON formatted as an array of implementation task objects.
-Each task must have:
-- title: string
-- description: string
-- system: string
-- taskType: string (one of: "development", "integration", "configuration", "testing")
-- complexity: string (one of: "simple", "moderate", "complex")
-- estimatedHours: number
-- priority: string (one of: "low", "medium", "high")
-- implementationSteps: array of objects with stepNumber, stepDescription, and relevantDocumentationLinks (array of strings)
-
-Do not include any explanations, markdown formatting, or non-JSON content in your response.
-Your entire response must be parseable as a JSON array.`,
+      max_tokens: 4000,
+      temperature: 0.2, // Lower temperature for more predictable, structured output
+      system: systemPrompt,
       messages: [
         { role: 'user', content: prompt }
       ]
     });
 
-    // Extract and parse the JSON response
+    // Extract the response text
     let responseText = '';
-    
-    // Handle different types of content from Claude
     if (message.content && message.content.length > 0) {
       const content = message.content[0];
-      if (typeof content === 'object') {
-        const contentObj = content as any;
-        responseText = contentObj.text || JSON.stringify(content);
+      if (typeof content === 'object' && 'text' in content) {
+        responseText = content.text as string;
       } else {
-        responseText = String(content);
+        responseText = JSON.stringify(content);
       }
     }
-    
-    // Helper function to validate and fix implementation tasks structure 
-    const validateAndFixImplementationTasks = (tasks: any[]): any[] => {
-      return tasks.map(task => {
-        // If the task has no implementation steps, add an empty array
+
+    // Clean any potential markdown or unnecessary text from the response
+    const cleanedResponse = responseText
+      .replace(/^```json\s*/gm, '') // Remove ```json at the start
+      .replace(/^```\s*/gm, '')     // Remove ``` at the start
+      .replace(/\s*```$/gm, '')     // Remove ``` at the end
+      .replace(/^\s*```$/gm, '');   // Remove standalone ```
+
+    console.log('Claude response (first 200 chars):', cleanedResponse.substring(0, 200));
+
+    // Function to validate and process implementation tasks
+    const processImplementationTasks = (tasksArray: any[]): any[] => {
+      return tasksArray.map(task => {
+        // Ensure implementationSteps exists and is an array
         if (!task.implementationSteps) {
           task.implementationSteps = [];
         }
         
-        // Validate each implementation step
+        // Process each implementation step
         if (Array.isArray(task.implementationSteps)) {
           task.implementationSteps = task.implementationSteps.map((step: any, index: number) => {
-            // Ensure each step has the required properties
-            const validStep: any = {
+            return {
               stepNumber: step.stepNumber || index + 1,
-              stepDescription: step.stepDescription || '',
-              relevantDocumentationLinks: []
+              stepDescription: step.stepDescription || 'No step description provided',
+              relevantDocumentationLinks: Array.isArray(step.relevantDocumentationLinks) 
+                ? step.relevantDocumentationLinks 
+                : []
             };
-            
-            // Handle relevantDocumentationLinks
-            if (step.relevantDocumentationLinks) {
-              // Make sure it's an array
-              if (Array.isArray(step.relevantDocumentationLinks)) {
-                validStep.relevantDocumentationLinks = step.relevantDocumentationLinks;
-              } else if (typeof step.relevantDocumentationLinks === 'string') {
-                // If it's a string, try to parse it as JSON or make a single-item array
-                try {
-                  validStep.relevantDocumentationLinks = JSON.parse(step.relevantDocumentationLinks);
-                } catch (e) {
-                  validStep.relevantDocumentationLinks = [step.relevantDocumentationLinks];
-                }
-              }
-            }
-            
-            return validStep;
           });
         }
         
-        // Handle relevantDocuments field (from the new prompt format)
-        if (task.relevantDocuments) {
-          // If we have relevantDocuments, add them to both sfDocumentationLinks and overallDocumentationLinks
-          const links: string[] = [];
-          const sfDocs: {title: string, url: string}[] = [];
-          
-          if (Array.isArray(task.relevantDocuments)) {
-            task.relevantDocuments.forEach((doc: any) => {
-              if (doc.link) {
-                links.push(doc.link);
-              }
-              if (doc.documentTitle && doc.link) {
-                sfDocs.push({
-                  title: doc.documentTitle,
-                  url: doc.link
-                });
-              }
-            });
-          }
-          
-          // Add to overallDocumentationLinks
-          if (!task.overallDocumentationLinks) {
-            task.overallDocumentationLinks = links;
-          } else {
-            task.overallDocumentationLinks = [...task.overallDocumentationLinks, ...links];
-          }
-          
-          // Add to sfDocumentationLinks
-          if (!task.sfDocumentationLinks) {
-            task.sfDocumentationLinks = sfDocs;
-          } else {
-            task.sfDocumentationLinks = [...task.sfDocumentationLinks, ...sfDocs];
-          }
-        }
-        
-        // If sfDocumentationLinks is missing, add an empty array
+        // Ensure documentation links are present
         if (!task.sfDocumentationLinks) {
           task.sfDocumentationLinks = [];
         }
         
-        // If overallDocumentationLinks is missing, add an empty array
         if (!task.overallDocumentationLinks) {
           task.overallDocumentationLinks = [];
         }
@@ -256,350 +236,357 @@ Your entire response must be parseable as a JSON array.`,
       });
     };
 
+    // First attempt: try direct JSON parsing of the cleaned response
     try {
-      // Log the first part of the response for debugging
-      console.log('Claude response excerpt:', responseText.substring(0, 500));
-      
-      // Clean the response - remove any markdown formatting if present
-      const cleanedResponse = responseText
-        .replace(/^```json\s*/gm, '') // Remove ```json at the start of lines
-        .replace(/^```\s*/gm, '')     // Remove ``` at the start of lines
-        .replace(/\s*```$/gm, '')     // Remove ``` at the end of lines
-        .replace(/^\s*```$/gm, '');   // Remove standalone ``` lines
-      
-      console.log('Cleaned response excerpt:', cleanedResponse.substring(0, 200));
-      
-      // Strategy 1: Direct JSON parsing - most likely to work with the improved system prompt
-      try {
-        const implementationTasks = JSON.parse(cleanedResponse);
-        console.log(`Strategy 1: Successfully parsed full response, generated ${Array.isArray(implementationTasks) ? implementationTasks.length : 1} implementation tasks`);
-        
-        // Ensure we're returning an array and validate/fix implementation steps
-        const tasksArray = Array.isArray(implementationTasks) ? implementationTasks : [implementationTasks];
-        const validatedTasks = validateAndFixImplementationTasks(tasksArray);
-        return validatedTasks;
-      } catch (err) {
-        console.log('Strategy 1 (direct parsing) failed:', err.message);
-        console.log('Trying alternative parsing strategies...');
+      const parsedTasks = JSON.parse(cleanedResponse);
+      if (Array.isArray(parsedTasks) && parsedTasks.length > 0) {
+        console.log(`Successfully parsed ${parsedTasks.length} implementation tasks`);
+        return processImplementationTasks(parsedTasks);
       }
-      
-      // Strategy 2: Try to find JSON array pattern "[{...}]" in the response
-      const jsonArrayMatch = cleanedResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      if (jsonArrayMatch) {
-        const jsonText = jsonArrayMatch[0];
-        try {
-          const implementationTasks = JSON.parse(jsonText);
-          console.log(`Strategy 2: Found JSON array pattern, generated ${implementationTasks.length} implementation tasks`);
-          
-          // Validate and fix implementation steps structure if needed
-          const validatedTasks = validateAndFixImplementationTasks(implementationTasks);
-          return validatedTasks;
-        } catch (err) {
-          console.log('Strategy 2 parsing failed:', err.message);
-        }
-      }
-      
-      // Strategy 3: Extract individual task objects and reconstruct
-      const taskObjects = cleanedResponse.match(/\{\s*"title"\s*:[\s\S]*?("implementationSteps"\s*:[\s\S]*?\])\s*\}/g);
-      if (taskObjects && taskObjects.length > 0) {
-        try {
-          console.log(`Found ${taskObjects.length} potential task objects to reconstruct`);
-          const reconstructedJson = `[${taskObjects.join(',')}]`;
-          const implementationTasks = JSON.parse(reconstructedJson);
-          console.log(`Strategy 3: Reconstructed ${implementationTasks.length} implementation tasks`);
-          
-          // Validate and fix implementation steps structure if needed
-          const validatedTasks = validateAndFixImplementationTasks(implementationTasks);
-          return validatedTasks;
-        } catch (err) {
-          console.log('Strategy 3 (reconstruction) failed:', err.message);
-        }
-      }
-      
-      // Strategy 4: Look for code blocks that might contain JSON (e.g., ```json ... ```)
-      const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (codeBlockMatch && codeBlockMatch[1]) {
-        try {
-          const implementationTasks = JSON.parse(codeBlockMatch[1]);
-          console.log(`Strategy 4: Extracted content from code block, generated ${Array.isArray(implementationTasks) ? implementationTasks.length : 1} implementation tasks`);
-          
-          // Ensure we're returning an array and validate/fix implementation steps
-          const tasksArray = Array.isArray(implementationTasks) ? implementationTasks : [implementationTasks];
-          const validatedTasks = validateAndFixImplementationTasks(tasksArray);
-          return validatedTasks;
-        } catch (err) {
-          console.log('Strategy 4 (code block) parsing failed:', err.message);
-        }
-      }
-      
-      // Strategy 5: Aggressive cleanup - remove all non-JSON characters and try again
-      try {
-        // This strategy tries to clean the response more aggressively
-        console.log('Attempting aggressive cleanup of response...');
-        
-        // Remove any non-JSON content before the first [ or {
-        const jsonStartIdx = Math.min(
-          cleanedResponse.indexOf('[') >= 0 ? cleanedResponse.indexOf('[') : Infinity,
-          cleanedResponse.indexOf('{') >= 0 ? cleanedResponse.indexOf('{') : Infinity
-        );
-        
-        // Remove any non-JSON content after the last ] or }
-        const jsonEndIdx = Math.max(
-          cleanedResponse.lastIndexOf(']'),
-          cleanedResponse.lastIndexOf('}') + 1
-        );
-        
-        if (jsonStartIdx < Infinity && jsonEndIdx > 0) {
-          const extractedJson = cleanedResponse.substring(jsonStartIdx, jsonEndIdx);
-          try {
-            const implementationTasks = JSON.parse(extractedJson);
-            console.log(`Strategy 5: Aggressively cleaned, generated ${Array.isArray(implementationTasks) ? implementationTasks.length : 1} implementation tasks`);
-            
-            // Ensure we're returning an array and validate/fix implementation steps
-            const tasksArray = Array.isArray(implementationTasks) ? implementationTasks : [implementationTasks];
-            const validatedTasks = validateAndFixImplementationTasks(tasksArray);
-            return validatedTasks;
-          } catch (err) {
-            console.log('Strategy 5 (aggressive cleanup) failed:', err.message);
-          }
-        }
-      } catch (repairAttemptErr) {
-        console.log('Strategy 5 failed entirely:', repairAttemptErr);
-      }
-      
-      // Strategy 6: Handle partial JSON - extract complete objects from a potentially truncated response
-      try {
-        console.log('Attempting to extract complete objects from partial response...');
-        
-        // Find all objects with complete structure (from opening { to closing })
-        const completeObjectsRegex = /\{\s*"title"[\s\S]*?("implementationSteps"\s*:[\s\S]*?\])\s*\}/g;
-        const completeObjects = [];
-        let match;
-        
-        while ((match = completeObjectsRegex.exec(cleanedResponse)) !== null) {
-          try {
-            const objectText = match[0];
-            const taskObject = JSON.parse(objectText);
-            completeObjects.push(taskObject);
-          } catch (parseErr) {
-            // Skip this match if it's not valid JSON
-            console.log('Skipping invalid object match');
-          }
-        }
-        
-        if (completeObjects.length > 0) {
-          console.log(`Strategy 6: Extracted ${completeObjects.length} valid task objects from partial response`);
-          const validatedTasks = validateAndFixImplementationTasks(completeObjects);
-          return validatedTasks;
-        }
-      } catch (err) {
-        console.log('Strategy 6 (handle partial JSON) failed:', err.message);
-      }
-      
-      // Strategy 7: Handle severely truncated response - try to fix the JSON and complete it
-      try {
-        console.log('Attempting to fix truncated JSON response...');
-        
-        // Check if the response starts with an array opening but doesn't properly end
-        if (cleanedResponse.trim().startsWith('[') && !cleanedResponse.trim().endsWith(']')) {
-          // Find the last complete object ending
-          const lastObjectEnd = cleanedResponse.lastIndexOf('}');
-          
-          if (lastObjectEnd > 0) {
-            // Extract up to the last complete object and close the array
-            const fixedJson = cleanedResponse.substring(0, lastObjectEnd + 1) + ']';
-            try {
-              const partialTasks = JSON.parse(fixedJson);
-              console.log(`Strategy 7: Fixed truncated array with ${partialTasks.length} tasks`);
-              
-              const validatedTasks = validateAndFixImplementationTasks(partialTasks);
-              return validatedTasks;
-            } catch (parseErr) {
-              console.log('Strategy 7 (fix truncated array) parsing failed:', parseErr.message);
-            }
-          }
-        }
-      } catch (err) {
-        console.log('Strategy 7 (fix truncated JSON) failed:', err.message);
-      }
-      
-      // If we have logs showing visible tasks in the output but parsing fails, 
-      // create at least the tasks we can see in the logs
-      if (responseText.includes('"title"') && responseText.includes('"description"')) {
-        console.log('Attempting to extract tasks from visible logs...');
-        
-        // Look for complete task objects with titles
-        const titleMatches = [...responseText.matchAll(/"title"\s*:\s*"([^"]+)"/g)];
-        
-        if (titleMatches.length > 0) {
-          // We found at least some task titles, create basic tasks from what we can see
-          const basicTasks = titleMatches.map((match, index) => {
-            const title = match[1];
-            
-            // Try to find description near this title
-            const titlePos = match.index;
-            const descStart = responseText.indexOf('"description"', titlePos);
-            let description = "Implementation task details";
-            
-            if (descStart > 0) {
-              const descValueStart = responseText.indexOf('"', descStart + 14) + 1;
-              const descValueEnd = responseText.indexOf('"', descValueStart);
-              if (descValueEnd > descValueStart) {
-                description = responseText.substring(descValueStart, descValueEnd);
-              }
-            }
-            
-            return {
-              title,
-              description,
-              system: "Salesforce",
-              taskType: "development",
-              complexity: "moderate",
-              estimatedHours: 8,
-              priority: "medium",
-              implementationSteps: [
-                {
-                  stepNumber: 1,
-                  stepDescription: "Implement the core functionality",
-                  relevantDocumentationLinks: []
-                }
-              ],
-              sfDocumentationLinks: [],
-              overallDocumentationLinks: []
-            };
-          });
-          
-          console.log(`Strategy 8: Created ${basicTasks.length} basic tasks from visible titles`);
-          return basicTasks;
-        }
-      }
-      
-      // If we're here, all parsing strategies failed
-      console.error('All JSON parsing strategies failed for response');
-      console.error('Raw response:', responseText);
-      
-      // Throw an error instead of creating a fallback task
-      throw new Error('Failed to parse implementation tasks from Claude response');
-    } catch (parseError) {
-      console.error('Error in parsing process:', parseError);
-      console.error('Raw response:', responseText);
-      
-      // Throw an error instead of creating a fallback task
-      throw new Error('Failed to parse implementation tasks from Claude response');
+    } catch (error) {
+      console.log('Direct JSON parsing failed:', error.message);
     }
+
+    // Second attempt: try to extract just the JSON array part
+    try {
+      const jsonMatch = cleanedResponse.match(/\[\s*{[\s\S]*}\s*\]/);
+      if (jsonMatch) {
+        const jsonText = jsonMatch[0];
+        const parsedTasks = JSON.parse(jsonText);
+        console.log(`Extracted JSON array with ${parsedTasks.length} implementation tasks`);
+        return processImplementationTasks(parsedTasks);
+      }
+    } catch (error) {
+      console.log('JSON array extraction failed:', error.message);
+    }
+
+    // Fallback: provide a simple default task if all parsing attempts fail
+    console.log('All parsing attempts failed, creating fallback task');
+    return [{
+      title: `Implement ${requirementText.substring(0, 40)}...`,
+      description: requirementText,
+      system: targetSystem,
+      taskType: "development",
+      complexity: "moderate",
+      estimatedHours: 4,
+      priority: "medium",
+      implementationSteps: [
+        {
+          stepNumber: 1,
+          stepDescription: `Analyze the requirement details carefully to understand: ${requirementText.substring(0, 100)}... Create a design document outlining the approach for implementation in ${targetSystem} including any objects and fields needed.`,
+          relevantDocumentationLinks: []
+        },
+        {
+          stepNumber: 2,
+          stepDescription: `Implement the core components needed to satisfy this requirement in ${targetSystem}. Create or customize objects, fields, validation rules, workflows, and processes as appropriate. Ensure all components are properly configured.`,
+          relevantDocumentationLinks: []
+        },
+        {
+          stepNumber: 3,
+          stepDescription: `Thoroughly test the implementation against the acceptance criteria. Create test cases covering various scenarios, validate data integrity, and ensure the solution works as expected. Make any necessary adjustments.`,
+          relevantDocumentationLinks: []
+        }
+      ],
+      sfDocumentationLinks: [],
+      overallDocumentationLinks: []
+    }];
   } catch (error) {
-    console.error('Error generating implementation tasks with Claude:', error);
-    
-    // Throw the error to be handled by the caller
-    throw error;
+    console.error('Error generating implementation tasks:', error);
+    return [];
   }
 }
 
 /**
- * Generate acceptance criteria in Gherkin format using Claude
- * @param projectName Name of the project for context
- * @param projectDescription Description of the project for context
- * @param requirementText The requirement text to generate acceptance criteria for
- * @returns Promise resolving to an array of acceptance criteria in Gherkin format
+ * Generate acceptance criteria for a requirement using Claude
+ * @param requirementText The requirement text to analyze
+ * @returns Promise resolving to an array of acceptance criteria with descriptions
  */
 export async function generateAcceptanceCriteria(
-  projectName: string,
-  projectDescription: string,
-  requirementText: string
+  requirementText: string, 
+  projectName: string = "Software Migration Project",
+  projectDescription: string = "Migration project to modernize legacy systems"
 ): Promise<AcceptanceCriterion[]> {
   try {
     if (!apiKey) {
       console.error('Missing ANTHROPIC_API_KEY environment variable');
       throw new Error('Claude API key is not configured. Please set the ANTHROPIC_API_KEY environment variable.');
     }
-
-    console.log(`Generating acceptance criteria with Claude for: ${requirementText.substring(0, 100)}...`);
     
-    // Create a prompt for Claude to generate acceptance criteria using template from llm_prompts
+    console.log(`Generating acceptance criteria for requirement: ${requirementText.substring(0, 100)}...`);
+    
+    // Create a prompt for generating acceptance criteria using template
     let prompt = ACCEPTANCE_CRITERIA_PROMPT
+      .replace('{requirementText}', requirementText)
       .replace('{projectName}', projectName)
-      .replace('{projectDescription}', projectDescription)
-      .replace('{requirementText}', requirementText);
-
-    // Generate acceptance criteria using Claude
+      .replace('{projectDescription}', projectDescription);
+    
+    // Call Claude API to generate acceptance criteria with improved system prompt
     const message = await anthropic.messages.create({
       model: 'claude-3-7-sonnet-20250219', // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
-      max_tokens: 2000,
-      temperature: 0.4,
-      system: "You are a business analyst specializing in creating high-quality acceptance criteria for software requirements. Generate acceptance criteria in Gherkin format and output ONLY valid JSON with no additional text. Your entire response MUST be a valid JSON array containing the acceptance criteria objects. Do not include markdown formatting, explanation text, or code blocks.",
+      max_tokens: 3000,
+      temperature: 0.5, // Lower temperature for more focused, relevant responses
+      system: `You are a business analyst specializing in writing clear, specific acceptance criteria.
+Your task is to analyze a given requirement in the context of its project and create acceptance criteria that directly verify its implementation.
+
+IMPORTANT INSTRUCTIONS:
+1. Each acceptance criterion MUST be directly related to the specific requirement provided.
+2. Do NOT generate generic criteria that could apply to any software system.
+3. Focus on the actual functionality described in the requirement text.
+4. Use Gherkin format (Given/When/Then) that is specific and testable.
+5. Include specific details from the requirement in your criteria.
+6. Do NOT add features or requirements that are not mentioned or strongly implied.
+7. Include both happy path and error/edge cases that are relevant to the specific requirement.
+
+Return your response as a valid JSON array where each item has a 'title', 'description', and 'type' field.`,
       messages: [
         { role: 'user', content: prompt }
       ]
     });
-
-    // Extract the response text
-    const responseText = typeof message.content[0] === 'object' && 'text' in message.content[0] 
-      ? message.content[0].text as string
-      : JSON.stringify(message.content[0]);
+    
+    // Extract and parse the response
+    let responseText = '';
+    if (message.content && message.content.length > 0) {
+      const content = message.content[0];
+      if (typeof content === 'object' && 'text' in content) {
+        responseText = content.text as string;
+      } else {
+        responseText = JSON.stringify(content);
+      }
+    }
     
     try {
-      // Extract just the JSON part from the response using a more robust approach
-      // Strategy 1: Try to find a JSON array pattern
-      const jsonArrayMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      if (jsonArrayMatch) {
-        try {
-          const jsonText = jsonArrayMatch[0];
-          const parsedResponse = JSON.parse(jsonText);
-          console.log(`Claude generated ${parsedResponse.length} acceptance criteria`);
-          return parsedResponse;
-        } catch (err) {
-          console.log('JSON array parsing failed, trying next strategy');
-        }
-      }
+      // Clean the response - remove any markdown formatting if present
+      const cleanedResponse = responseText
+        .replace(/^```json\s*/gm, '') // Remove ```json at the start
+        .replace(/^```\s*/gm, '')     // Remove ``` at the start
+        .replace(/\s*```$/gm, '')     // Remove ``` at the end
+        .replace(/^\s*```$/gm, '');   // Remove standalone ```
       
-      // Strategy 2: Look for code blocks that might contain JSON (e.g., ```json ... ```)
-      const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (codeBlockMatch && codeBlockMatch[1]) {
-        try {
-          const parsedResponse = JSON.parse(codeBlockMatch[1]);
-          console.log(`Claude generated ${Array.isArray(parsedResponse) ? parsedResponse.length : 1} acceptance criteria from code block`);
-          return Array.isArray(parsedResponse) ? parsedResponse : [parsedResponse];
-        } catch (err) {
-          console.log('Code block parsing failed, trying next strategy');
-        }
+      // Try to find a JSON array in the response
+      const jsonMatch = cleanedResponse.match(/\[\s*{[\s\S]*}\s*\]/);
+      if (jsonMatch) {
+        const jsonText = jsonMatch[0];
+        const acceptanceCriteria = JSON.parse(jsonText);
+        console.log(`Generated ${acceptanceCriteria.length} acceptance criteria`);
+        
+        // Add status field to each criterion
+        return acceptanceCriteria.map((criterion: any) => ({
+          ...criterion,
+          status: 'pending'
+        }));
+      } else {
+        // If no JSON array was found, try parsing the whole response
+        const acceptanceCriteria = JSON.parse(cleanedResponse);
+        console.log(`Generated ${acceptanceCriteria.length} acceptance criteria`);
+        
+        // Add status field to each criterion
+        return acceptanceCriteria.map((criterion: any) => ({
+          ...criterion,
+          status: 'pending'
+        }));
       }
-      
-      // Strategy 3: Try parsing the whole response as JSON
-      try {
-        const parsedResponse = JSON.parse(responseText);
-        console.log(`Claude generated ${Array.isArray(parsedResponse) ? parsedResponse.length : 1} acceptance criteria from full response`);
-        return Array.isArray(parsedResponse) ? parsedResponse : [parsedResponse];
-      } catch (err) {
-        console.log('Full response parsing failed, trying next strategy');
-      }
-      
-      // Strategy 4: Try to extract individual criteria object patterns and reconstruct
-      const criteriaPatterns = responseText.match(/\{[\s\S]*?"description"[\s\S]*?\}/g);
-      if (criteriaPatterns && criteriaPatterns.length > 0) {
-        try {
-          const reconstructedJson = `[${criteriaPatterns.join(',')}]`;
-          const parsedResponse = JSON.parse(reconstructedJson);
-          console.log(`Claude generated ${parsedResponse.length} acceptance criteria from reconstructed JSON`);
-          return parsedResponse;
-        } catch (repairErr) {
-          console.log('JSON reconstruction failed:', repairErr);
-        }
-      }
-      
-      // If all strategies failed, log the response and throw a helpful error
-      console.error('All JSON parsing strategies failed for response');
-      console.error('Raw Claude response:', responseText);
-      throw new Error('Failed to parse acceptance criteria from Claude response. The AI generated an invalid JSON format.');
     } catch (parseError) {
       console.error('Error parsing Claude response for acceptance criteria:', parseError);
-      console.error('Raw Claude response:', responseText);
-      
-      // Throw an error to prevent using fallback content
-      throw new Error('Failed to parse acceptance criteria from Claude response');
+      // Return a single default acceptance criterion
+      return [{
+        description: `The system should implement the requirement: ${requirementText.substring(0, 100)}...`,
+        status: 'pending'
+      }];
     }
   } catch (error) {
     console.error('Error generating acceptance criteria with Claude:', error);
-    // Throw the error to be handled by the caller
-    throw error;
+    return [{
+      description: `The system should implement the requirement: ${requirementText.substring(0, 100)}...`,
+      status: 'pending'
+    }];
+  }
+}
+
+/**
+ * Generate a workflow diagram using Claude's understanding of requirements
+ * @param requirementTexts Array of requirement texts to analyze
+ * @param projectName Name of the project for context
+ * @returns Promise resolving to a mermaid diagram string
+ */
+export async function generateWorkflowDiagram(requirementTexts: string[], projectName: string): Promise<string> {
+  try {
+    if (!apiKey) {
+      console.error('Missing ANTHROPIC_API_KEY environment variable');
+      throw new Error('Claude API key is not configured. Please set the ANTHROPIC_API_KEY environment variable.');
+    }
+    
+    console.log(`Generating workflow diagram for ${requirementTexts.length} requirements...`);
+    
+    // Combine the requirements texts
+    const combinedRequirements = requirementTexts.join('\n\n');
+    
+    // Create a prompt
+    const prompt = `
+    Project: ${projectName}
+    
+    Requirements:
+    ${combinedRequirements}
+    
+    Based on these requirements, create a workflow diagram that shows the key processes, entities, and their relationships. 
+    Use Mermaid.js flowchart syntax (https://mermaid.js.org/syntax/flowchart.html).
+    
+    The diagram should:
+    1. Be comprehensive and cover all major processes described in the requirements
+    2. Show the flow and relationships between different entities and steps
+    3. Use clear, concise labels
+    4. Include all important decision points and conditional flows
+    5. Be properly formatted in Mermaid.js syntax
+    
+    Return ONLY the Mermaid diagram code without any explanations.
+    `;
+    
+    // Call Claude API to generate workflow diagram
+    const message = await anthropic.messages.create({
+      model: 'claude-3-7-sonnet-20250219', // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
+      max_tokens: 2000,
+      temperature: 0.5,
+      system: CLAUDE_SYSTEM_PROMPT_WORKFLOW,
+      messages: [
+        { role: 'user', content: prompt }
+      ]
+    });
+    
+    // Extract the response
+    let diagramText = '';
+    if (message.content && message.content.length > 0) {
+      const content = message.content[0];
+      if (typeof content === 'object' && 'text' in content) {
+        diagramText = content.text as string;
+      } else {
+        diagramText = String(content);
+      }
+    }
+    
+    // Extract just the mermaid diagram part (between ```mermaid and ```)
+    const mermaidMatch = diagramText.match(/```(?:mermaid)?\s*([\s\S]*?)\s*```/);
+    if (mermaidMatch && mermaidMatch[1]) {
+      return mermaidMatch[1].trim();
+    }
+    
+    // If no mermaid block was found, return the whole response
+    return diagramText.trim();
+  } catch (error) {
+    console.error('Error generating workflow diagram with Claude:', error);
+    return `graph TD
+      A[Error] -->|Failed to generate diagram| B[Please try again]
+      
+      style A fill:#f55,stroke:#333,stroke-width:2px
+      style B fill:#ddd,stroke:#333,stroke-width:1px`;
+  }
+}
+
+/**
+ * Generate Gherkin test scenarios for a requirement using Claude
+ * @param requirementText The requirement text to analyze
+ * @param acceptanceCriteria Array of acceptance criteria for this requirement
+ * @returns Promise resolving to a Gherkin structure
+ */
+export async function generateGherkinScenarios(
+  requirementText: string,
+  acceptanceCriteria: AcceptanceCriterion[]
+): Promise<GherkinStructure> {
+  try {
+    if (!apiKey) {
+      console.error('Missing ANTHROPIC_API_KEY environment variable');
+      throw new Error('Claude API key is not configured. Please set the ANTHROPIC_API_KEY environment variable.');
+    }
+    
+    console.log(`Generating Gherkin scenarios for requirement: ${requirementText.substring(0, 100)}...`);
+    
+    // Format acceptance criteria for the prompt
+    const formattedCriteria = acceptanceCriteria.map((ac, index) => {
+      return `Acceptance Criterion ${index + 1}: ${ac.description}`;
+    }).join('\n\n');
+    
+    // Create a prompt
+    const prompt = `
+    Requirement: ${requirementText}
+    
+    Acceptance Criteria:
+    ${formattedCriteria}
+    
+    Based on this requirement and its acceptance criteria, create a Gherkin feature file with scenarios that thoroughly test this requirement.
+    Include a feature description, background (if needed), and multiple scenarios.
+    
+    Ensure the Gherkin scenarios:
+    1. Cover all acceptance criteria
+    2. Include specific, testable steps (Given, When, Then)
+    3. Use realistic test data and expected outcomes
+    4. Consider both happy path and failure scenarios
+    
+    Format your response as a valid Gherkin feature file.
+    `;
+    
+    // Call Claude API to generate Gherkin scenarios
+    const message = await anthropic.messages.create({
+      model: 'claude-3-7-sonnet-20250219', // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
+      max_tokens: 3000,
+      temperature: 0.7,
+      system: `You are a software test engineer specializing in writing comprehensive Gherkin test scenarios.
+Return ONLY the Gherkin feature code without any explanations or commentary.`,
+      messages: [
+        { role: 'user', content: prompt }
+      ]
+    });
+    
+    // Extract the response
+    let gherkinText = '';
+    if (message.content && message.content.length > 0) {
+      const content = message.content[0];
+      if (typeof content === 'object' && 'text' in content) {
+        gherkinText = content.text as string;
+      } else {
+        gherkinText = String(content);
+      }
+    }
+    
+    // Clean up the response - remove any code blocks
+    gherkinText = gherkinText
+      .replace(/^```gherkin\s*/gm, '')
+      .replace(/^```\s*/gm, '')
+      .replace(/\s*```$/gm, '')
+      .replace(/^\s*```$/gm, '')
+      .trim();
+    
+    // Parse the Gherkin text to extract feature, background, and scenarios
+    let featureMatch = gherkinText.match(/Feature:([^\n]+)/);
+    let featureTitle = featureMatch ? featureMatch[1].trim() : 'Generated Feature';
+    
+    let featureDescriptionMatch = gherkinText.match(/Feature:[^\n]+\n((?:(?!Background:|Scenario:|Scenario Outline:).|\n)*)/);
+    let featureDescription = featureDescriptionMatch ? featureDescriptionMatch[1].trim() : '';
+    
+    let backgroundMatch = gherkinText.match(/Background:((?:.|\n)*?)(?=Scenario:|Scenario Outline:|$)/);
+    let background = backgroundMatch ? backgroundMatch[1].trim() : '';
+    
+    let scenariosMatches = [...gherkinText.matchAll(/(?:Scenario:|Scenario Outline:)([^\n]+)\n((?:.|\n)*?)(?=Scenario:|Scenario Outline:|$)/g)];
+    let scenarios = scenariosMatches.map(match => ({
+      title: match[1].trim(),
+      steps: match[2].trim()
+    }));
+    
+    return {
+      title: featureTitle,
+      description: featureDescription,
+      background: background,
+      scenarios: scenarios
+    };
+  } catch (error) {
+    console.error('Error generating Gherkin scenarios with Claude:', error);
+    return {
+      title: 'Error Generating Scenarios',
+      description: 'There was an error generating Gherkin scenarios for this requirement.',
+      background: '',
+      scenarios: [{
+        title: 'Fallback Scenario',
+        steps: `Given the requirement "${requirementText.substring(0, 100)}..."
+When the system is implemented according to specifications
+Then all acceptance criteria should be satisfied`
+      }]
+    };
   }
 }

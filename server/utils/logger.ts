@@ -1,67 +1,42 @@
 /**
- * Logger utility for consistent logging throughout the application
- * 
- * This provides a standardized interface for logging messages with different 
- * severity levels and consistent formatting.
+ * Logger utility for consistent logging across the application
  */
-
-// Log levels
-enum LogLevel {
-  ERROR = 'ERROR',
-  WARN = 'WARN',
-  INFO = 'INFO',
-  DEBUG = 'DEBUG'
-}
-
-// Utility function to format date/time consistently
-function formatTimestamp(): string {
-  return new Date().toLocaleTimeString();
-}
-
-// Format a log message with timestamp and level
-function formatLog(level: LogLevel, message: string, ...args: any[]): string {
-  const timestamp = formatTimestamp();
-  return `${timestamp} [${level}] ${message}`;
-}
-
-// Logger interface implementation
 export const logger = {
   /**
-   * Log an error message
+   * Log an informational message
    * @param message The message to log
-   * @param args Optional arguments to include
+   * @param data Optional data to include in the log
    */
-  error(message: string, ...args: any[]): void {
-    console.error(formatLog(LogLevel.ERROR, message), ...args);
+  info: (message: string, data?: any) => {
+    console.log(`[INFO] ${message}`, data ? data : '');
   },
 
   /**
    * Log a warning message
    * @param message The message to log
-   * @param args Optional arguments to include
+   * @param data Optional data to include in the log
    */
-  warn(message: string, ...args: any[]): void {
-    console.warn(formatLog(LogLevel.WARN, message), ...args);
+  warn: (message: string, data?: any) => {
+    console.warn(`[WARN] ${message}`, data ? data : '');
   },
 
   /**
-   * Log an informational message
+   * Log an error message
    * @param message The message to log
-   * @param args Optional arguments to include
+   * @param error Optional error to include in the log
    */
-  info(message: string, ...args: any[]): void {
-    console.log(formatLog(LogLevel.INFO, message), ...args);
+  error: (message: string, error?: any) => {
+    console.error(`[ERROR] ${message}`, error ? error : '');
   },
 
   /**
-   * Log a debug message
+   * Log a debug message (only in development)
    * @param message The message to log
-   * @param args Optional arguments to include
+   * @param data Optional data to include in the log
    */
-  debug(message: string, ...args: any[]): void {
-    // Only log debug messages in development environment
+  debug: (message: string, data?: any) => {
     if (process.env.NODE_ENV !== 'production') {
-      console.debug(formatLog(LogLevel.DEBUG, message), ...args);
+      console.debug(`[DEBUG] ${message}`, data ? data : '');
     }
   }
 };

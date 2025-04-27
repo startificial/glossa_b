@@ -5,7 +5,7 @@
  * slow operations and optimization opportunities.
  */
 import { sql } from 'drizzle-orm';
-import { db } from '../database';
+import { db } from '../db';
 
 /**
  * Query statistics information

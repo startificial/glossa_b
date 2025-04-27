@@ -1,0 +1,77 @@
+Okay, that file is quite different from a standard Next.js `route.ts`. It's a large Express.js route registration file that defines many routes, middleware, and includes significant inline business logic, including complex interactions with external AI services and database operations.
+
+Refactoring this entire 2000+ line file focusing *only* on "scalability, performance, and extensibility" within a single LLM prompt is highly ambitious and likely to yield overwhelming or incomplete results.
+
+A better approach is to ask the LLM to **analyze the file, identify key areas for improvement based on those goals, and propose a refactoring strategy with examples of refactored patterns.**
+
+Here's a revised prompt designed for *this specific file*:
+
+---
+
+**Revised Prompt for Coding LLM:**
+
+```
+You are an expert backend developer specializing in Node.js, Express.js, TypeScript, API design, Drizzle ORM, PostgreSQL, and integrating external services.
+
+**Task:**
+
+Analyze the provided Express.js route registration file (`registerRoutes.ts`). Your goal is to identify major areas for refactoring to improve **scalability, performance, extensibility, maintainability, and adherence to modern backend best practices**. Based on your analysis, propose a refactoring strategy and provide specific, illustrative code examples of how key patterns should be improved. **Do not attempt to refactor the entire file at once.**
+
+**Context:**
+
+* **Framework:** Express.js running on Node.js
+* **Language:** TypeScript
+* **Database:** PostgreSQL with Drizzle ORM (via `db` import and potentially a custom `storage` abstraction layer)
+* **Key Features:** Handles API routing for various resources (users, projects, customers, requirements, tasks, workflows, documents, etc.), includes authentication (session-based), file uploads (multer), direct database interactions, inline business logic, and integration with external AI services (Gemini, Claude, HuggingFace) for complex processing tasks (NLP, PDF/video analysis, etc.).
+* **File Purpose:** Acts as the central point for defining most, if not all, API routes and related middleware for the application.
+
+**Analysis & Refactoring Focus:**
+
+Please analyze the provided code and focus your recommendations and examples on the following areas, keeping scalability, performance, extensibility, and best practices in mind:
+
+1.  **Modularity & Structure:**
+    * Assess the monolithic nature of the `registerRoutes` function.
+    * Propose a strategy for breaking routes down by resource (e.g., using `express.Router()` in separate files like `routes/projects.routes.ts`, `routes/users.routes.ts`, etc.). Show an example of one such router file structure.
+2.  **Separation of Concerns:**
+    * Identify instances where significant business logic (e.g., AI processing calls, complex database operations, workflow generation logic) is embedded directly within route handlers.
+    * Recommend and exemplify extracting this logic into dedicated service layers/functions (e.g., `services/project.service.ts`, `services/ai.service.ts`) or controllers. Show an example of a refactored route handler calling a service function.
+3.  **Asynchronous & Long-Running Tasks:**
+    * Evaluate the handling of potentially long-running operations (like file processing with `processTextFile`, `processPdfFile`, `processVideoFile`, `generateWorkflowDiagram`, `analyzeContradictions`).
+    * Explain why initiating these directly in request handlers (even with `setTimeout` or async IIFEs) impacts scalability and reliability.
+    * Recommend shifting these to a background job processing system (e.g., BullMQ, Agenda - just mention the concept, no need to implement the queue). Show how a route handler would *trigger* a background job instead of doing the work directly.
+4.  **Error Handling:**
+    * Analyze the current error handling patterns (various `try/catch` blocks, different response formats).
+    * Propose a standardized, potentially centralized error handling strategy (e.g., custom error classes, a dedicated error handling middleware in Express). Provide an example of the middleware and how route handlers might throw errors.
+5.  **Database Interactions:**
+    * Review how Drizzle ORM (`db`) and the `storage` abstraction are used within route handlers.
+    * Recommend patterns for abstracting data access further (e.g., into repositories or within the service layer) to improve testability and maintainability.
+6.  **Input Validation:**
+    * Assess the use of Zod (`insertUserSchema`, `loginSchema`, etc.).
+    * Suggest best practices for applying validation (e.g., potentially as middleware, consistently at the start of handlers or service methods).
+7.  **Code Readability & Consistency:**
+    * Point out areas where consistency could be improved (e.g., response formats, variable naming, function structures).
+    * Recommend consistent use of TypeScript for types/interfaces.
+8.  **Configuration:**
+    * Identify hardcoded values or structures (like the `/api/database-schema` response) that could be made more configurable.
+
+**Input Code (`registerRoutes.ts`):**
+
+```typescript
+// [Paste the entire content of the provided registerRoutes.ts file here]
+```
+
+**Requested Output:**
+
+1.  **Summary of Issues:** Briefly list the main architectural and code pattern issues identified based on the focus areas above.
+2.  **Proposed Structure:** Outline a recommended project folder structure for organizing routes, services, controllers (if applicable), etc.
+3.  **Refactoring Strategy & Examples:** For *each* key focus area (Modularity, Separation of Concerns, Async Tasks, Error Handling, Database, Validation):
+    * Briefly explain the recommended approach.
+    * Provide concise, illustrative code examples demonstrating the refactored pattern (e.g., a sample router file, a service function, an error handler, how to trigger a background job). These examples should be based on patterns found in the input code but significantly simplified to show the concept clearly.
+4.  **High-Level Recommendations:** Conclude with any other overarching suggestions for improving the backend codebase based on the provided file.
+
+**Important:** Focus on providing a clear strategy and actionable, illustrative examples of the refactored patterns, rather than attempting a full rewrite of the entire file.
+```
+
+---
+
+This prompt directs the LLM to act as an architect, analyzing the existing code, identifying problems related to your goals (scalability, performance, etc.), and providing a strategic plan with concrete examples of *how* to refactor, which is much more achievable and useful for such a large file.

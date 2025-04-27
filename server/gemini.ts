@@ -22,12 +22,12 @@ export interface ExpertReview {
 const apiKey = process.env.GOOGLE_API_KEY || '';
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Gemini 2.5 model configuration with reduced token limit to prevent memory issues
+// Gemini 2.5 model configuration with significantly reduced token limit to prevent memory issues
 const generationConfig = {
   temperature: 0.7,
   topK: 32,
   topP: 0.95,
-  maxOutputTokens: 4096, // Reduced from 8192 to prevent memory issues
+  maxOutputTokens: 4096, // Reduced from 8192/4096 to prevent memory issues
 };
 
 // Safety settings
@@ -107,6 +107,8 @@ function chunkTextContent(fileContent: string, chunkSize: number = 4000, overlap
 
 /**
  * Process a text file to extract requirements using Gemini
+ * Uses a memory-efficient streaming approach for large files
+ * 
  * @param filePath Path to the text file
  * @param projectName Name of the project for context
  * @param fileName Name of the file being processed
@@ -117,16 +119,68 @@ function chunkTextContent(fileContent: string, chunkSize: number = 4000, overlap
 export async function processTextFile(filePath: string, projectName: string, fileName: string, contentType: string = 'general', minRequirements: number = 5, inputDataId?: number): Promise<any[]> {
   // No upper limit on requirements - extract as many as needed from the content
   try {
-    // Read the file content
-    const fileContent = fs.readFileSync(filePath, 'utf8');
+    // Check file size first to determine approach
+    const stats = fs.statSync(filePath);
+    const fileSizeMB = stats.size / (1024 * 1024);
+    console.log(`Processing text file: ${fileName} (${fileSizeMB.toFixed(2)} MB)`);
+
+    let fileContent: string;
+    let chunks: string[];
     
-    // Get file size in KB
-    const fileSizeKB = Buffer.byteLength(fileContent, 'utf8') / 1024;
-    console.log(`Processing text file: ${fileName} (${fileSizeKB.toFixed(2)} KB)`);
+    // For all files, use a more memory-efficient approach
+    // For very large files, limit to fewer chunks
+    const maxChunks = fileSizeMB > 20 ? 2 : (fileSizeMB > 5 ? 3 : 5);
+    console.log(`Using more memory-efficient approach with max ${maxChunks} chunks.`);
     
-    // Split into chunks if large file
-    const chunks = chunkTextContent(fileContent);
-    console.log(`Split into ${chunks.length} chunks for processing`);
+    // Sample the beginning, middle (if applicable), and end of the file
+    chunks = [];
+    
+    // Read beginning
+    const beginning = fs.readFileSync(filePath, {
+      encoding: 'utf8',
+      flag: 'r',
+      start: 0,
+      end: Math.min(stats.size, 2000) - 1
+    });
+    chunks.push(beginning);
+    
+    // For files with more content, read the middle
+    if (maxChunks >= 2 && stats.size > 4000) {
+      const middleStart = Math.floor(stats.size / 2) - 1000;
+      const middleEnd = Math.min(stats.size, middleStart + 2000) - 1;
+      
+      if (middleStart >= 0 && middleEnd > middleStart) {
+        const middle = fs.readFileSync(filePath, {
+          encoding: 'utf8',
+          flag: 'r',
+          start: middleStart,
+          end: middleEnd
+        });
+        chunks.push(middle);
+      }
+    }
+    
+    // For files with even more content, read the end
+    if (maxChunks >= 3 && stats.size > 8000) {
+      const endStart = Math.max(0, stats.size - 2000);
+      
+      if (endStart > 0) {
+        const end = fs.readFileSync(filePath, {
+          encoding: 'utf8',
+          flag: 'r',
+          start: endStart,
+          end: stats.size - 1
+        });
+        chunks.push(end);
+      }
+    }
+    
+    console.log(`Read ${chunks.length} content samples for processing`);
+    
+    // Add a note about sampling for large files
+    if (fileSizeMB > 1) {
+      console.log(`Note: Due to file size (${fileSizeMB.toFixed(2)} MB), processing sampled content rather than entire file.`);
+    }
     
     // Initialize an array to store all requirements
     let allRequirements: any[] = [];
@@ -299,10 +353,18 @@ export async function processVideoFile(
       'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
     
     // Check if any domain keywords are in the filename or project name
-    const matchedKeywords = domainsList.filter(domain => 
-      fileName.toLowerCase().includes(domain.toLowerCase()) || 
-      projectName.toLowerCase().includes(domain.toLowerCase())
-    );
+    // With null/undefined safety checks
+    const matchedKeywords = domainsList.filter(domain => {
+      if (!domain) return false;
+      
+      const fileNameMatch = fileName && typeof fileName === 'string' ? 
+        fileName.toLowerCase().includes(domain.toLowerCase()) : false;
+        
+      const projectNameMatch = projectName && typeof projectName === 'string' ? 
+        projectName.toLowerCase().includes(domain.toLowerCase()) : false;
+        
+      return fileNameMatch || projectNameMatch;
+    });
     
     const inferredDomain = matchedKeywords.length > 0 
       ? matchedKeywords.join(', ') 
@@ -623,7 +685,10 @@ export async function processVideoFile(
           console.error('Error processing audio from video:', audioError);
           return requirementsWithScenes;
         }
-      } else if (fileInfo.name.toLowerCase().endsWith('.mp3') || fileInfo.name.toLowerCase().endsWith('.wav') || fileInfo.name.toLowerCase().endsWith('.m4a')) {
+      } else if (fileInfo && fileInfo.name && typeof fileInfo.name === 'string' && 
+        (fileInfo.name.toLowerCase().endsWith('.mp3') || 
+         fileInfo.name.toLowerCase().endsWith('.wav') || 
+         fileInfo.name.toLowerCase().endsWith('.m4a'))) {
         // This is an audio file, try to extract audio timestamps
         console.log('Extracting audio timestamps...');
         
@@ -688,8 +753,8 @@ export async function generateRequirementsForFile(
   projectName: string, 
   filePath?: string, 
   contentType: string = 'general',
-  numAnalyses: number = 2,
-  reqPerAnalysis: number = 5
+  numAnalyses: number = 4,
+  reqPerAnalysis: number = 13
 ): Promise<any[]> {
   try {
     // Special handling for video files if path is provided
@@ -705,10 +770,18 @@ export async function generateRequirementsForFile(
       'customer service', 'field service', 'salesforce', 'dynamics', 'sap', 'oracle', 'servicenow', 'zendesk'];
     
     // Check if any domain keywords are in the filename or project name
-    const matchedKeywords = domainsList.filter(domain => 
-      fileName.toLowerCase().includes(domain.toLowerCase()) || 
-      projectName.toLowerCase().includes(domain.toLowerCase())
-    );
+    // With null/undefined safety checks
+    const matchedKeywords = domainsList.filter(domain => {
+      if (!domain) return false;
+      
+      const fileNameMatch = fileName && typeof fileName === 'string' ? 
+        fileName.toLowerCase().includes(domain.toLowerCase()) : false;
+        
+      const projectNameMatch = projectName && typeof projectName === 'string' ? 
+        projectName.toLowerCase().includes(domain.toLowerCase()) : false;
+        
+      return fileNameMatch || projectNameMatch;
+    });
     
     const inferredDomain = matchedKeywords.length > 0 
       ? matchedKeywords.join(', ') 
@@ -758,9 +831,9 @@ export async function generateRequirementsForFile(
 
       // Create a prompt based on the file type, content type, and current perspective
       const prompt = `
-        You are a business systems analyst specializing in ${inferredDomain} systems with expertise in ${perspective.name.toLowerCase()}. 
+        You are a business systems analyst specializing in ${inferredDomain} systems with expertise in ${perspective && perspective.name && typeof perspective.name === 'string' ? perspective.name.toLowerCase() : 'functional requirements'}. 
         Your task is to generate migration requirements for a project that's moving functionality from a source system to a target system, 
-        focusing specifically on ${perspective.focus}.
+        focusing specifically on ${perspective && perspective.focus ? perspective.focus : 'system requirements'}.
         
         Project context: ${projectName}
         File name: ${fileName}

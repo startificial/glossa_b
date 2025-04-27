@@ -1,5 +1,5 @@
 import express from 'express';
-import { db } from '../database';
+import { db } from '../db';
 import * as schema from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 

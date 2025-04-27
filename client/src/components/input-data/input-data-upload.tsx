@@ -56,9 +56,22 @@ export function InputDataUpload({ projectId, onUploaded }: InputDataUploadProps)
 
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(JSON.parse(xhr.response));
+            try {
+              resolve(JSON.parse(xhr.response));
+            } catch (error) {
+              reject(new Error(`Failed to parse response: ${error instanceof Error ? error.message : 'Unknown error'}`));
+            }
           } else {
-            reject(new Error(`Upload failed with status ${xhr.status}`));
+            let errorMessage = `Upload failed with status ${xhr.status}`;
+            try {
+              const errorResponse = JSON.parse(xhr.response);
+              if (errorResponse.message) {
+                errorMessage = errorResponse.message;
+              }
+            } catch (e) {
+              // Ignore parsing error, use default message
+            }
+            reject(new Error(errorMessage));
           }
         });
 
@@ -70,14 +83,19 @@ export function InputDataUpload({ projectId, onUploaded }: InputDataUploadProps)
         xhr.send(formData);
       });
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       setSelectedFile(null);
       setUploadProgress(0);
+      
       toast({
         title: 'Upload successful',
         description: 'Your file has been uploaded and is being processed.',
       });
+      
+      // Invalidate the query to refresh the input data list
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/input-data`] });
+      
+      // Notify parent component that upload is completed
       onUploaded?.();
     },
     onError: (error) => {

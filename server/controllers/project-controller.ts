@@ -1,157 +1,370 @@
-/**
- * Project Controller
- * 
- * Handles HTTP requests related to project management.
- * Processes request input, calls appropriate services, and formats responses.
- */
 import { Request, Response } from 'express';
-import { projectService, userService } from '../services';
-import { asyncHandler } from '../utils/async-handler';
+import { db } from '../db';
+import { storage } from '../storage';
+import { projects, customers } from '@shared/schema';
+import { eq, desc } from 'drizzle-orm';
 import { insertProjectSchema } from '@shared/schema';
-import { UnauthorizedError } from '../error/api-error';
+import { logger } from '../utils/logger';
+import { z } from 'zod';
+
+// Helper function to create project in database
+async function createProjectInDb(projectData: any) {
+  try {
+    logger.info("Creating project:", projectData);
+    const insertResult = await db.insert(projects).values(projectData).returning();
+    
+    if (insertResult.length === 0) {
+      throw new Error("Failed to insert project");
+    }
+    
+    return insertResult[0];
+  } catch (error) {
+    logger.error("Error creating project in DB:", error);
+    throw error;
+  }
+}
 
 /**
- * Controller for project-related endpoints
+ * Controller for project-related operations
  */
 export class ProjectController {
   /**
-   * Get all projects for the current user
+   * Get all projects
+   * @param req Express request object
+   * @param res Express response object
    */
-  getUserProjects = asyncHandler(async (req: Request, res: Response) => {
-    // Ensure user is authenticated
-    if (!req.session.userId) {
-      throw new UnauthorizedError();
+  async getAllProjects(req: Request, res: Response): Promise<Response> {
+    try {
+      // Get user ID from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get user to ensure it exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Query all projects from the database - organization-wide visibility
+      const projectsList = await db.query.projects.findMany({
+        orderBy: [desc(projects.updatedAt)]
+      });
+      
+      // For each project, fetch customer details if customerId exists
+      const projectsWithCustomers = await Promise.all(
+        projectsList.map(async (project) => {
+          if (project.customerId) {
+            const customer = await db.query.customers.findFirst({
+              where: eq(customers.id, project.customerId)
+            });
+            
+            if (customer) {
+              return {
+                ...project,
+                customerDetails: customer
+              };
+            }
+          }
+          return project;
+        })
+      );
+      
+      return res.json(projectsWithCustomers);
+    } catch (error) {
+      logger.error("Error fetching projects:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    
-    const projects = await projectService.getProjectsByUser(req.session.userId);
-    res.json(projects);
-  });
-  
+  }
+
   /**
-   * Get a specific project by ID
+   * Get a project by ID
+   * @param req Express request object
+   * @param res Express response object
    */
-  getProjectById = asyncHandler(async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.id);
-    
-    if (isNaN(projectId)) {
-      res.status(400).json({ message: "Invalid project ID" });
-      return;
+  async getProjectById(req: Request, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Get user ID from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Query project from the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // If the project has a customer ID, fetch the customer details
+      if (project.customerId) {
+        const customer = await db.query.customers.findFirst({
+          where: eq(customers.id, project.customerId)
+        });
+        
+        if (customer) {
+          // Return project with associated customer
+          return res.json({
+            ...project,
+            customer,
+            customerDetails: customer // Add customerDetails property for consistency
+          });
+        }
+      }
+
+      return res.json(project);
+    } catch (error) {
+      logger.error("Error fetching project:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    
-    const project = await projectService.getProjectById(projectId);
-    res.json(project);
-  });
-  
+  }
+
   /**
    * Create a new project
+   * @param req Express request object
+   * @param res Express response object
    */
-  createProject = asyncHandler(async (req: Request, res: Response) => {
-    // Ensure user is authenticated
-    if (!req.session.userId) {
-      throw new UnauthorizedError();
+  async createProject(req: Request, res: Response): Promise<Response> {
+    try {
+      // Get user ID from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get user to ensure it exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      logger.info('Creating project with data:', req.body);
+
+      // If customerId is provided, verify it exists
+      if (req.body.customerId) {
+        const customerId = parseInt(req.body.customerId);
+        const customer = await db.query.customers.findFirst({
+          where: eq(customers.id, customerId)
+        });
+        
+        if (!customer) {
+          return res.status(400).json({ message: "Invalid customer ID. Customer not found." });
+        }
+      }
+
+      const validatedData = insertProjectSchema.parse({
+        ...req.body,
+        userId: userId
+      });
+
+      // Use database to create project
+      const project = await createProjectInDb(validatedData);
+      
+      // If role template IDs were provided, create project roles from those templates
+      if (req.body.roleTemplateIds && Array.isArray(req.body.roleTemplateIds) && req.body.roleTemplateIds.length > 0) {
+        logger.info(`Creating project roles from ${req.body.roleTemplateIds.length} templates:`, req.body.roleTemplateIds);
+        try {
+          // Make sure all template IDs are strings (for consistent comparison)
+          const templateIds = req.body.roleTemplateIds.map((id: any) => String(id));
+          const createdRoles = await storage.createProjectRolesFromTemplates(project.id, templateIds);
+          logger.info(`Created ${createdRoles.length} project roles`);
+        } catch (error) {
+          logger.error('Error creating project roles from templates:', error);
+          // We don't want to fail the project creation if role creation fails
+        }
+      }
+      
+      // Add activity for project creation
+      await storage.createActivity({
+        type: "created_project",
+        description: `${user.username} created project "${project.name}"`,
+        userId: userId,
+        projectId: project.id,
+        relatedEntityId: null
+      });
+
+      return res.status(201).json(project);
+    } catch (error) {
+      logger.error("Error creating project:", error);
+      return res.status(400).json({ message: "Invalid project data", error });
     }
-    
-    // Validate request body
-    const validatedData = insertProjectSchema.parse(req.body);
-    
-    // Set the user ID from the session
-    validatedData.userId = req.session.userId;
-    
-    // Create the project
-    const project = await projectService.createProject(validatedData);
-    res.status(201).json(project);
-  });
-  
+  }
+
   /**
    * Update a project
+   * @param req Express request object
+   * @param res Express response object
    */
-  updateProject = asyncHandler(async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.id);
-    
-    if (isNaN(projectId)) {
-      res.status(400).json({ message: "Invalid project ID" });
-      return;
+  async updateProject(req: Request, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Get user ID from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get user to ensure it exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if project exists in the database
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // If customerId is provided, verify it exists
+      if (req.body.customerId) {
+        const customerId = parseInt(req.body.customerId);
+        const customer = await db.query.customers.findFirst({
+          where: eq(customers.id, customerId)
+        });
+        
+        if (!customer) {
+          return res.status(400).json({ message: "Invalid customer ID. Customer not found." });
+        }
+      }
+
+      // Validate partial update fields
+      const { name, description, type, sourceSystem, targetSystem, customerId } = req.body;
+      const updateData: any = {
+        name,
+        description,
+        type,
+        sourceSystem,
+        targetSystem,
+        updatedAt: new Date()
+      };
+      
+      // Only add customerId if it's present in request - allows nulling with null value
+      if ('customerId' in req.body) {
+        updateData.customerId = customerId;
+      }
+      
+      // Remove undefined values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        }
+      });
+      
+      // Update the project in the database
+      const result = await db.update(projects)
+        .set(updateData)
+        .where(eq(projects.id, projectId))
+        .returning();
+      
+      if (result.length === 0) {
+        return res.status(500).json({ message: "Failed to update project" });
+      }
+      
+      // Add activity for project update
+      await storage.createActivity({
+        type: "updated_project",
+        description: `${user.username} updated project "${result[0].name}"`,
+        userId: userId,
+        projectId: projectId,
+        relatedEntityId: null
+      });
+      
+      // If the updated project has a customer ID, fetch and include customer details
+      const updatedProject = result[0];
+      if (updatedProject.customerId) {
+        const customer = await db.query.customers.findFirst({
+          where: eq(customers.id, updatedProject.customerId)
+        });
+        
+        if (customer) {
+          return res.json({
+            ...updatedProject,
+            customer,
+            customerDetails: customer
+          });
+        }
+      }
+      
+      return res.json(updatedProject);
+    } catch (error) {
+      logger.error("Error updating project:", error);
+      return res.status(400).json({ message: "Invalid project data", error });
     }
-    
-    // Ensure user is authenticated
-    if (!req.session.userId) {
-      throw new UnauthorizedError();
-    }
-    
-    // Create a subset of the insertProjectSchema for updates
-    const updateProjectSchema = insertProjectSchema.omit({
-      userId: true, // Don't allow changing the owner
-      createdAt: true,
-      updatedAt: true
-    });
-    
-    // Validate the request body
-    const validatedData = updateProjectSchema.parse(req.body);
-    
-    // Update the project
-    const project = await projectService.updateProject(projectId, validatedData);
-    res.json(project);
-  });
-  
+  }
+
   /**
    * Delete a project
+   * @param req Express request object
+   * @param res Express response object
    */
-  deleteProject = asyncHandler(async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.id);
-    
-    if (isNaN(projectId)) {
-      res.status(400).json({ message: "Invalid project ID" });
-      return;
+  async deleteProject(req: Request, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      // Get user ID from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get user to ensure it exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if project exists
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId),
+        columns: {
+          id: true,
+          name: true
+        }
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Delete the project
+      await db.delete(projects).where(eq(projects.id, projectId));
+      
+      // Add activity for project deletion
+      await storage.createActivity({
+        type: "deleted_project",
+        description: `${user.username} deleted project "${project.name}"`,
+        userId: userId,
+        projectId: null as any, // Use null instead of undefined, with type assertion to prevent TypeScript error
+        relatedEntityId: null
+      });
+      
+      return res.status(200).json({ message: "Project deleted successfully" });
+    } catch (error) {
+      logger.error("Error deleting project:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    
-    // Ensure user is authenticated
-    if (!req.session.userId) {
-      throw new UnauthorizedError();
-    }
-    
-    // Delete the project
-    await projectService.deleteProject(projectId);
-    res.status(200).json({ message: "Project deleted successfully" });
-  });
-  
-  /**
-   * Search projects by query
-   */
-  searchProjects = asyncHandler(async (req: Request, res: Response) => {
-    const { query } = req.query;
-    
-    if (!query || typeof query !== 'string') {
-      res.status(400).json({ message: "Search query is required" });
-      return;
-    }
-    
-    // Ensure user is authenticated
-    if (!req.session.userId) {
-      throw new UnauthorizedError();
-    }
-    
-    const projects = await projectService.searchProjects(query);
-    res.json(projects);
-  });
-  
-  /**
-   * Get recent projects
-   */
-  getRecentProjects = asyncHandler(async (req: Request, res: Response) => {
-    // Parse limit from query params
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
-    
-    if (isNaN(limit) || limit < 1 || limit > 100) {
-      res.status(400).json({ message: "Invalid limit parameter" });
-      return;
-    }
-    
-    // Ensure user is authenticated
-    if (!req.session.userId) {
-      throw new UnauthorizedError();
-    }
-    
-    const projects = await projectService.getRecentProjects(limit);
-    res.json(projects);
-  });
+  }
 }
+
+// Create and export the controller instance
+export const projectController = new ProjectController();

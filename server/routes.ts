@@ -1,54 +1,38 @@
 import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import path from "path";
+import fs from "fs";
+import os from "os";
+import crypto from "crypto";
+import multer from "multer";
 import { storage } from "./storage";
 import { db } from "./db";
-import { createProjectInDb, updateProjectInDb } from "./database";
+import { eq, and } from "drizzle-orm";
+import { projects, requirements, users } from "@shared/schema";
+import { processTextFile, generateRequirementsForFile, generateExpertReview } from "./gemini";
+import { generateAcceptanceCriteria, generateImplementationTasks } from "./claude";
+
+// Define the AcceptanceCriterion interface to match the type expected in Claude's functions
+interface AcceptanceCriterion {
+  id: string;
+  criterion: string;
+  description?: string;
+  testMethod?: string;
+};
+import { processPdfFile, validatePdf, extractTextFromPdf } from "./pdf-processor";
+import { analyzePdf } from "./pdf-analyzer";
+import { insertRequirementSchema, insertImplementationTaskSchema } from "@shared/schema";
+import { registerAdminRoutes } from './routes/admin-routes';
 import documentTemplateRoutes from './routes/document-templates';
 import documentRoutes from './routes/documents';
 import pdfRoutes from './routes/pdf-route';
 import projectRolesRoutes from './routes/project-roles';
 import applicationSettingsRoutes from './routes/application-settings';
 import jobRoutes from './routes/job-routes';
-import { registerAdminRoutes } from './routes/admin-routes';
-import { requirementRoleEffortController } from './controllers/requirement-role-effort-controller';
-import { taskRoleEffortController } from './controllers/task-role-effort-controller';
-import { 
-  insertProjectSchema, 
-  insertInputDataSchema, 
-  insertRequirementSchema,
-  insertActivitySchema,
-  insertImplementationTaskSchema,
-  insertUserSchema,
-  insertInviteSchema,
-  insertCustomerSchema,
-  insertDocumentTemplateSchema,
-  insertDocumentSchema,
-  insertFieldMappingSchema,
-  insertWorkflowSchema,
-  customers,
-  projects,
-  requirements,
-  activities,
-  users,
-  implementationTasks,
-  documentTemplates,
-  documents,
-  fieldMappings
-} from "@shared/schema";
-import { eq, asc, desc, and, like, inArray } from "drizzle-orm";
-import { AcceptanceCriterion, WorkflowNode, WorkflowEdge } from "@shared/types";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
-import os from "os";
-import nlp from "compromise";
-import { processTextFile, generateRequirementsForFile, generateExpertReview } from "./gemini";
-import { processPdfFile, validatePdf, extractTextFromPdf } from "./pdf-processor";
-import { analyzePdf } from "./pdf-analyzer";
-import crypto from "crypto";
-import VideoProcessor from "./video-processor";
-import { generateAcceptanceCriteria, generateImplementationTasks } from "./claude";
-import { z } from "zod";
+import { registerInputDataRoutes } from './routes/input-data-routes';
+import { registerProjectRoutes } from './routes/project-routes';
+import { registerSearchRoutes } from './routes/search-routes';
+import { registerCustomerRoutes } from './routes/customer-routes';
 
 /**
  * Helper function to get the current user from session
@@ -124,1282 +108,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/uploads", express.static(uploadsDir));
   app.use("/api/uploads", express.static(localUploadsDir));
   
-  // Database schema endpoint for template field mappings
-  app.get("/api/database-schema", (req, res) => {
-    try {
-      // Define table metadata with friendly display names and available columns
-      const tableSchema = {
-        users: {
-          displayName: 'Users',
-          description: 'System users information',
-          columns: {
-            id: { type: 'number', description: 'User ID' },
-            username: { type: 'string', description: 'Username' },
-            firstName: { type: 'string', description: 'First Name' },
-            lastName: { type: 'string', description: 'Last Name' },
-            email: { type: 'string', description: 'Email Address' },
-            company: { type: 'string', description: 'Company Name' },
-            role: { type: 'string', description: 'User Role' },
-          }
-        },
-        customers: {
-          displayName: 'Customers',
-          description: 'Customer organizations',
-          columns: {
-            id: { type: 'number', description: 'Customer ID' },
-            name: { type: 'string', description: 'Customer Name' },
-            description: { type: 'string', description: 'Description' },
-            industry: { type: 'string', description: 'Industry' },
-            backgroundInfo: { type: 'string', description: 'Background Information' },
-            website: { type: 'string', description: 'Website URL' },
-            contactEmail: { type: 'string', description: 'Contact Email' },
-            contactPhone: { type: 'string', description: 'Contact Phone' },
-          }
-        },
-        projects: {
-          displayName: 'Projects',
-          description: 'Projects information',
-          columns: {
-            id: { type: 'number', description: 'Project ID' },
-            name: { type: 'string', description: 'Project Name' },
-            description: { type: 'string', description: 'Description' },
-            type: { type: 'string', description: 'Project Type' },
-            customer: { type: 'string', description: 'Customer Name' },
-            sourceSystem: { type: 'string', description: 'Source System' },
-            targetSystem: { type: 'string', description: 'Target System' },
-          }
-        },
-        requirements: {
-          displayName: 'Requirements',
-          description: 'Project requirements',
-          columns: {
-            id: { type: 'number', description: 'Requirement ID' },
-            title: { type: 'string', description: 'Title' },
-            description: { type: 'string', description: 'Description' },
-            category: { type: 'string', description: 'Category' },
-            priority: { type: 'string', description: 'Priority' },
-            codeId: { type: 'string', description: 'Code ID' },
-            source: { type: 'string', description: 'Source' },
-          }
-        },
-        implementationTasks: {
-          displayName: 'Implementation Tasks',
-          description: 'Tasks for implementing requirements',
-          columns: {
-            id: { type: 'number', description: 'Task ID' },
-            title: { type: 'string', description: 'Title' },
-            description: { type: 'string', description: 'Description' },
-            status: { type: 'string', description: 'Status' },
-            priority: { type: 'string', description: 'Priority' },
-            system: { type: 'string', description: 'System' },
-            complexity: { type: 'string', description: 'Complexity' },
-            assignee: { type: 'string', description: 'Assignee' },
-            taskType: { type: 'string', description: 'Task Type' },
-          }
-        }
-      };
-      
-      // Wrap the tableSchema in a 'tables' object to match the frontend's expected format
-      return res.json({ tables: tableSchema });
-    } catch (error) {
-      console.error('Error fetching database schema:', error);
-      return res.status(500).json({ error: 'Failed to fetch database schema information' });
-    }
-  });
+  // Database schema endpoint has been moved to schema-routes.ts
 
-  // Authentication routes
-  app.post("/api/register", async (req: Request, res: Response) => {
-    try {
-      const validatedData = insertUserSchema.parse(req.body);
-      
-      // Check if username or email already exists
-      const existingUser = await storage.getUserByUsername(validatedData.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-      
-      if (validatedData.email) {
-        const existingEmail = await storage.getUserByEmail(validatedData.email);
-        if (existingEmail) {
-          return res.status(400).json({ message: "Email already exists" });
-        }
-      }
-      
-      // Check if invite is valid if token is provided
-      if (req.body.inviteToken) {
-        const invite = await storage.getInvite(req.body.inviteToken);
-        if (!invite) {
-          return res.status(400).json({ message: "Invalid invite token" });
-        }
-        
-        if (invite.used) {
-          return res.status(400).json({ message: "Invite token has already been used" });
-        }
-        
-        if (invite.expiresAt < new Date()) {
-          return res.status(400).json({ message: "Invite token has expired" });
-        }
-        
-        // Update invite as used
-        await storage.markInviteAsUsed(req.body.inviteToken);
-        
-        // Set invitedBy if the invite has a creator
-        if (invite.createdById) {
-          validatedData.invitedBy = invite.createdById;
-        }
-      }
-      
-      // Create the user
-      const user = await storage.createUser(validatedData);
-      
-      // Set user in session
-      req.session.userId = user.id;
-      
-      // Don't return the password
-      const { password, ...userWithoutPassword } = user;
-      res.status(201).json(userWithoutPassword);
-    } catch (error) {
-      console.error("Error registering user:", error);
-      res.status(400).json({ message: "Invalid user data", error });
-    }
-  });
+  // Authentication routes have been moved to auth-routes.ts
   
-  app.post("/api/login", async (req: Request, res: Response) => {
-    try {
-      const loginSchema = z.object({
-        username: z.string(),
-        password: z.string()
-      });
-      
-      const { username, password } = loginSchema.parse(req.body);
-      
-      // Authenticate user
-      const user = await storage.authenticateUser(username, password);
-      if (!user) {
-        return res.status(401).json({ message: "Invalid username or password" });
-      }
-      
-      // Set user in session
-      req.session.userId = user.id;
-      
-      // Don't return the password
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Error logging in:", error);
-      res.status(400).json({ message: "Invalid login data", error });
-    }
-  });
-  
-  app.post("/api/logout", (req: Request, res: Response) => {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ message: "Failed to logout" });
-      }
-      res.status(200).json({ message: "Logged out successfully" });
-    });
-  });
-  
-  app.post("/api/invites", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      if (!req.session.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
-      const user = await storage.getUser(req.session.userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Generate invite token
-      const token = generateToken();
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
-      
-      const invite = await storage.createInvite({
-        token,
-        email: req.body.email || null,
-        createdById: user.id,
-        expiresAt
-      });
-      
-      res.status(201).json(invite);
-    } catch (error) {
-      console.error("Error creating invite:", error);
-      res.status(400).json({ message: "Invalid invite data", error });
-    }
-  });
-  
-  app.get("/api/invites", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      if (!req.session.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
-      const invites = await storage.getInvitesByCreator(req.session.userId);
-      res.json(invites);
-    } catch (error) {
-      console.error("Error fetching invites:", error);
-      res.status(500).json({ message: "Failed to fetch invites", error });
-    }
-  });
+  // Invite routes have been moved to invite-routes.ts
 
-  // Current user endpoint - two paths for backward compatibility
-  // First path: /api/user (used by client components)
-  app.get("/api/user", async (req: Request, res: Response) => {
-    // Check if user is authenticated
-    if (req.session && req.session.userId) {
-      const user = await storage.getUser(req.session.userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Don't return the password
-      const { password, ...userWithoutPassword } = user;
-      return res.json(userWithoutPassword);
-    }
-    
-    // Return 401 if not authenticated (don't auto-login)
-    return res.status(401).json({ message: "Unauthorized" });
-  });
-  
-  // Second path: /api/me (legacy path)
-  app.get("/api/me", async (req: Request, res: Response) => {
-    // Check if user is authenticated
-    if (req.session && req.session.userId) {
-      const user = await storage.getUser(req.session.userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Don't return the password
-      const { password, ...userWithoutPassword } = user;
-      return res.json(userWithoutPassword);
-    }
-    
-    // Import DEMO_USER_CONFIG for centralized configuration
-    const { DEMO_USER_CONFIG, ENV_CONFIG } = await import('@shared/config');
-    
-    // Only auto-login as demo user if enabled in config and in development mode
-    if (DEMO_USER_CONFIG.ENABLED && DEMO_USER_CONFIG.AUTO_LOGIN) {
-      // Find demo user by configured username
-      const demoUser = await storage.getUserByUsername(DEMO_USER_CONFIG.USERNAME);
-      if (!demoUser) {
-        return res.status(404).json({ message: "Demo user not found" });
-      }
-      
-      // Check if this is actually a demo user
-      if (!demoUser.isDemo) {
-        console.warn(`User with username ${DEMO_USER_CONFIG.USERNAME} exists but is not marked as a demo user`);
-      }
+  // User routes have been moved to user-routes.ts
 
-      // Set user in session
-      req.session.userId = demoUser.id;
-      
-      // Don't return the password
-      const { password, ...userWithoutPassword } = demoUser;
-      return res.json(userWithoutPassword);
-    }
-    
-    // No auto-login if feature is disabled
-    return res.status(401).json({ message: "Not authenticated" });
-  });
-  
-  // Update user profile endpoint
-  app.put("/api/me", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      // Get user from session
-      if (!req.session.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
-      const userId = req.session.userId;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Create a subset of the updateUserSchema
-      const updateProfileSchema = insertUserSchema.pick({
-        firstName: true,
-        lastName: true,
-        email: true,
-        company: true,
-        avatarUrl: true
-      });
-      
-      // Validate the incoming data
-      const validatedData = updateProfileSchema.parse(req.body);
-      
-      // Update the user
-      const updatedUser = await storage.updateUser(user.id, validatedData);
-      if (!updatedUser) {
-        return res.status(500).json({ message: "Failed to update user" });
-      }
-      
-      // Don't return the password
-      const { password, ...userWithoutPassword } = updatedUser;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Error updating user profile:", error);
-      res.status(400).json({ message: "Invalid user data", error });
-    }
-  });
+  // Customer routes have been moved to customer-routes.ts
 
-  // Customer routes
-  app.get("/api/customers", async (req: Request, res: Response) => {
-    try {
-      const customersList = await db.query.customers.findMany({
-        orderBy: (customers, { desc }) => [desc(customers.updatedAt)]
-      });
-      res.json(customersList);
-    } catch (error) {
-      console.error("Error fetching customers:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
+  // Project endpoints have been moved to project-routes.ts
 
-  app.get("/api/customers/:id", async (req: Request, res: Response) => {
-    const customerId = parseInt(req.params.id);
-    if (isNaN(customerId)) {
-      return res.status(400).json({ message: "Invalid customer ID" });
-    }
+  // All workflow routes have been moved to workflow-routes.ts
+  // Input data routes have been moved to input-data-routes.ts
 
-    try {
-      const customer = await db.query.customers.findFirst({
-        where: eq(customers.id, customerId)
-      });
-
-      if (!customer) {
-        return res.status(404).json({ message: "Customer not found" });
-      }
-
-      // Get projects associated with this customer
-      const customerProjects = await db.query.projects.findMany({
-        where: eq(projects.customerId, customerId),
-        columns: {
-          id: true,
-          name: true,
-          description: true,
-          // Don't include type field if it's not in the database
-          sourceSystem: true,
-          targetSystem: true,
-          createdAt: true,
-          updatedAt: true
-        }
-      });
-
-      console.log('Customer id:', customerId);
-      console.log('Customer projects:', customerProjects);
-      
-      const responseData = { ...customer, projects: customerProjects };
-      console.log('Response data:', responseData);
-      
-      res.json(responseData);
-    } catch (error) {
-      console.error("Error fetching customer:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.post("/api/customers", async (req: Request, res: Response) => {
-    try {
-      console.log("POST /api/customers request body:", req.body);
-      
-      const customerData = insertCustomerSchema.parse(req.body);
-      console.log("Parsed customer data:", customerData);
-      
-      const result = await db.insert(customers).values(customerData).returning();
-      console.log("Customer created successfully:", result[0]);
-      
-      res.status(201).json(result[0]);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error("Validation error creating customer:", error.errors);
-        return res.status(400).json({ message: "Invalid customer data", errors: error.errors });
-      }
-      console.error("Error creating customer:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.put("/api/customers/:id", async (req: Request, res: Response) => {
-    const customerId = parseInt(req.params.id);
-    if (isNaN(customerId)) {
-      return res.status(400).json({ message: "Invalid customer ID" });
-    }
-
-    try {
-      const customerData = insertCustomerSchema.parse(req.body);
-      
-      const result = await db.update(customers)
-        .set({
-          ...customerData,
-          updatedAt: new Date()
-        })
-        .where(eq(customers.id, customerId))
-        .returning();
-      
-      if (result.length === 0) {
-        return res.status(404).json({ message: "Customer not found" });
-      }
-      
-      res.json(result[0]);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid customer data", errors: error.errors });
-      }
-      console.error("Error updating customer:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.delete("/api/customers/:id", async (req: Request, res: Response) => {
-    const customerId = parseInt(req.params.id);
-    if (isNaN(customerId)) {
-      return res.status(400).json({ message: "Invalid customer ID" });
-    }
-
-    try {
-      // Check if customer has associated projects (just for logging)
-      const associatedProjects = await db.query.projects.findMany({
-        where: eq(projects.customerId, customerId),
-        columns: {
-          id: true,
-          name: true
-        }
-      });
-
-      if (associatedProjects.length > 0) {
-        console.log(`Deleting customer ${customerId} with ${associatedProjects.length} associated projects. Projects will be preserved.`);
-      }
-
-      // Delete the customer - the foreign key is set to ON DELETE SET NULL 
-      // so projects will remain but have their customerId set to NULL
-      await db.delete(customers).where(eq(customers.id, customerId));
-      
-      res.status(200).json({ 
-        message: "Customer deleted successfully", 
-        preservedProjects: associatedProjects.length > 0 ? associatedProjects.length : 0
-      });
-    } catch (error) {
-      console.error("Error deleting customer:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Project endpoints
-  app.get("/api/projects", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      // Get user ID from session
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      // Get user to ensure it exists
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Query all projects from the database - organization-wide visibility
-      const projectsList = await db.query.projects.findMany({
-        orderBy: [desc(projects.updatedAt)]
-      });
-      
-      res.json(projectsList);
-    } catch (error) {
-      console.error("Error fetching projects:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.get("/api/projects/:id", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const projectId = parseInt(req.params.id);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Get user ID from session
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      // Query project from the database
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      // Organization-wide access - all authenticated users can access all projects
-      // No need to verify if project belongs to the current user
-
-      // If the project has a customer ID, fetch the customer details
-      if (project.customerId) {
-        const customer = await db.query.customers.findFirst({
-          where: eq(customers.id, project.customerId)
-        });
-        
-        if (customer) {
-          // Return project with associated customer
-          return res.json({
-            ...project,
-            customer
-          });
-        }
-      }
-
-      res.json(project);
-    } catch (error) {
-      console.error("Error fetching project:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.post("/api/projects", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      // Get user ID from session
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      // Get user to ensure it exists
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      console.log('Creating project with data:', req.body);
-
-      // If customerId is provided, verify it exists
-      if (req.body.customerId) {
-        const customerId = parseInt(req.body.customerId);
-        const customer = await db.query.customers.findFirst({
-          where: eq(customers.id, customerId)
-        });
-        
-        if (!customer) {
-          return res.status(400).json({ message: "Invalid customer ID. Customer not found." });
-        }
-      }
-
-      const validatedData = insertProjectSchema.parse({
-        ...req.body,
-        userId: userId
-      });
-
-      // Use database to create project instead of in-memory storage
-      const project = await createProjectInDb(validatedData);
-      
-      // If role template IDs were provided, create project roles from those templates
-      if (req.body.roleTemplateIds && Array.isArray(req.body.roleTemplateIds) && req.body.roleTemplateIds.length > 0) {
-        console.log(`Creating project roles from ${req.body.roleTemplateIds.length} templates:`, req.body.roleTemplateIds);
-        try {
-          // Make sure all template IDs are strings (for consistent comparison)
-          const templateIds = req.body.roleTemplateIds.map(id => String(id));
-          const createdRoles = await storage.createProjectRolesFromTemplates(project.id, templateIds);
-          console.log(`Created ${createdRoles.length} project roles`);
-        } catch (error) {
-          console.error('Error creating project roles from templates:', error);
-          // We don't want to fail the project creation if role creation fails
-        }
-      }
-      
-      // Add activity for project creation
-      await storage.createActivity({
-        type: "created_project",
-        description: `${user.username} created project "${project.name}"`,
-        userId: userId,
-        projectId: project.id,
-        relatedEntityId: null
-      });
-
-      res.status(201).json(project);
-    } catch (error) {
-      console.error("Error creating project:", error);
-      res.status(400).json({ message: "Invalid project data", error });
-    }
-  });
-
-  app.put("/api/projects/:id", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const projectId = parseInt(req.params.id);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Get user ID from session
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      // Get user to ensure it exists
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Check if project exists in the database
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      // Organization-wide access - all authenticated users can update all projects
-      // No need to verify if project belongs to the current user
-
-      // If customerId is provided, verify it exists
-      if (req.body.customerId) {
-        const customerId = parseInt(req.body.customerId);
-        const customer = await db.query.customers.findFirst({
-          where: eq(customers.id, customerId)
-        });
-        
-        if (!customer) {
-          return res.status(400).json({ message: "Invalid customer ID. Customer not found." });
-        }
-      }
-
-      // Validate partial update fields
-      const { name, description, type, sourceSystem, targetSystem, customerId } = req.body;
-      const updateData = {
-        name,
-        description,
-        type,
-        sourceSystem,
-        targetSystem,
-        customerId // Include customerId in the update
-      };
-      
-      console.log('Updating project with data:', updateData);
-      
-      // Use database to update project instead of in-memory storage
-      const updatedProject = await updateProjectInDb(projectId, updateData);
-      
-      // Add activity for project update
-      await storage.createActivity({
-        type: "updated_project",
-        description: `${user.username} updated project "${updatedProject.name}"`,
-        userId: userId,
-        projectId: projectId,
-        relatedEntityId: null
-      });
-
-      res.json(updatedProject);
-    } catch (error) {
-      console.error("Error updating project:", error);
-      res.status(400).json({ message: "Invalid project data", error });
-    }
-  });
-
-  app.delete("/api/projects/:id", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const projectId = parseInt(req.params.id);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Get user ID from session
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      // Check if project exists in the database
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      // Organization-wide access - all authenticated users can delete all projects
-      // No need to verify if project belongs to the current user
-
-      // Delete from database (this will cascade delete related records since we defined CASCADE on FOREIGN KEYS)
-      await db.delete(projects).where(eq(projects.id, projectId));
-      
-      // In a real app, we might need additional cleanup for files or other resources
-      
-      // Return a success response with status 200 instead of 204 (no content)
-      res.status(200).json({ 
-        message: "Project deleted successfully",
-        projectId: projectId 
-      });
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      res.status(500).json({ message: "Error deleting project" });
-    }
-  });
-
-  // Workflow routes
-  app.get("/api/projects/:projectId/workflows", async (req: Request, res: Response) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Check if project exists in the database
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      const workflows = await storage.getWorkflowsByProject(projectId);
-      res.json(workflows);
-    } catch (error) {
-      console.error("Error fetching workflows:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.get("/api/workflows/:id", async (req: Request, res: Response) => {
-    try {
-      const workflowId = parseInt(req.params.id);
-      if (isNaN(workflowId)) {
-        return res.status(400).json({ message: "Invalid workflow ID" });
-      }
-
-      const workflow = await storage.getWorkflow(workflowId);
-      if (!workflow) {
-        return res.status(404).json({ message: "Workflow not found" });
-      }
-
-      res.json(workflow);
-    } catch (error) {
-      console.error("Error fetching workflow:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.post("/api/projects/:projectId/workflows", async (req: Request, res: Response) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Check if project exists in the database
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      // Validate the workflow data
-      const workflowData = insertWorkflowSchema.parse({
-        ...req.body,
-        projectId // Override with the path parameter
-      });
-
-      const newWorkflow = await storage.createWorkflow(workflowData);
-      
-      // Log the creation of a new workflow as an activity
-      await storage.createActivity({
-        type: "created_workflow",
-        description: `Created workflow "${newWorkflow.name}"`,
-        userId: req.session.userId || 1, // Use demo user if not logged in
-        projectId,
-        relatedEntityId: newWorkflow.id
-      });
-
-      res.status(201).json(newWorkflow);
-    } catch (error) {
-      console.error("Error creating workflow:", error);
-      res.status(400).json({ message: "Invalid workflow data", error });
-    }
-  });
-
-  app.put("/api/workflows/:id", async (req: Request, res: Response) => {
-    try {
-      const workflowId = parseInt(req.params.id);
-      if (isNaN(workflowId)) {
-        return res.status(400).json({ message: "Invalid workflow ID" });
-      }
-
-      // Check if workflow exists
-      const existingWorkflow = await storage.getWorkflow(workflowId);
-      if (!existingWorkflow) {
-        return res.status(404).json({ message: "Workflow not found" });
-      }
-
-      // Validate the update data
-      const workflowData = insertWorkflowSchema.partial().parse(req.body);
-
-      // Update the workflow
-      const updatedWorkflow = await storage.updateWorkflow(workflowId, workflowData);
-      if (!updatedWorkflow) {
-        return res.status(500).json({ message: "Failed to update workflow" });
-      }
-
-      // Log the update as an activity
-      await storage.createActivity({
-        type: "updated_workflow",
-        description: `Updated workflow "${updatedWorkflow.name}"`,
-        userId: req.session.userId || 1, // Use demo user if not logged in
-        projectId: updatedWorkflow.projectId,
-        relatedEntityId: updatedWorkflow.id
-      });
-
-      res.json(updatedWorkflow);
-    } catch (error) {
-      console.error("Error updating workflow:", error);
-      res.status(400).json({ message: "Invalid workflow data", error });
-    }
-  });
-
-  app.delete("/api/workflows/:id", async (req: Request, res: Response) => {
-    try {
-      const workflowId = parseInt(req.params.id);
-      if (isNaN(workflowId)) {
-        return res.status(400).json({ message: "Invalid workflow ID" });
-      }
-
-      // Check if workflow exists
-      const existingWorkflow = await storage.getWorkflow(workflowId);
-      if (!existingWorkflow) {
-        return res.status(404).json({ message: "Workflow not found" });
-      }
-
-      // Delete the workflow
-      const success = await storage.deleteWorkflow(workflowId);
-      if (!success) {
-        return res.status(500).json({ message: "Failed to delete workflow" });
-      }
-
-      // Log the deletion as an activity
-      await storage.createActivity({
-        type: "deleted_workflow",
-        description: `Deleted workflow "${existingWorkflow.name}"`,
-        userId: req.session.userId || 1, // Use demo user if not logged in
-        projectId: existingWorkflow.projectId,
-        relatedEntityId: null
-      });
-
-      res.json({ message: "Workflow deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting workflow:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Generate workflow from requirements tagged with "workflow"
-  app.post("/api/projects/:projectId/generate-workflow", async (req: Request, res: Response) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Check if project exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      // Get specific requirements if IDs were provided, otherwise get all workflow category requirements
-      let workflowRequirements;
-      
-      if (req.body.requirementIds && Array.isArray(req.body.requirementIds) && req.body.requirementIds.length > 0) {
-        // Get the specified requirements with their acceptance criteria
-        workflowRequirements = await db.query.requirements.findMany({
-          where: and(
-            eq(requirements.projectId, projectId),
-            inArray(requirements.id, req.body.requirementIds)
-          )
-        });
-      } else {
-        // Get all requirements with the "workflow" category and their acceptance criteria
-        workflowRequirements = await db.query.requirements.findMany({
-          where: and(
-            eq(requirements.projectId, projectId),
-            eq(requirements.category, "workflow")
-          )
-        });
-      }
-
-      if (workflowRequirements.length === 0) {
-        return res.status(404).json({ 
-          message: "No workflow requirements found",
-          detail: "Add requirements with the 'Workflow' category to generate a workflow"
-        });
-      }
-
-      // Create a new workflow with default structure
-      const workflowName = req.body.name || `${project.name} Workflow`;
-      
-      let nodes: WorkflowNode[] = [];
-      let edges: WorkflowEdge[] = [];
-      
-      // For Claude-based workflow generation, we'll use a single requirement with its acceptance criteria
-      // If multiple requirements are selected, we'll use the first one for simplicity
-      const primaryRequirement = workflowRequirements[0];
-      
-      // Check for Anthropic API key
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
-        console.error('Missing ANTHROPIC_API_KEY environment variable');
-        return res.status(500).json({ 
-          message: "Missing API key",
-          detail: "Claude API key is not configured. Please set the ANTHROPIC_API_KEY environment variable."
-        });
-      }
-      
-      // Try to generate workflow using the workflow service
-      try {
-        // Import the workflow service
-        const { generateWorkflowDiagram } = await import('./services/workflow-service');
-        
-        // Call the service to generate the workflow
-        console.log(`Generating workflow diagram with Claude for ${primaryRequirement.title}...`);
-        const workflowJson = await generateWorkflowDiagram(primaryRequirement);
-        
-        // Transform Claude's output to our WorkflowNode and WorkflowEdge format
-        if (workflowJson && workflowJson.nodes && workflowJson.edges) {
-          // Map Claude's nodes to our format
-          const mappedNodes = workflowJson.nodes.map((node: any) => {
-            // Map Claude's nodeType to our node type format
-            let nodeType = 'task'; // Default to task
-            switch (node.data.nodeType) {
-              case 'Start Event': nodeType = 'start'; break;
-              case 'End Event': nodeType = 'end'; break;
-              case 'Task': nodeType = 'task'; break;
-              case 'Subprocess': nodeType = 'subprocess'; break;
-              case 'Decision': nodeType = 'decision'; break;
-              case 'Parallel GW': nodeType = 'parallel'; break;
-              case 'User Task': nodeType = 'userTask'; break;
-              case 'Wait / Delay': nodeType = 'wait'; break;
-              case 'Message Event': nodeType = 'message'; break;
-              case 'Error Event': nodeType = 'error'; break;
-              case 'Annotation': nodeType = 'annotation'; break;
-            }
-            
-            return {
-              id: node.id,
-              type: nodeType,
-              // Initially set position to origin, will be arranged by layout algorithm
-              position: { x: 0, y: 0 },
-              data: {
-                label: node.data.label,
-                description: node.data.justification,
-                requirementId: primaryRequirement.id,
-                properties: {
-                  justification: node.data.justification
-                }
-              }
-            };
-          });
-          
-          // Map Claude's edges to our format
-          const mappedEdges = workflowJson.edges.map((edge: any) => {
-            return {
-              id: edge.id,
-              source: edge.source,
-              target: edge.target,
-              label: edge.label || '',
-              type: edge.type === 'smoothstep' ? 'default' : edge.type || 'default',
-              animated: false
-            };
-          });
-          
-          // Apply layout algorithm to the nodes
-          // We'll use a simple hierarchical layout (top to bottom)
-          
-          // Step 1: Build a graph structure from nodes and edges
-          type GraphNode = {
-            id: string;
-            nodeData: any;
-            outgoingEdges: string[]; // target node IDs
-            incomingEdges: string[]; // source node IDs
-            level?: number; // Level in the hierarchy (distance from start)
-            column?: number; // Column in the layout
-          };
-          
-          const graph: Record<string, GraphNode> = {};
-          
-          // Initialize graph with nodes
-          mappedNodes.forEach(node => {
-            graph[node.id] = {
-              id: node.id,
-              nodeData: node,
-              outgoingEdges: [],
-              incomingEdges: [],
-            };
-          });
-          
-          // Add edge information to the graph
-          mappedEdges.forEach(edge => {
-            if (graph[edge.source]) {
-              graph[edge.source].outgoingEdges.push(edge.target);
-            }
-            if (graph[edge.target]) {
-              graph[edge.target].incomingEdges.push(edge.source);
-            }
-          });
-          
-          // Step 2: Find start and end nodes (sources and sinks)
-          const startNodes: string[] = [];
-          const endNodes: string[] = [];
-          
-          Object.keys(graph).forEach(nodeId => {
-            const node = graph[nodeId];
-            
-            // Node with no incoming edges is a source/start
-            if (node.incomingEdges.length === 0) {
-              startNodes.push(nodeId);
-            }
-            
-            // Node with no outgoing edges is a sink/end
-            if (node.outgoingEdges.length === 0) {
-              endNodes.push(nodeId);
-            }
-          });
-          
-          // Step 3: Assign levels to nodes (distance from start)
-          // Start with start nodes at level 0
-          startNodes.forEach(nodeId => {
-            graph[nodeId].level = 0;
-          });
-          
-          // Breadth-first traversal to assign levels
-          const queue = [...startNodes];
-          const visited = new Set<string>(startNodes);
-          
-          while (queue.length > 0) {
-            const currentId = queue.shift()!;
-            const currentNode = graph[currentId];
-            
-            currentNode.outgoingEdges.forEach(targetId => {
-              const targetNode = graph[targetId];
-              
-              // Update level if not set or if new level is higher
-              const newLevel = (currentNode.level || 0) + 1;
-              if (targetNode.level === undefined || newLevel > targetNode.level) {
-                targetNode.level = newLevel;
-              }
-              
-              // Add to queue if not visited
-              if (!visited.has(targetId)) {
-                queue.push(targetId);
-                visited.add(targetId);
-              }
-            });
-          }
-          
-          // For any unvisited nodes (disconnected), set a default level
-          Object.keys(graph).forEach(nodeId => {
-            if (graph[nodeId].level === undefined) {
-              graph[nodeId].level = 0;
-            }
-          });
-          
-          // Step 4: Assign columns to nodes within each level
-          // First, count nodes at each level
-          const levelCounts: Record<number, number> = {};
-          const nodesAtLevel: Record<number, string[]> = {};
-          
-          Object.keys(graph).forEach(nodeId => {
-            const level = graph[nodeId].level || 0;
-            if (!levelCounts[level]) {
-              levelCounts[level] = 0;
-              nodesAtLevel[level] = [];
-            }
-            nodesAtLevel[level].push(nodeId);
-            levelCounts[level]++;
-          });
-          
-          // Assign columns based on node position within level
-          Object.keys(nodesAtLevel).forEach(level => {
-            const nodesInLevel = nodesAtLevel[Number(level)];
-            const nodeCount = nodesInLevel.length;
-            
-            nodesInLevel.forEach((nodeId, index) => {
-              graph[nodeId].column = index;
-            });
-          });
-          
-          // Step 5: Calculate final positions
-          const LEVEL_HEIGHT = 150; // Vertical spacing between levels
-          const NODE_WIDTH = 200; // Horizontal spacing between nodes
-          
-          // Apply positions to nodes
-          mappedNodes.forEach(node => {
-            const graphNode = graph[node.id];
-            const level = graphNode.level || 0;
-            const column = graphNode.column || 0;
-            const totalNodesAtLevel = levelCounts[level] || 1;
-            
-            // Center nodes horizontally at each level
-            const levelWidth = totalNodesAtLevel * NODE_WIDTH;
-            const startX = -(levelWidth / 2) + (NODE_WIDTH / 2);
-            
-            node.position = {
-              x: startX + (column * NODE_WIDTH),
-              y: level * LEVEL_HEIGHT
-            };
-          });
-          
-          nodes = mappedNodes;
-          edges = mappedEdges;
-        } else {
-          // Fallback if Claude doesn't return proper structure
-          console.error('Invalid workflow structure in Claude response');
-          throw new Error('Invalid workflow structure in Claude response');
-        }
-      } catch (aiError) {
-        console.error('Error generating workflow with Claude:', aiError);
-        
-        // Fallback to basic workflow structure if Claude API fails
-        console.log('Falling back to basic workflow structure');
-        
-        // Generate nodes for start, end, and each requirement
-        nodes = [
-          {
-            id: 'start',
-            type: 'start',
-            position: { x: 250, y: 50 },
-            data: { label: 'Start' }
-          }
-        ];
-        
-        // Add nodes for each requirement
-        workflowRequirements.forEach((req, index) => {
-          nodes.push({
-            id: `req-${req.id}`,
-            type: 'task',
-            position: { x: 250, y: 150 + (index * 100) },
-            data: {
-              label: req.title,
-              description: req.description,
-              requirementId: req.id
-            }
-          });
-        });
-        
-        // Add end node
-        nodes.push({
-          id: 'end',
-          type: 'end',
-          position: { x: 250, y: 150 + (workflowRequirements.length * 100) },
-          data: { label: 'End' }
-        });
-        
-        // Generate edges connecting all nodes in sequence
-        edges = [];
-        
-        // Connect start to first requirement
-        if (workflowRequirements.length > 0) {
-          edges.push({
-            id: 'start-to-first',
-            source: 'start',
-            target: `req-${workflowRequirements[0].id}`,
-            type: 'default'
-          });
-        } else {
-          // If no requirements, connect start directly to end
-          edges.push({
-            id: 'start-to-end',
-            source: 'start',
-            target: 'end',
-            type: 'default'
-          });
-        }
-      
-        // Connect requirements to each other in sequence
-        for (let i = 0; i < workflowRequirements.length - 1; i++) {
-          edges.push({
-            id: `req-${workflowRequirements[i].id}-to-req-${workflowRequirements[i+1].id}`,
-            source: `req-${workflowRequirements[i].id}`,
-            target: `req-${workflowRequirements[i+1].id}`,
-            type: 'default'
-          });
-        }
-        
-        // Connect last requirement to end
-        if (workflowRequirements.length > 0) {
-          edges.push({
-            id: 'last-to-end',
-            source: `req-${workflowRequirements[workflowRequirements.length-1].id}`,
-            target: 'end',
-            type: 'default'
-          });
-        }
-      }
-      
-      // Create the workflow
-      const newWorkflow = await storage.createWorkflow({
-        name: workflowName,
-        description: req.body.description || 'Automatically generated workflow from requirements',
-        projectId,
-        status: 'draft',
-        version: 1,
-        nodes,
-        edges
-      });
-      
-      // Log the creation as an activity
-      await storage.createActivity({
-        type: "generated_workflow",
-        description: `Generated workflow "${newWorkflow.name}" from ${workflowRequirements.length} requirements`,
-        userId: req.session.userId || 1, // Use demo user if not logged in
-        projectId,
-        relatedEntityId: newWorkflow.id
-      });
-      
-      res.status(201).json(newWorkflow);
-    } catch (error) {
-      console.error("Error generating workflow:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Input data endpoints
-  app.get("/api/projects/:projectId/input-data", async (req: Request, res: Response) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      // Check if project exists in the database
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      const inputDataItems = await storage.getInputDataByProject(projectId);
-      res.json(inputDataItems);
-    } catch (error) {
-      console.error("Error fetching input data:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.post("/api/projects/:projectId/input-data", upload.single('file'), async (req: Request, res: Response) => {
+  // Input data routes have been moved to input-data-routes.ts
+  /*app.post("/api/projects/:projectId/input-data", upload.single('file'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
@@ -1930,7 +655,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Input data processing endpoint
-  app.post("/api/input-data/:inputDataId/process", async (req: Request, res: Response) => {
+  // Input data routes have been moved to input-data-routes.ts
+  /*app.post("/api/input-data/:inputDataId/process", async (req: Request, res: Response) => {
     try {
       const inputDataId = parseInt(req.params.inputDataId);
       if (isNaN(inputDataId)) {
@@ -1953,7 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2103,7 +829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error processing input data:", error);
       res.status(500).json({ message: "Internal server error" });
     }
-  });
+  });*/
 
   // Requirements endpoints
   // Define high-priority requirements route explicitly first
@@ -2265,7 +991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2332,8 +1058,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Requirement does not belong to this project" });
       }
 
-      // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      // Use the currently logged in user from the session
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const user = await storage.getUser(req.session.userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2394,7 +1124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2650,7 +1380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2752,7 +1482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2802,7 +1532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For demo, always use the demo user
-      const user = await storage.getUserByUsername("demo");
+      const user = await getCurrentUser(req, storage);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2887,11 +1617,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Use the already imported function
       // Generate acceptance criteria using Claude
       const acceptanceCriteria = await generateAcceptanceCriteria(
+        requirement.description,
         project.name,
-        project.description || "No project description available",
-        requirement.description
+        project.description || "No project description available"
       );
 
       // Update the requirement with the new acceptance criteria
@@ -3014,6 +1745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Generating Salesforce implementation tasks using Claude AI for requirement: ${requirement.codeId}`);
       
+      // Use the function imported at the top of the file
       // Use Claude AI to generate Salesforce-specific implementation tasks
       const generatedTasks = await generateImplementationTasks(
         project.name,
@@ -3104,6 +1836,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // We still pass userId for logging purposes, but the search will be across all records
+      console.log(`Performing quick search with query "${query}" for user ${userId}`);
       const results = await storage.quickSearch(userId, query, limit);
       res.status(200).json(results);
     } catch (error) {
@@ -3147,6 +1881,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Performing advanced search with query "${query}" for user ${userId}`);
       
+      // We still pass userId for logging purposes, but the storage.advancedSearch
+      // function should be modified to search across all records
       const results = await storage.advancedSearch(
         userId, 
         query, 
@@ -3731,6 +2467,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register admin routes
   registerAdminRoutes(app);
+  
+  // Register customer routes
+  registerCustomerRoutes(app);
+  
+  // Register project routes
+  registerProjectRoutes(app);
+  
+  // Register input data routes
+  registerInputDataRoutes(app);
+  
+  // Register search routes
+  registerSearchRoutes(app);
   
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Unhandled error:", err);

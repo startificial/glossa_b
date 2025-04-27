@@ -12,6 +12,8 @@ export * from './project-role-controller';
 export * from './requirement-role-effort-controller';
 export * from './task-role-effort-controller';
 export * from './application-settings-controller';
+export * from './input-data-controller';
+export * from './requirement-analysis-controller';
 
 // Create and export singleton instances of each controller
 import { UserController } from './user-controller';
@@ -21,6 +23,8 @@ import { ProjectRoleController } from './project-role-controller';
 import { RequirementRoleEffortController } from './requirement-role-effort-controller';
 import { TaskRoleEffortController } from './task-role-effort-controller';
 import { applicationSettingsController } from './application-settings-controller';
+import { inputDataController } from './input-data-controller';
+import { requirementAnalysisController } from './requirement-analysis-controller';
 
 // Singleton instances for route registration
 export const userController = new UserController();

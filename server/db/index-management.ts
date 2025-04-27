@@ -4,7 +4,7 @@
  * This utility file provides functions to manage database indexes
  * to optimize performance for common query patterns.
  */
-import { db } from '../database';
+import { db } from '../db';
 import { sql } from 'drizzle-orm';
 
 /**

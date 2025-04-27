@@ -258,10 +258,14 @@ export function InputDataList({ projectId }: InputDataListProps) {
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <p className="text-xs text-muted-foreground mt-1">Extracting requirements with AI...</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Extracting requirements with AI...
+                                </p>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p className="text-xs">This process may take a few minutes depending on file size and complexity</p>
+                                <p className="text-xs">
+                                  This process may take a few minutes depending on file size and complexity
+                                </p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>

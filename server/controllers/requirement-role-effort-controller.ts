@@ -1,166 +1,216 @@
 /**
  * Requirement Role Effort Controller
  * 
- * Handles HTTP requests related to requirement role efforts.
- * Used for managing role-based effort estimation for requirements.
+ * Handles operations related to role efforts for requirements.
  */
 import { Request, Response } from 'express';
+import { db } from '../db';
+import { requirements, requirementRoleEfforts } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 import { storage } from '../storage';
-import { asyncHandler } from '../utils/async-handler';
-import { UnauthorizedError, NotFoundError, BadRequestError } from '../error/api-error';
+import { logger } from '../utils/logger';
 import { z } from 'zod';
-import { insertRequirementRoleEffortSchema } from '@shared/schema';
 
+// Role effort validation schema
+const roleEffortSchema = z.object({
+  roleId: z.number().int().positive(),
+  hourlyRate: z.number().positive().optional(),
+  hours: z.number().positive(),
+  notes: z.string().optional()
+});
+
+/**
+ * Controller for requirement role effort related operations
+ */
 export class RequirementRoleEffortController {
   /**
-   * Get all role efforts for a specific requirement
+   * Get role efforts for a requirement
+   * @param req Express request object
+   * @param res Express response object
    */
-  getAllEfforts = asyncHandler(async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.projectId);
-    const requirementId = parseInt(req.params.requirementId);
-    
-    if (isNaN(projectId) || isNaN(requirementId)) {
-      throw new BadRequestError('Invalid project or requirement ID');
+  async getRoleEffortsForRequirement(req: Request, res: Response): Promise<Response> {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      // Check if requirement exists
+      const requirement = await db.query.requirements.findFirst({
+        where: eq(requirements.id, requirementId)
+      });
+      
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+
+      // Get role efforts for the requirement
+      const roleEfforts = await db.query.requirementRoleEfforts.findMany({
+        where: eq(requirementRoleEfforts.requirementId, requirementId)
+      });
+      
+      // Get roles information to include in response
+      const roleIds = new Set(roleEfforts.map(effort => effort.roleId));
+      const rolesPromises = Array.from(roleIds).map(roleId => storage.getProjectRole(roleId));
+      const roles = await Promise.all(rolesPromises);
+      
+      // Create a map for quick lookup
+      const roleMap = new Map();
+      roles.forEach(role => {
+        if (role) {
+          roleMap.set(role.id, role);
+        }
+      });
+      
+      // Add role details to efforts
+      const effortsWithRoleDetails = roleEfforts.map(effort => {
+        const role = roleMap.get(effort.roleId);
+        return {
+          ...effort,
+          role: role ? {
+            id: role.id,
+            name: role.name,
+            description: role.description,
+            projectId: role.projectId
+          } : null
+        };
+      });
+      
+      return res.json(effortsWithRoleDetails);
+    } catch (error) {
+      logger.error("Error fetching role efforts for requirement:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    
-    // Check if requirement exists and belongs to the project
-    const requirement = await storage.getRequirementWithProjectCheck(requirementId, projectId);
-    if (!requirement) {
-      throw new NotFoundError('Requirement not found or does not belong to the specified project');
-    }
-    
-    // Get all role efforts for the requirement
-    const efforts = await storage.getRequirementRoleEfforts(requirementId);
-    
-    res.json(efforts);
-  });
-  
+  }
+
   /**
-   * Create a new requirement role effort
+   * Create a role effort for a requirement
+   * @param req Express request object
+   * @param res Express response object
    */
-  createEffort = asyncHandler(async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.projectId);
-    const requirementId = parseInt(req.params.requirementId);
-    
-    if (isNaN(projectId) || isNaN(requirementId)) {
-      throw new BadRequestError('Invalid project or requirement ID');
-    }
-    
-    // Check if requirement exists and belongs to the project
-    const requirement = await storage.getRequirementWithProjectCheck(requirementId, projectId);
-    if (!requirement) {
-      throw new NotFoundError('Requirement not found or does not belong to the specified project');
-    }
-    
-    // Validate role ID
-    const roleId = parseInt(req.body.roleId);
-    if (isNaN(roleId)) {
-      throw new BadRequestError('Invalid role ID');
-    }
-    
-    // Check if role exists and belongs to the project
-    const role = await storage.getProjectRole(roleId);
-    if (!role) {
-      throw new NotFoundError('Role not found');
-    }
-    
-    if (role.projectId !== projectId) {
-      throw new BadRequestError('Role does not belong to the specified project');
-    }
-    
-    // Validate the request body
-    const createEffortSchema = insertRequirementRoleEffortSchema.extend({
-      // Add additional validation if needed
-    });
-    
-    const validatedData = createEffortSchema.parse({
-      ...req.body,
-      requirementId: requirementId
-    });
-    
-    // Create the effort
-    const effort = await storage.createRequirementRoleEffort(validatedData);
-    
-    // Return the created effort
-    res.status(201).json(effort);
-  });
-  
-  /**
-   * Update an existing requirement role effort
-   */
-  updateEffort = asyncHandler(async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.projectId);
-    const requirementId = parseInt(req.params.requirementId);
-    const effortId = parseInt(req.params.effortId);
-    
-    if (isNaN(projectId) || isNaN(requirementId) || isNaN(effortId)) {
-      throw new BadRequestError('Invalid project, requirement, or effort ID');
-    }
-    
-    // Check if requirement exists and belongs to the project
-    const requirement = await storage.getRequirementWithProjectCheck(requirementId, projectId);
-    if (!requirement) {
-      throw new NotFoundError('Requirement not found or does not belong to the specified project');
-    }
-    
-    // Validate the request body
-    const updateEffortSchema = insertRequirementRoleEffortSchema.partial().extend({
-      // Add additional validation if needed
-    });
-    
-    const validatedData = updateEffortSchema.parse(req.body);
-    
-    // If role ID is provided, validate it
-    if (validatedData.roleId) {
-      const role = await storage.getProjectRole(validatedData.roleId);
-      if (!role) {
-        throw new NotFoundError('Role not found');
+  async createRoleEffortForRequirement(req: Request, res: Response): Promise<Response> {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      if (isNaN(requirementId)) {
+        return res.status(400).json({ message: "Invalid requirement ID" });
+      }
+
+      // Check if requirement exists
+      const requirement = await db.query.requirements.findFirst({
+        where: eq(requirements.id, requirementId)
+      });
+      
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+
+      // Validate role effort data
+      const validationResult = roleEffortSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid role effort data", 
+          errors: validationResult.error.errors 
+        });
       }
       
-      if (role.projectId !== projectId) {
-        throw new BadRequestError('Role does not belong to the specified project');
+      // Get role to verify it exists
+      const role = await storage.getProjectRole(validationResult.data.roleId);
+      if (!role) {
+        return res.status(404).json({ message: "Role not found" });
       }
+      
+      // Create role effort
+      const roleEffort = await storage.createRequirementRoleEffort({
+        requirementId,
+        roleId: validationResult.data.roleId,
+        hourlyRate: validationResult.data.hourlyRate,
+        hours: validationResult.data.hours,
+        notes: validationResult.data.notes
+      });
+      
+      // Add activity for role effort creation
+      await storage.createActivity({
+        type: "created_role_effort",
+        description: `Added effort estimate for role "${role.name}" to requirement "${requirement.title}"`,
+        userId: req.session.userId || 1, // Use demo user if not logged in
+        projectId: requirement.projectId,
+        relatedEntityId: roleEffort.id
+      });
+      
+      // Get the role details to include in response
+      const roleEffortWithRoleDetails = {
+        ...roleEffort,
+        role: {
+          id: role.id,
+          name: role.name,
+          description: role.description,
+          projectId: role.projectId
+        }
+      };
+      
+      return res.status(201).json(roleEffortWithRoleDetails);
+    } catch (error) {
+      logger.error("Error creating role effort for requirement:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    
-    // Update the effort
-    const updatedEffort = await storage.updateRequirementRoleEffort(effortId, validatedData);
-    
-    if (!updatedEffort) {
-      throw new BadRequestError('Failed to update effort');
-    }
-    
-    // Return the updated effort
-    res.json(updatedEffort);
-  });
-  
+  }
+
   /**
-   * Delete a requirement role effort
+   * Delete a role effort for a requirement
+   * @param req Express request object
+   * @param res Express response object
    */
-  deleteEffort = asyncHandler(async (req: Request, res: Response) => {
-    const projectId = parseInt(req.params.projectId);
-    const requirementId = parseInt(req.params.requirementId);
-    const effortId = parseInt(req.params.effortId);
-    
-    if (isNaN(projectId) || isNaN(requirementId) || isNaN(effortId)) {
-      throw new BadRequestError('Invalid project, requirement, or effort ID');
+  async deleteRoleEffortForRequirement(req: Request, res: Response): Promise<Response> {
+    try {
+      const requirementId = parseInt(req.params.requirementId);
+      const effortId = parseInt(req.params.effortId);
+      
+      if (isNaN(requirementId) || isNaN(effortId)) {
+        return res.status(400).json({ message: "Invalid requirement ID or effort ID" });
+      }
+
+      // Check if requirement exists
+      const requirement = await db.query.requirements.findFirst({
+        where: eq(requirements.id, requirementId)
+      });
+      
+      if (!requirement) {
+        return res.status(404).json({ message: "Requirement not found" });
+      }
+
+      // Get the effort to check if it exists and to get role info for the activity
+      const effort = await db.query.requirementRoleEfforts.findFirst({
+        where: eq(requirementRoleEfforts.id, effortId)
+      });
+      
+      if (!effort) {
+        return res.status(404).json({ message: "Role effort not found" });
+      }
+      
+      // Get role for activity context
+      const role = await storage.getProjectRole(effort.roleId);
+      
+      // Delete the role effort
+      await storage.deleteRequirementRoleEffort(effortId);
+      
+      // Add activity for role effort deletion
+      await storage.createActivity({
+        type: "deleted_role_effort",
+        description: `Removed effort estimate for role "${role ? role.name : 'Unknown'}" from requirement "${requirement.title}"`,
+        userId: req.session.userId || 1, // Use demo user if not logged in
+        projectId: requirement.projectId,
+        relatedEntityId: null
+      });
+      
+      return res.status(200).json({ 
+        message: "Role effort deleted successfully", 
+        effortId 
+      });
+    } catch (error) {
+      logger.error("Error deleting role effort for requirement:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    
-    // Check if requirement exists and belongs to the project
-    const requirement = await storage.getRequirementWithProjectCheck(requirementId, projectId);
-    if (!requirement) {
-      throw new NotFoundError('Requirement not found or does not belong to the specified project');
-    }
-    
-    // Delete the effort
-    const success = await storage.deleteRequirementRoleEffort(effortId);
-    
-    if (!success) {
-      throw new BadRequestError('Failed to delete effort');
-    }
-    
-    res.status(204).end();
-  });
+  }
 }
 
-// Create instance for use in routes
 export const requirementRoleEffortController = new RequirementRoleEffortController();

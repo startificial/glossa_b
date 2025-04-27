@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Project } from "@/lib/types";
 import { ProjectCard } from "@/components/projects/project-card";
 import { Button } from "@/components/ui/button";
@@ -9,21 +8,22 @@ import { PlusIcon } from "lucide-react";
 import { useLocation } from "wouter";
 import { GlobalActivityFeed } from "@/components/dashboard/global-activity-feed";
 import glossaLogo from "../assets/glossa-logo.png";
+import { useProjects } from "@/hooks/use-projects"; // Use the specialized hook
 
 export default function Dashboard() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
+  // Use the specialized hook for better error handling and type safety
   const { 
-    data: projects, 
+    projects, 
     isLoading, 
     error 
-  } = useQuery<Project[]>({
-    queryKey: ['/api/projects']
-  });
+  } = useProjects();
   
   useEffect(() => {
     if (error) {
+      console.error("Dashboard project fetch error:", error);
       toast({
         title: "Error",
         description: "Failed to load projects. Please try again later.",

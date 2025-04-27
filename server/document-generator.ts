@@ -9,6 +9,7 @@ import { Project, Requirement, ImplementationTask } from '@shared/schema';
 import path from 'path';
 import fs from 'fs/promises';
 import { jsPDF } from 'jspdf';
+import { DEFAULT_SYSTEM_NAMES } from '../shared/config/system-defaults';
 
 /**
  * Helper function to safely convert a string to HTML
@@ -52,10 +53,10 @@ function generateSowPdfContent(
   // Introduction
   content += `1. INTRODUCTION\n\n`;
   content += `Client: ${project.customer || 'Client'}\n`;
-  content += `Source System: ${project.sourceSystem || 'Legacy System'}\n`;
-  content += `Target System: ${project.targetSystem || 'New System'}\n\n`;
+  content += `Source System: ${project.sourceSystem || DEFAULT_SYSTEM_NAMES.source}\n`;
+  content += `Target System: ${project.targetSystem || DEFAULT_SYSTEM_NAMES.target}\n\n`;
   content += `This Statement of Work (SOW) outlines the software implementation work to be performed `;
-  content += `for the migration from ${project.sourceSystem || 'Legacy System'} to ${project.targetSystem || 'New System'}.\n\n`;
+  content += `for the migration from ${project.sourceSystem || DEFAULT_SYSTEM_NAMES.source} to ${project.targetSystem || DEFAULT_SYSTEM_NAMES.target}.\n\n`;
   
   // Project Description
   content += `2. PROJECT DESCRIPTION\n\n`;
@@ -117,7 +118,7 @@ function generateImplementationPlanPdfContent(
   // Overview
   content += `1. OVERVIEW\n\n`;
   content += `This implementation plan outlines the steps required to successfully migrate `;
-  content += `from ${project.sourceSystem || 'Legacy System'} to ${project.targetSystem || 'New System'}.\n\n`;
+  content += `from ${project.sourceSystem || DEFAULT_SYSTEM_NAMES.source} to ${project.targetSystem || DEFAULT_SYSTEM_NAMES.target}.\n\n`;
   
   // Implementation Approach
   content += `2. IMPLEMENTATION APPROACH\n\n`;

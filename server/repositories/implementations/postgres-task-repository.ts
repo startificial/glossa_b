@@ -5,7 +5,7 @@
  * Includes performance optimizations like caching and efficient querying.
  */
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { db } from '../../database';
+import { db } from '../../db';
 import { implementationTasks, requirements } from '../../../shared/schema';
 import { TaskRepository } from '../base-repository';
 import { cacheService, CACHE_KEYS } from '../../services/cache-service';

@@ -180,7 +180,24 @@ export default function RequirementDetail({ projectId, requirementId }: Requirem
   }, [requirement]);
   
   const handleSave = () => {
-    updateRequirementMutation.mutate(formData);
+    // Ensure we preserve all existing fields that aren't in the form
+    // by merging formData with the existing requirement data
+    if (requirement) {
+      const updatedData = {
+        ...formData,
+        // Preserve these fields from the existing requirement
+        title: requirement.title,
+        codeId: requirement.codeId,
+        source: requirement.source,
+        videoScenes: requirement.videoScenes || [],
+        textReferences: requirement.textReferences || [],
+        audioTimestamps: requirement.audioTimestamps || [],
+        expertReview: requirement.expertReview
+      };
+      updateRequirementMutation.mutate(updatedData);
+    } else {
+      updateRequirementMutation.mutate(formData);
+    }
   };
   
   const handleDelete = () => {

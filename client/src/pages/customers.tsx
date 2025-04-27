@@ -8,14 +8,22 @@ import { Input } from "../components/ui/input";
 import { Plus, Search } from "lucide-react";
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from "../components/ui/page-header";
 import { CustomerDialog } from "../components/customers/customer-dialog";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Customers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  const { data: customers, isLoading, isError } = useQuery<Customer[]>({
+  // Use the standard query configuration from queryClient
+  const { 
+    data: customers, 
+    isLoading, 
+    isError,
+    error,
+    refetch
+  } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
-    staleTime: 60000, // 1 minute
+    retry: 1
   });
   
   // Filter customers based on search query
@@ -66,8 +74,18 @@ export default function Customers() {
         ) : isError ? (
           <div className="py-12 text-center">
             <h3 className="text-lg font-medium mb-2">Failed to load customers</h3>
-            <p className="text-muted-foreground mb-4">There was an error loading the customers. Please try again.</p>
-            <Button onClick={() => window.location.reload()}>Retry</Button>
+            <p className="text-muted-foreground mb-4">
+              There was an error loading the customers. Please try again.
+              {error instanceof Error && (
+                <span className="block mt-2 text-sm text-destructive">
+                  {error.message}
+                </span>
+              )}
+            </p>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => refetch()}>Retry</Button>
+              <Button variant="outline" onClick={() => window.location.reload()}>Reload Page</Button>
+            </div>
           </div>
         ) : filteredCustomers && filteredCustomers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

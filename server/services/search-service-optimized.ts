@@ -10,7 +10,7 @@
  * - Optimized text searching
  */
 import { eq, and, or, like, desc, sql, inArray } from 'drizzle-orm';
-import { db } from '../database';
+import { db } from '../db';
 import { Project, Requirement, InputData, ExtendedImplementationTask } from '../interfaces/models';
 import { 
   projects, 

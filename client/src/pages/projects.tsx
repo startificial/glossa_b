@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Project } from "@/lib/types";
 import { ProjectCard } from "@/components/projects/project-card";
 import { ProjectForm } from "@/components/projects/project-form";
@@ -7,27 +6,33 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PlusIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import * as projectService from "@/services/api/projectService";
+import { useProjects } from "@/hooks/use-projects";
 
 export default function Projects() {
   const { toast } = useToast();
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   
+  // Use the specialized hook instead of direct query
   const { 
-    data: projects, 
+    projects, 
     isLoading, 
     error, 
     refetch
-  } = useQuery<Project[]>({
-    queryKey: ['/api/projects']
-  });
+  } = useProjects();
   
-  if (error) {
-    toast({
-      title: "Error",
-      description: "Failed to load projects. Please try again later.",
-      variant: "destructive"
-    });
-  }
+  // Using useEffect to handle error toast to prevent infinite rendering
+  // This ensures the toast is only shown once when an error occurs
+  useEffect(() => {
+    if (error) {
+      console.error("Project fetch error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load projects. Please try again later.",
+        variant: "destructive"
+      });
+    }
+  }, [error, toast]);
 
   const handleCreateProject = () => {
     console.log("Opening project modal");

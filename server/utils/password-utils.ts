@@ -1,28 +1,52 @@
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
+/**
+ * Password Utilities
+ * 
+ * This file contains utility functions for password hashing and verification.
+ */
+import bcrypt from 'bcrypt';
 
-const scryptAsync = promisify(scrypt);
+// Number of salt rounds for bcrypt
+const SALT_ROUNDS = 10;
 
 /**
- * Hashes a password using scrypt with a random salt
- * @param password The password to hash
- * @returns The hashed password with salt in the format hash.salt
+ * Hash a password using bcrypt
+ * 
+ * @param password - The plain text password to hash
+ * @returns The hashed password
  */
 export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
+  return bcrypt.hash(password, SALT_ROUNDS);
 }
 
 /**
- * Compares a plain text password with a stored hash
- * @param supplied The plain text password to check
- * @param stored The stored hashed password
- * @returns True if the passwords match, false otherwise
+ * Compare a plain text password with a hash
+ * 
+ * @param password - The plain text password to check
+ * @param hash - The hash to compare against
+ * @returns True if the password matches the hash, false otherwise
  */
-export async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+export async function comparePasswords(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
+}
+
+/**
+ * Generate a random token for password reset
+ * 
+ * @returns A random token string
+ */
+export function generateResetToken(): string {
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15);
+}
+
+/**
+ * Calculate token expiration date
+ * 
+ * @param hours - Number of hours before token expiration
+ * @returns Date object set to the expiration time
+ */
+export function calculateTokenExpiration(hours: number = 24): Date {
+  const expirationDate = new Date();
+  expirationDate.setHours(expirationDate.getHours() + hours);
+  return expirationDate;
 }

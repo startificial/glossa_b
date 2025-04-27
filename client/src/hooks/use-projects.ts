@@ -25,7 +25,15 @@ export function useProjects() {
   
   const query = useQuery<ProjectWithStringDates[]>({
     queryKey: projectKeys.all,
-    queryFn: () => projectService.getAllProjects() as Promise<ProjectWithStringDates[]>,
+    // Use the default fetcher function instead of custom implementation
+    // to ensure consistent error handling
+    refetchOnWindowFocus: true,
+    retry: 1,
+    
+    // Add console logging to help troubleshoot
+    onError: (error) => {
+      console.error('Project fetch error details:', error);
+    }
   });
   
   return {
